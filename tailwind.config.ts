@@ -60,7 +60,7 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
-        // Quiet Luxury Palette
+
         'heirloom-white': '#F6F3EC',
         'deep-forest': '#1F2F26',
         'slate-bark': '#2E2E2C',

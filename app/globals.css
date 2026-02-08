@@ -63,9 +63,7 @@
     --radius: 0.5rem;
   }
 
-  /* Retain dark mode class but map it to the same luxury theme for consistency 
-     unless a specific dark mode is requested later. This prevents breaking 
-     if the system preference is dark. */
+
   .dark {
     --background: 42 33% 95%;
     --foreground: 146 21% 15%;
