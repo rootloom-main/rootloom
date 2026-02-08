@@ -144,8 +144,8 @@ export default function CheckoutPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
-        name: 'StyleHub',
-        description: 'Purchase from StyleHub',
+        name: 'Root&Loom',
+        description: 'Purchase from Root&Loom',
         order_id: orderData.order.id,
         handler: async function (response: any) {
           try {

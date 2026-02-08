@@ -28,20 +28,16 @@ export default function SignupPage() {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
       });
 
       if (authError) throw authError;
 
       if (authData.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: authData.user.id,
-          email: authData.user.email || email,
-          full_name: fullName,
-          role: 'user',
-        });
-
-        if (profileError) throw profileError;
-
         toast.success('Account created successfully!');
         router.push('/');
         router.refresh();

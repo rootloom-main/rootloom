@@ -20,7 +20,7 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/product/${product.slug}`} className="group">
       <div className="space-y-3">
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+        <div className="relative aspect-square overflow-hidden rounded-lg bg-stone-paper">
           <Image
             src={imageUrl}
             alt={product.name}
@@ -30,10 +30,10 @@ export function ProductCard({ product }: ProductCardProps) {
           />
         </div>
         <div className="space-y-1">
-          <h3 className="font-medium text-sm line-clamp-2 group-hover:text-gray-600 transition-colors">
+          <h3 className="font-medium text-sm line-clamp-2 text-deep-forest group-hover:text-oxide-brown transition-colors">
             {product.name}
           </h3>
-          <p className="text-sm font-semibold">{formatPrice(product.base_price)}</p>
+          <p className="text-sm font-semibold text-slate-bark">{formatPrice(product.base_price)}</p>
         </div>
       </div>
     </Link>

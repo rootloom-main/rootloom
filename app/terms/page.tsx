@@ -6,7 +6,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-2xl font-semibold mb-3">Acceptance of Terms</h2>
           <p>
-            By accessing and using StyleHub, you accept and agree to be bound by the terms
+            By accessing and using Root&Loom, you accept and agree to be bound by the terms
             and provisions of this agreement.
           </p>
         </section>
@@ -39,7 +39,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-2xl font-semibold mb-3">Limitation of Liability</h2>
           <p>
-            StyleHub shall not be liable for any indirect, incidental, special,
+            Root&Loom shall not be liable for any indirect, incidental, special,
             consequential or punitive damages resulting from your use of the website or
             products.
           </p>

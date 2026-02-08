@@ -54,7 +54,7 @@ export default async function Home() {
       name: 'Rahul Verma',
       rating: 5,
       comment:
-        'Great collection and excellent customer service. Highly recommend StyleHub!',
+        'Great collection and excellent customer service. Highly recommend Root&Loom!',
     },
     {
       name: 'Anita Desai',
@@ -66,51 +66,58 @@ export default async function Home() {
 
   return (
     <div>
-      <section className="relative h-[600px] flex items-center justify-center overflow-hidden bg-gradient-to-r from-gray-900 to-gray-700">
-        <div className="absolute inset-0 z-0">
-          <Image
-            src="https://images.pexels.com/photos/1926769/pexels-photo-1926769.jpeg?auto=compress&cs=tinysrgb&w=1200"
-            alt="Hero background"
-            fill
-            className="object-cover opacity-30"
-            priority
-          />
-        </div>
-        <div className="relative z-10 container mx-auto px-4 text-center text-white">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            Elevate Your Style
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 max-w-2xl mx-auto">
-            Discover premium fashion that defines your unique personality
-          </p>
-          <Link href="/shop">
-            <Button size="lg" className="bg-white text-black hover:bg-gray-100">
-              Shop Now
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
+      <section className="relative h-screen min-h-[600px] w-full overflow-hidden bg-heirloom-white">
+        <div className="flex h-full flex-col md:flex-row">
+          <div className="relative h-[50vh] w-full md:h-full md:w-1/2">
+            <Image
+              src="/hero.png"
+              alt="Man in beige jacket looking away"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
+          <div className="flex h-[50vh] w-full flex-col justify-center px-8 md:h-full md:w-1/2 md:px-16 lg:px-24">
+            <div className="max-w-xl">
+              <h1 className="mb-6 font-serif text-5xl font-medium leading-tight text-deep-forest md:text-6xl lg:text-7xl">
+                Crafted from
+                <br />
+                the Ground Up.
+              </h1>
+              <p className="mb-10 text-lg text-slate-bark md:text-xl">
+                Rooted in heritage. Woven for today.
+              </p>
+              <Link
+                href="/shop"
+                className="group inline-flex items-center text-lg font-medium text-raw-clay hover:text-oxide-brown transition-colors"
+              >
+                Explore the Collection
+                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-heirloom-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-stone-paper mb-4 text-deep-forest">
                   <feature.icon className="h-8 w-8" />
                 </div>
-                <h3 className="font-semibold mb-2">{feature.title}</h3>
-                <p className="text-sm text-gray-600">{feature.description}</p>
+                <h3 className="font-semibold mb-2 text-deep-forest">{feature.title}</h3>
+                <p className="text-sm text-slate-bark">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-linen-wash">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">
+          <h2 className="text-3xl font-bold text-center mb-12 text-deep-forest">
             Shop by Category
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -120,7 +127,7 @@ export default async function Home() {
                 href={`/shop?category=${category.slug}`}
                 className="group"
               >
-                <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card className="overflow-hidden hover:shadow-lg transition-shadow bg-stone-paper border-none">
                   <div className="relative aspect-square">
                     <Image
                       src={category.image_url || ''}
@@ -130,7 +137,7 @@ export default async function Home() {
                     />
                   </div>
                   <CardContent className="p-4 text-center">
-                    <h3 className="font-semibold">{category.name}</h3>
+                    <h3 className="font-semibold text-deep-forest">{category.name}</h3>
                   </CardContent>
                 </Card>
               </Link>
@@ -139,12 +146,12 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-heirloom-white">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-12">
-            <h2 className="text-3xl font-bold">Featured Products</h2>
+            <h2 className="text-3xl font-bold text-deep-forest">Featured Products</h2>
             <Link href="/shop">
-              <Button variant="outline">
+              <Button variant="outline" className="border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
                 View All
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -158,25 +165,25 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-linen-wash">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12">
+          <h2 className="text-3xl font-bold text-center mb-12 text-deep-forest">
             What Our Customers Say
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <Card key={index}>
+              <Card key={index} className="bg-stone-paper border-none">
                 <CardContent className="p-6">
                   <div className="flex gap-1 mb-4">
                     {[...Array(testimonial.rating)].map((_, i) => (
                       <Star
                         key={i}
-                        className="h-5 w-5 fill-yellow-400 text-yellow-400"
+                        className="h-5 w-5 fill-raw-clay text-raw-clay"
                       />
                     ))}
                   </div>
-                  <p className="text-gray-700 mb-4">{testimonial.comment}</p>
-                  <p className="font-semibold">{testimonial.name}</p>
+                  <p className="text-slate-bark mb-4">{testimonial.comment}</p>
+                  <p className="font-semibold text-deep-forest">{testimonial.name}</p>
                 </CardContent>
               </Card>
             ))}
@@ -184,19 +191,19 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="py-20 bg-black text-white">
+      <section className="py-20 bg-deep-forest text-heirloom-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-4">Join Our Style Community</h2>
-          <p className="text-xl mb-8 text-gray-300">
+          <h2 className="text-4xl font-serif font-bold mb-4">Join Our Style Community</h2>
+          <p className="text-xl mb-8 text-ash-white">
             Get exclusive offers and be the first to know about new arrivals
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
             <input
               type="email"
               placeholder="Enter your email"
-              className="px-4 py-3 rounded-lg text-black flex-1"
+              className="px-4 py-3 rounded-lg text-deep-forest bg-stone-paper flex-1 placeholder:text-slate-bark/50 focus:outline-none focus:ring-1 focus:ring-woven-sand"
             />
-            <Button size="lg" className="bg-white text-black hover:bg-gray-100">
+            <Button size="lg" className="bg-heirloom-white text-deep-forest hover:bg-stone-paper">
               Subscribe
             </Button>
           </div>

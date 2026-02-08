@@ -64,22 +64,22 @@ export function ProductDetails({ product }: { product: Product }) {
 
   const availableColors = selectedSize
     ? Array.from(
-        new Set(
-          product.product_variants
-            .filter((v) => v.size === selectedSize && v.stock > 0)
-            .map((v) => v.color)
-        )
+      new Set(
+        product.product_variants
+          .filter((v) => v.size === selectedSize && v.stock > 0)
+          .map((v) => v.color)
       )
+    )
     : uniqueColors;
 
   const availableSizes = selectedColor
     ? Array.from(
-        new Set(
-          product.product_variants
-            .filter((v) => v.color === selectedColor && v.stock > 0)
-            .map((v) => v.size)
-        )
+      new Set(
+        product.product_variants
+          .filter((v) => v.color === selectedColor && v.stock > 0)
+          .map((v) => v.size)
       )
+    )
     : uniqueSizes;
 
   const selectedVariant = product.product_variants.find(
@@ -136,7 +136,7 @@ export function ProductDetails({ product }: { product: Product }) {
 
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-4">
-          <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+          <div className="relative aspect-square rounded-lg overflow-hidden bg-stone-paper">
             {sortedImages.length > 0 ? (
               <Image
                 src={sortedImages[selectedImage]?.image_url}
@@ -158,9 +158,8 @@ export function ProductDetails({ product }: { product: Product }) {
                 <button
                   key={image.id}
                   onClick={() => setSelectedImage(index)}
-                  className={`relative aspect-square rounded-lg overflow-hidden border-2 ${
-                    selectedImage === index ? 'border-black' : 'border-gray-200'
-                  }`}
+                  className={`relative aspect-square rounded-lg overflow-hidden border-2 ${selectedImage === index ? 'border-deep-forest' : 'border-woven-sand'
+                    }`}
                 >
                   <Image
                     src={image.image_url}
@@ -178,26 +177,26 @@ export function ProductDetails({ product }: { product: Product }) {
           {product.category && (
             <Link
               href={`/shop?category=${product.category.slug}`}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-moss-olive hover:text-deep-forest"
             >
               {product.category.name}
             </Link>
           )}
 
           <div>
-            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            <p className="text-2xl font-semibold">{formatPrice(finalPrice)}</p>
+            <h1 className="text-3xl font-bold mb-2 text-deep-forest">{product.name}</h1>
+            <p className="text-2xl font-semibold text-deep-forest">{formatPrice(finalPrice)}</p>
           </div>
 
           {product.description && (
             <div>
-              <h3 className="font-semibold mb-2">Description</h3>
-              <p className="text-gray-700">{product.description}</p>
+              <h3 className="font-semibold mb-2 text-deep-forest">Description</h3>
+              <p className="text-slate-bark">{product.description}</p>
             </div>
           )}
 
           <div>
-            <Label className="mb-3 block">Size</Label>
+            <Label className="mb-3 block text-deep-forest">Size</Label>
             <RadioGroup value={selectedSize} onValueChange={setSelectedSize}>
               <div className="flex gap-2 flex-wrap">
                 {uniqueSizes.map((size) => {
@@ -212,11 +211,10 @@ export function ProductDetails({ product }: { product: Product }) {
                       />
                       <Label
                         htmlFor={`size-${size}`}
-                        className={`flex items-center justify-center px-4 py-2 border rounded-md cursor-pointer peer-data-[state=checked]:border-black peer-data-[state=checked]:bg-black peer-data-[state=checked]:text-white ${
-                          !isAvailable
-                            ? 'opacity-50 cursor-not-allowed'
-                            : 'hover:border-gray-400'
-                        }`}
+                        className={`flex items-center justify-center px-4 py-2 border rounded-md cursor-pointer peer-data-[state=checked]:border-deep-forest peer-data-[state=checked]:bg-deep-forest peer-data-[state=checked]:text-heirloom-white ${!isAvailable
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:border-oxide-brown border-woven-sand text-slate-bark'
+                          }`}
                       >
                         {size}
                       </Label>
@@ -228,7 +226,7 @@ export function ProductDetails({ product }: { product: Product }) {
           </div>
 
           <div>
-            <Label className="mb-3 block">Color</Label>
+            <Label className="mb-3 block text-deep-forest">Color</Label>
             <RadioGroup value={selectedColor} onValueChange={setSelectedColor}>
               <div className="flex gap-2 flex-wrap">
                 {uniqueColors.map((color) => {
@@ -243,11 +241,10 @@ export function ProductDetails({ product }: { product: Product }) {
                       />
                       <Label
                         htmlFor={`color-${color}`}
-                        className={`flex items-center justify-center px-4 py-2 border rounded-md cursor-pointer peer-data-[state=checked]:border-black peer-data-[state=checked]:bg-black peer-data-[state=checked]:text-white ${
-                          !isAvailable
-                            ? 'opacity-50 cursor-not-allowed'
-                            : 'hover:border-gray-400'
-                        }`}
+                        className={`flex items-center justify-center px-4 py-2 border rounded-md cursor-pointer peer-data-[state=checked]:border-deep-forest peer-data-[state=checked]:bg-deep-forest peer-data-[state=checked]:text-heirloom-white ${!isAvailable
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:border-oxide-brown border-woven-sand text-slate-bark'
+                          }`}
                       >
                         {color}
                       </Label>
@@ -260,30 +257,31 @@ export function ProductDetails({ product }: { product: Product }) {
 
           {selectedVariant && (
             <div className="flex items-center gap-4">
-              <Badge variant={selectedVariant.stock > 0 ? 'default' : 'destructive'}>
+              <Badge variant={selectedVariant.stock > 0 ? 'default' : 'destructive'} className={selectedVariant.stock > 0 ? "bg-olive-earth hover:bg-olive-earth/90" : "bg-burnt-umber hover:bg-burnt-umber/90"}>
                 {selectedVariant.stock > 0
                   ? `${selectedVariant.stock} in stock`
                   : 'Out of stock'}
               </Badge>
               {selectedVariant.sku && (
-                <span className="text-sm text-gray-600">SKU: {selectedVariant.sku}</span>
+                <span className="text-sm text-moss-olive">SKU: {selectedVariant.sku}</span>
               )}
             </div>
           )}
 
           <div>
-            <Label className="mb-3 block">Quantity</Label>
+            <Label className="mb-3 block text-deep-forest">Quantity</Label>
             <div className="flex items-center gap-4">
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center border border-woven-sand rounded-md">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
+                  className="text-deep-forest hover:text-deep-forest hover:bg-stone-paper"
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
-                <span className="px-4 py-2 min-w-[3rem] text-center">{quantity}</span>
+                <span className="px-4 py-2 min-w-[3rem] text-center text-deep-forest">{quantity}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -293,6 +291,7 @@ export function ProductDetails({ product }: { product: Product }) {
                     )
                   }
                   disabled={!selectedVariant || quantity >= selectedVariant.stock}
+                  className="text-deep-forest hover:text-deep-forest hover:bg-stone-paper"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -302,18 +301,22 @@ export function ProductDetails({ product }: { product: Product }) {
 
           <Button
             size="lg"
-            className="w-full"
+            className="w-full border-2 border-deep-forest text-deep-forest bg-transparent hover:bg-deep-forest hover:text-heirloom-white disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleAddToCart}
             disabled={
-              !selectedSize ||
-              !selectedColor ||
-              !selectedVariant ||
-              selectedVariant.stock === 0 ||
+              Boolean(!selectedVariant && selectedSize && selectedColor) ||
+              Boolean(selectedVariant && selectedVariant.stock === 0) ||
               isAdding
             }
           >
             <ShoppingCart className="mr-2 h-5 w-5" />
-            {isAdding ? 'Adding...' : 'Add to Cart'}
+            {isAdding
+              ? 'Adding...'
+              : !selectedSize || !selectedColor
+                ? 'Add to Cart'
+                : selectedVariant?.stock === 0
+                  ? 'Out of Stock'
+                  : 'Add to Cart'}
           </Button>
         </div>
       </div>

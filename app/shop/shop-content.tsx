@@ -57,10 +57,15 @@ export function ShopContent({
     (params.get('category') as string) || 'all'
   );
   const [sortBy, setSortBy] = useState<string>(params.get('sort') || 'latest');
+  const [search, setSearch] = useState<string>(params.get('search') || '');
+
+  useEffect(() => {
+    setSearch(params.get('search') || '');
+  }, [params]);
 
   useEffect(() => {
     fetchProducts();
-  }, [selectedCategory, sortBy, priceRange]);
+  }, [selectedCategory, sortBy, priceRange, search]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -68,6 +73,10 @@ export function ShopContent({
       let query = supabase
         .from('products')
         .select('id, name, slug, base_price, product_images(image_url, alt_text)');
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      }
 
       if (selectedCategory && selectedCategory !== 'all') {
         const category = categories.find((c) => c.slug === selectedCategory);
@@ -128,11 +137,11 @@ export function ShopContent({
   const FiltersContent = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="font-semibold mb-4">Category</h3>
+        <h3 className="font-semibold mb-4 text-deep-forest">Category</h3>
         <RadioGroup value={selectedCategory} onValueChange={handleCategoryChange}>
           <div className="flex items-center space-x-2 mb-2">
             <RadioGroupItem value="all" id="all" />
-            <Label htmlFor="all" className="cursor-pointer">
+            <Label htmlFor="all" className="cursor-pointer text-slate-bark">
               All Products
             </Label>
           </div>
@@ -189,7 +198,7 @@ export function ShopContent({
 
       <div className="md:col-span-3">
         <div className="flex justify-between items-center mb-6">
-          <p className="text-gray-600">
+          <p className="text-slate-bark">
             {loading ? 'Loading...' : `${products.length} products found`}
           </p>
           <div className="flex gap-2 items-center">
@@ -213,7 +222,7 @@ export function ShopContent({
               </SheetTrigger>
               <SheetContent side="left">
                 <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
+                  <SheetTitle className="text-deep-forest">Filters</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6">
                   <FiltersContent />
@@ -225,17 +234,18 @@ export function ShopContent({
 
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin text-deep-forest" />
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-gray-600 mb-4">No products found matching your criteria.</p>
+            <p className="text-slate-bark mb-4">No products found matching your criteria.</p>
             <Button
               onClick={() => {
                 setSelectedCategory('all');
                 setPriceRange([0, 5000]);
                 router.push('/shop');
               }}
+              className="bg-deep-forest text-heirloom-white hover:bg-oxide-brown"
             >
               Clear Filters
             </Button>

@@ -165,7 +165,7 @@ CREATE POLICY "Users can insert own profile"
 -- 2. CATEGORIES TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS categories (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL UNIQUE,
   slug text NOT NULL UNIQUE,
   description text,
@@ -202,7 +202,7 @@ CREATE POLICY "Admins can manage categories"
 -- 3. PRODUCTS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS products (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   slug text NOT NULL UNIQUE,
   description text,
@@ -246,7 +246,7 @@ CREATE POLICY "Admins can manage products"
 -- 4. PRODUCT_IMAGES TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS product_images (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   image_url text NOT NULL,
   alt_text text,
@@ -285,7 +285,7 @@ CREATE POLICY "Admins can manage product images"
 -- 5. PRODUCT_VARIANTS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS product_variants (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   size text NOT NULL,
   color text NOT NULL,
@@ -328,7 +328,7 @@ CREATE POLICY "Admins can manage product variants"
 -- 6. ADDRESSES TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS addresses (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name text NOT NULL,
   phone text NOT NULL,
@@ -372,7 +372,7 @@ CREATE POLICY "Users can delete own addresses"
 -- 7. CART_ITEMS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS cart_items (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE CASCADE,
   variant_id uuid NOT NULL REFERENCES product_variants(id) ON DELETE CASCADE,
@@ -411,7 +411,7 @@ CREATE POLICY "Users can delete own cart items"
 -- 8. ORDERS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS orders (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   order_number text NOT NULL UNIQUE,
   status text DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled')),
@@ -475,7 +475,7 @@ CREATE POLICY "Admins can update orders"
 -- 9. ORDER_ITEMS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS order_items (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   product_id uuid NOT NULL REFERENCES products(id) ON DELETE SET NULL,
   variant_id uuid NOT NULL REFERENCES product_variants(id) ON DELETE SET NULL,

@@ -1,4 +1,4 @@
-# StyleHub - E-Commerce Platform
+# Root&Loom E-commerce Platform
 
 A modern, full-stack e-commerce platform built with Next.js 14, TypeScript, Supabase, and Razorpay.
 

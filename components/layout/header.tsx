@@ -5,6 +5,7 @@ import { ShoppingCart, User, Menu, X, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { Button } from '@/components/ui/button';
+import { SearchBar } from '@/components/layout/search-bar';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -37,12 +38,12 @@ export function Header({ user }: { user: any }) {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur">
+    <header className="sticky top-0 z-50 w-full border-b border-woven-sand bg-heirloom-white/95 backdrop-blur">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-2xl font-bold">
-              STYLEHUB
+            <Link href="/" className="text-2xl font-bold text-deep-forest">
+              ROOT&LOOM
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -50,7 +51,7 @@ export function Header({ user }: { user: any }) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-sm font-medium transition-colors hover:text-gray-600"
+                  className="text-sm font-medium text-deep-forest transition-colors hover:text-raw-clay"
                 >
                   {item.name}
                 </Link>
@@ -59,9 +60,9 @@ export function Header({ user }: { user: any }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="hidden md:flex">
-              <Search className="h-5 w-5" />
-            </Button>
+            <div className="hidden md:block w-full max-w-sm">
+              <SearchBar />
+            </div>
 
             <Link href="/cart">
               <Button variant="ghost" size="icon" className="relative">

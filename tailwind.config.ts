@@ -60,6 +60,21 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        // Quiet Luxury Palette
+        'heirloom-white': '#F6F3EC',
+        'deep-forest': '#1F2F26',
+        'slate-bark': '#2E2E2C',
+        'woven-sand': '#DDD6C9',
+        'raw-clay': '#8B6A4F',
+        'oxide-brown': '#6F5644',
+        'moss-olive': '#5E6B5B',
+        'linen-wash': '#EFEAE1',
+        'stone-paper': '#F1EEE7',
+        'forest-ash': '#1A231D',
+        'ash-white': '#CFCAC0',
+        'burnt-umber': '#7A3E2F',
+        'olive-earth': '#4E5F52',
+        'muted-sand': '#BEB7AA',
       },
       keyframes: {
         'accordion-down': {
