@@ -51,7 +51,6 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
-    "eslint": "^10.0.0",
     "eslint-config-next": "^16.1.6",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.446.0",
@@ -74,6 +73,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "eslint": "^9.39.2",
     "supabase": "^2.76.4"
   }
 }
