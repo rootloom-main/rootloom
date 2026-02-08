@@ -11,6 +11,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://rootloom.vercel.app'),
   title: 'Root&Loom - Premium Fashion Store',
   description: 'Your destination for premium fashion. Quality clothing for everyone.',
   openGraph: {
