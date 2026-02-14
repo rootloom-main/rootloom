@@ -7,7 +7,7 @@ import { useCart } from '@/components/providers/cart-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
-import { SearchBar } from '@/components/layout/search-bar';
+import { SmartSearch } from '@/components/search/smart-search';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -205,18 +205,25 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
 
             {/* Right: Icons */}
             <div className="flex items-center gap-1 sm:gap-2">
-              <div className="hidden lg:block w-64 mr-2">
-                <SearchBar />
+              <div className="hidden lg:block w-72 mr-2">
+                <SmartSearch />
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden text-deep-forest hover:bg-stone-paper rounded-full"
-                onClick={() => router.push('/search')}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
+              <div className="lg:hidden">
+                {/* Mobile Search - Consider moving this to a full width bar below header if needed, but for now keeping icon which toggles a modal or just the component if it fits */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">
+                      <Search className="h-5 w-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="top" className="h-auto">
+                    <div className="pt-8 pb-4">
+                      <SmartSearch />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
 
               <Link href="/account/wishlist">
                 <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">

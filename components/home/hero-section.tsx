@@ -12,6 +12,7 @@ import {
     CarouselItem,
     CarouselNext,
     CarouselPrevious,
+    type CarouselApi,
 } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -93,8 +94,23 @@ const slides = [
 
 export function HeroSection() {
     const plugin = React.useRef(
-        Autoplay({ delay: 5000, stopOnInteraction: false }) as any
+        Autoplay({ delay: 3000, stopOnInteraction: false }) as any
     );
+
+    const [api, setApi] = React.useState<CarouselApi>();
+    const [current, setCurrent] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!api) {
+            return;
+        }
+
+        setCurrent(api.selectedScrollSnap());
+
+        api.on("select", () => {
+            setCurrent(api.selectedScrollSnap());
+        });
+    }, [api]);
 
     return (
         <section className="relative w-full overflow-hidden bg-background">
@@ -103,6 +119,7 @@ export function HeroSection() {
                 className="w-full"
                 onMouseEnter={plugin.current.stop}
                 onMouseLeave={plugin.current.reset}
+                setApi={setApi}
                 opts={{
                     loop: true,
                 }}
@@ -156,6 +173,23 @@ export function HeroSection() {
                     ))}
                 </CarouselContent>
             </Carousel>
+
+            {/* Indicators */}
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                {slides.map((_, index) => (
+                    <button
+                        key={index}
+                        onClick={() => api?.scrollTo(index)}
+                        className={cn(
+                            "h-1.5 rounded-full transition-all duration-300",
+                            current === index
+                                ? "w-8 bg-white opacity-100"
+                                : "w-2 bg-white/50 hover:bg-white/75"
+                        )}
+                        aria-label={`Go to slide ${index + 1}`}
+                    />
+                ))}
+            </div>
         </section>
     );
 }
