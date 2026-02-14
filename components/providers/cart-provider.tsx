@@ -32,6 +32,8 @@ interface CartContextType {
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -39,6 +41,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const supabase = createClient();
 
   const fetchCart = async () => {
@@ -126,6 +129,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         await fetchCart();
         toast.success('Added to cart');
       }
+      setIsCartOpen(true); // Open drawer on success
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error('Failed to add to cart');
@@ -201,6 +205,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeFromCart,
         clearCart,
         refreshCart,
+        isCartOpen,
+        setIsCartOpen,
       }}
     >
       {children}

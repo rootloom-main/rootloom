@@ -16,14 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
+import { CartSheet } from '@/components/layout/cart-sheet';
 
 export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -31,7 +26,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const [lastScrollY, setLastScrollY] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  const { cartCount } = useCart();
+  const { cartCount, setIsCartOpen } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -245,18 +240,21 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
                 </Button>
               </Link>
 
-              <Link href="/cart">
-                <Button variant="ghost" size="icon" className="relative text-deep-forest hover:bg-stone-paper rounded-full">
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartCount > 0 && (
-                    <Badge
-                      className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-heirloom-white border-2 border-heirloom-white animate-in zoom-in"
-                    >
-                      {cartCount}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative text-deep-forest hover:bg-stone-paper rounded-full"
+                onClick={() => setIsCartOpen(true)}
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <Badge
+                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-heirloom-white border-2 border-heirloom-white animate-in zoom-in"
+                  >
+                    {cartCount}
+                  </Badge>
+                )}
+              </Button>
 
               {user ? (
                 <DropdownMenu>
@@ -310,6 +308,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
           </div>
         </div>
       </header>
+      <CartSheet />
     </>
   );
 }

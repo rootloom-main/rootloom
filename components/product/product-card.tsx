@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/lib/utils/format';
-import { Star, ShoppingCart, Eye, Heart } from 'lucide-react';
+import { Star, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { WishlistButton } from '@/components/product/wishlist-button';
 
 interface ProductCardProps {
   product: {
@@ -49,12 +50,14 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Quick Actions overlay on desktop */}
         <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/90 backdrop-blur-sm hidden md:flex gap-2">
-          <Button size="sm" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-sm text-xs font-medium h-9">
-            <ShoppingCart className="w-3.5 h-3.5 mr-2" /> Add to Cart
+          <Button size="sm" className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-sm text-xs font-medium h-9 pointer-events-none">
+            {/* Since the whole card is a link, this button essentially just looks good and communicates 'View' */}
+            <Eye className="w-3.5 h-3.5 mr-2" /> View Details
           </Button>
-          <Button size="icon" variant="ghost" className="h-9 w-9 rounded-sm hover:bg-slate-100 text-slate-700">
-            <Heart className="w-4 h-4" />
-          </Button>
+          <div className="pointer-events-auto">
+            {/* Wrap in div to isolate pointer events if needed, but WishlistButton handles stopPropagation */}
+            <WishlistButton productId={product.id} />
+          </div>
         </div>
       </Link>
 
@@ -90,9 +93,11 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Mobile Add to Cart (visible only on mobile) */}
-        <Button size="sm" className="w-full mt-3 md:hidden bg-slate-900 text-white text-xs h-8 rounded-sm">
-          Add to Cart
-        </Button>
+        <Link href={`/product/${product.slug}`} className="w-full mt-3 md:hidden">
+          <Button size="sm" className="w-full bg-slate-900 text-white text-xs h-8 rounded-sm">
+            View Details
+          </Button>
+        </Link>
       </div>
     </div>
   );
