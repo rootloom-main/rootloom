@@ -1,108 +1,90 @@
 import Link from 'next/link';
-import { Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 
 export function Footer() {
   const footerLinks = {
-    shop: [
-      { name: 'Men', href: '/shop?category=men' },
-      { name: 'Women', href: '/shop?category=women' },
-      { name: 'Kids', href: '/shop?category=kids' },
-      { name: 'Accessories', href: '/shop?category=accessories' },
-    ],
-    help: [
-      { name: 'Privacy Policy', href: '/privacy-policy' },
-      { name: 'Terms & Conditions', href: '/terms' },
-      { name: 'Shipping Policy', href: '/shipping-policy' },
-      { name: 'Refund Policy', href: '/refund-policy' },
-    ],
     company: [
       { name: 'About Us', href: '/about' },
       { name: 'Contact Us', href: '/contact' },
-      { name: 'Track Order', href: '/account/orders' },
+      // { name: 'Careers', href: '/about' }, // Future
     ],
+    help: [
+      { name: 'Track Order', href: '/account/orders' },
+      { name: 'Shipping Policy', href: '/shipping-policy' },
+      { name: 'Refund Policy', href: '/refund-policy' },
+      { name: 'Returns & Exchanges', href: '/refund-policy' },
+    ],
+    legal: [ // "Show these according to major ecommerce websites"
+      { name: 'Privacy Policy', href: '/privacy-policy' },
+      { name: 'Terms & Conditions', href: '/terms' },
+    ]
   };
 
   return (
     <footer className="border-t border-woven-sand bg-forest-ash text-ash-white">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold text-heirloom-white">ROOT&LOOM</h3>
-            <p className="text-sm text-ash-white/80">
-              Your destination for premium fashion. Quality clothing for everyone.
+      <div className="container mx-auto px-4 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+
+          {/* Brand Column */}
+          <div className="space-y-6">
+            <Link href="/" className="block">
+              <h3 className="font-serif text-2xl font-bold text-heirloom-white tracking-wide">ROOT & LOOM</h3>
+            </Link>
+            <p className="text-sm text-ash-white/70 leading-relaxed max-w-xs">
+              Weaving tradition into modern luxury. Sustainable, ethical, and crafted for the contemporary journey.
             </p>
-            <div className="flex gap-4">
-              <Link
-                href="https://facebook.com"
-                target="_blank"
-                className="text-ash-white hover:text-heirloom-white transition-colors"
-              >
-                <Facebook className="h-5 w-5" />
-              </Link>
-              <Link
-                href="https://instagram.com"
-                target="_blank"
-                className="text-ash-white hover:text-heirloom-white transition-colors"
-              >
-                <Instagram className="h-5 w-5" />
-              </Link>
-              <Link
-                href="https://twitter.com"
-                target="_blank"
-                className="text-ash-white hover:text-heirloom-white transition-colors"
-              >
-                <Twitter className="h-5 w-5" />
-              </Link>
-              <Link
-                href="https://youtube.com"
-                target="_blank"
-                className="text-ash-white hover:text-heirloom-white transition-colors"
-              >
-                <Youtube className="h-5 w-5" />
-              </Link>
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-sm text-ash-white/80">
+                <Mail className="h-4 w-4" />
+                <span>support@rootandloom.com</span>
+              </div>
+              {/* Placeholder for Phone/Address if needed later */}
             </div>
           </div>
 
+          {/* Company Column */}
           <div>
-            <h4 className="font-semibold mb-4 text-heirloom-white">Shop</h4>
-            <ul className="space-y-2">
-              {footerLinks.shop.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ash-white hover:text-heirloom-white transition-colors"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4 text-heirloom-white">Help</h4>
-            <ul className="space-y-2">
-              {footerLinks.help.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ash-white hover:text-heirloom-white transition-colors"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4 text-heirloom-white">Company</h4>
-            <ul className="space-y-2">
+            <h4 className="font-semibold text-heirloom-white mb-6 tracking-wide">Company</h4>
+            <ul className="space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-ash-white hover:text-heirloom-white transition-colors"
+                    className="text-sm text-ash-white/70 hover:text-heirloom-white transition-colors duration-200"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Help Column */}
+          <div>
+            <h4 className="font-semibold text-heirloom-white mb-6 tracking-wide">Help & Support</h4>
+            <ul className="space-y-3">
+              {footerLinks.help.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-ash-white/70 hover:text-heirloom-white transition-colors duration-200"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal Column */}
+          <div>
+            <h4 className="font-semibold text-heirloom-white mb-6 tracking-wide">Legal</h4>
+            <ul className="space-y-3">
+              {footerLinks.legal.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-ash-white/70 hover:text-heirloom-white transition-colors duration-200"
                   >
                     {link.name}
                   </Link>
@@ -112,8 +94,14 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-ash-white/10 text-center text-sm text-ash-white/60">
-          <p>&copy; {new Date().getFullYear()} Root&Loom. All rights reserved.</p>
+        {/* Bottom Bar */}
+        <div className="mt-16 pt-8 border-t border-ash-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-ash-white/50">
+          <p>&copy; {new Date().getFullYear()} Root & Loom. All rights reserved.</p>
+          <div className="flex gap-6">
+            {/* Payment Icons Placeholder text for now */}
+            <span>Secure Payments</span>
+            <span>SSL Encrypted</span>
+          </div>
         </div>
       </div>
     </footer>

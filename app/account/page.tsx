@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Package, MapPin } from 'lucide-react';
+import { User, Package, MapPin, Heart } from 'lucide-react';
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -46,6 +46,21 @@ export default async function AccountPage() {
           </CardContent>
         </Card>
 
+        <Link href="/account/wishlist">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Heart className="h-5 w-5 text-red-500" />
+                My Wishlist
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">View your saved items</p>
+              <Button className="mt-4 w-full" variant="outline">View Wishlist</Button>
+            </CardContent>
+          </Card>
+        </Link>
+
         <Link href="/account/orders">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
             <CardHeader>
@@ -61,20 +76,22 @@ export default async function AccountPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Addresses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600">Manage your saved addresses</p>
-            <Button className="mt-4 w-full" variant="outline">
-              Manage Addresses
-            </Button>
-          </CardContent>
-        </Card>
+        <Link href="/account/addresses">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Addresses
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">Manage your saved addresses</p>
+              <Button className="mt-4 w-full" variant="outline">
+                Manage Addresses
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

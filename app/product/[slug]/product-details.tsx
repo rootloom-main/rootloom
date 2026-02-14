@@ -13,6 +13,7 @@ import { formatPrice } from '@/lib/utils/format';
 import { Minus, Plus, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
+import { SizeGuide } from '@/components/product/size-guide';
 
 interface ProductImage {
   id: string;
@@ -44,7 +45,11 @@ interface Product {
   product_variants: ProductVariant[];
 }
 
-export function ProductDetails({ product }: { product: Product }) {
+import { WishlistButton } from '@/components/product/wishlist-button';
+
+// ... interface definitions ...
+
+export function ProductDetails({ product, isWishlisted = false }: { product: Product; isWishlisted?: boolean }) {
   const router = useRouter();
   const { addToCart } = useCart();
   const supabase = createClient();
@@ -195,8 +200,13 @@ export function ProductDetails({ product }: { product: Product }) {
             </div>
           )}
 
+
+
           <div>
-            <Label className="mb-3 block text-deep-forest">Size</Label>
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-deep-forest">Size</Label>
+              <SizeGuide />
+            </div>
             <RadioGroup value={selectedSize} onValueChange={setSelectedSize}>
               <div className="flex gap-2 flex-wrap">
                 {uniqueSizes.map((size) => {
@@ -318,6 +328,10 @@ export function ProductDetails({ product }: { product: Product }) {
                   ? 'Out of Stock'
                   : 'Add to Cart'}
           </Button>
+
+          <div className="flex justify-center mt-4">
+            <WishlistButton productId={product.id} isWishlisted={isWishlisted} variant="full" />
+          </div>
         </div>
       </div>
     </div>

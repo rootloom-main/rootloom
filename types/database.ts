@@ -15,7 +15,7 @@ export interface Database {
           email: string;
           full_name: string | null;
           phone: string | null;
-          role: 'user' | 'admin';
+          role: 'user' | 'admin' | 'superadmin';
           created_at: string;
           updated_at: string;
         };
@@ -24,7 +24,7 @@ export interface Database {
           email: string;
           full_name?: string | null;
           phone?: string | null;
-          role?: 'user' | 'admin';
+          role?: 'user' | 'admin' | 'superadmin';
           created_at?: string;
           updated_at?: string;
         };
@@ -33,7 +33,39 @@ export interface Database {
           email?: string;
           full_name?: string | null;
           phone?: string | null;
-          role?: 'user' | 'admin';
+          role?: 'user' | 'admin' | 'superadmin';
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      returns: {
+        Row: {
+          id: string;
+          user_id: string;
+          order_id: string;
+          order_item_id: string;
+          reason: string;
+          status: 'requested' | 'approved' | 'rejected' | 'refunded';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          order_id: string;
+          order_item_id: string;
+          reason: string;
+          status?: 'requested' | 'approved' | 'rejected' | 'refunded';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          order_id?: string;
+          order_item_id?: string;
+          reason?: string;
+          status?: 'requested' | 'approved' | 'rejected' | 'refunded';
           created_at?: string;
           updated_at?: string;
         };
@@ -73,6 +105,9 @@ export interface Database {
           category_id: string | null;
           base_price: number;
           featured: boolean;
+          status: 'draft' | 'active' | 'archived';
+          deleted_at: string | null;
+          embedding?: string | number[] | null; // Vector type
           created_at: string;
           updated_at: string;
         };
@@ -84,6 +119,9 @@ export interface Database {
           category_id?: string | null;
           base_price: number;
           featured?: boolean;
+          status?: 'draft' | 'active' | 'archived';
+          deleted_at?: string | null;
+          embedding?: string | number[] | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -95,8 +133,63 @@ export interface Database {
           category_id?: string | null;
           base_price?: number;
           featured?: boolean;
+          status?: 'draft' | 'active' | 'archived';
+          deleted_at?: string | null;
+          embedding?: string | number[] | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      reviews: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string;
+          rating: number;
+          comment: string | null;
+          is_approved: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id: string;
+          rating: number;
+          comment?: string | null;
+          is_approved?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          product_id?: string;
+          rating?: number;
+          comment?: string | null;
+          is_approved?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      wishlists: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          product_id?: string;
+          created_at?: string;
         };
       };
       product_images: {
@@ -169,6 +262,7 @@ export interface Database {
           quantity: number;
           created_at: string;
           updated_at: string;
+          recovery_email_sent?: boolean;
         };
         Insert: {
           id?: string;
@@ -178,6 +272,7 @@ export interface Database {
           quantity?: number;
           created_at?: string;
           updated_at?: string;
+          recovery_email_sent?: boolean;
         };
         Update: {
           id?: string;
@@ -187,6 +282,7 @@ export interface Database {
           quantity?: number;
           created_at?: string;
           updated_at?: string;
+          recovery_email_sent?: boolean;
         };
       };
       addresses: {

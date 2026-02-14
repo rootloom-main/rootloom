@@ -36,10 +36,10 @@ export default function CartPage() {
       <div className="container mx-auto px-4 py-16">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <ShoppingBag className="h-16 w-16 text-gray-400 mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Your cart is empty</h2>
-            <p className="text-gray-600 mb-6">
-              Add some products to your cart to continue shopping
+            <ShoppingBag className="h-16 w-16 text-slate-bark/50 mb-4" />
+            <h2 className="text-2xl font-serif font-semibold mb-2 text-deep-forest">Your cart is currently empty</h2>
+            <p className="text-slate-bark mb-6">
+              Discover our latest collections and find something you love.
             </p>
             <Link href="/shop">
               <Button>Continue Shopping</Button>

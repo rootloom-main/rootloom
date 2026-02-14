@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Package, MapPin, CreditCard } from 'lucide-react';
 import Image from 'next/image';
+import { CancelOrderButton } from './cancel-order-button';
 
 export default async function OrderDetailPage({
   params,
@@ -144,6 +145,20 @@ export default async function OrderDetailPage({
             </CardContent>
           </Card>
 
+          {/* Cancel Order Button */}
+          <div className="flex justify-end">
+            <CancelOrderButton orderId={order.id} orderStatus={order.status} />
+          </div>
+
+          {order.status === 'delivered' && (
+            <div className="flex justify-end">
+              <Link href={`/account/orders/${order.id}/return`}>
+                <Button variant="outline">Request Return / Exchange</Button>
+              </Link>
+            </div>
+          )}
+
+
           {order.tracking_number && (
             <Card>
               <CardHeader>
@@ -211,7 +226,11 @@ export default async function OrderDetailPage({
               <div className="mt-4 pt-4 border-t">
                 <Badge
                   variant={
-                    order.payment_status === 'completed' ? 'default' : 'destructive'
+                    order.payment_status === 'completed'
+                      ? 'default'
+                      : order.payment_status === 'pending'
+                        ? 'secondary'
+                        : 'destructive'
                   }
                 >
                   Payment {order.payment_status}

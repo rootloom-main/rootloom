@@ -57,9 +57,9 @@ export default async function OrdersPage() {
       {!orders || orders.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Package className="h-16 w-16 text-gray-400 mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">No orders yet</h2>
-            <p className="text-gray-600 mb-6">Start shopping to see your orders here</p>
+            <Package className="h-16 w-16 text-slate-bark/50 mb-4" />
+            <h2 className="text-2xl font-serif font-semibold mb-2 text-deep-forest">No orders yet</h2>
+            <p className="text-slate-bark mb-6">When you place an order, it will appear here.</p>
             <Link href="/shop">
               <Button>Start Shopping</Button>
             </Link>

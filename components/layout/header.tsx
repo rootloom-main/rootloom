@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingCart, User, Menu, X, Search } from 'lucide-react';
-import { useState } from 'react';
+import { ShoppingCart, User, Menu, X, Search, ChevronRight, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { usePathname } from 'next/navigation';
 import { SearchBar } from '@/components/layout/search-bar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -14,14 +16,49 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-export function Header({ user }: { user: any }) {
+export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+
   const { cartCount } = useCart();
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Update scrolled state for styling
+      setIsScrolled(currentScrollY > 10);
+
+      // Handle visibility
+      if (currentScrollY < 10) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsVisible(false); // Hide when scrolling down
+      } else {
+        setIsVisible(true); // Show when scrolling up
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -35,107 +72,223 @@ export function Header({ user }: { user: any }) {
     { name: 'Men', href: '/shop?category=men' },
     { name: 'Women', href: '/shop?category=women' },
     { name: 'Kids', href: '/shop?category=kids' },
+    { name: 'About', href: '/about' },
   ];
 
+  const isLinkActive = (href: string) => {
+    if (href === '/' && pathname !== '/') return false;
+    return pathname.startsWith(href) || (pathname === '/shop' && href.startsWith('/shop?'));
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-woven-sand bg-heirloom-white/95 backdrop-blur">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-2xl font-bold text-deep-forest">
-              ROOT&LOOM
-            </Link>
+    <>
+      {/* Top Announcement Bar */}
+      <div className="bg-deep-forest text-heirloom-white py-1.5 px-4 text-center text-xs font-medium tracking-wide">
+        Free Shipping on all orders over ₹999 | 30-Day Easy Returns
+      </div>
 
-            <nav className="hidden md:flex items-center gap-6">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-sm font-medium text-deep-forest transition-colors hover:text-raw-clay"
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
+      <header
+        className={cn(
+          "sticky top-0 z-50 w-full transition-all duration-300 ease-in-out font-sans",
+          isVisible ? "translate-y-0" : "-translate-y-full",
+          isScrolled
+            ? "bg-heirloom-white/90 backdrop-blur-md shadow-sm border-b border-woven-sand/50"
+            : "bg-heirloom-white border-b border-transparent"
+        )}
+      >
+        <div className="container mx-auto px-4">
+          <div className="flex h-20 items-center justify-between">
 
-          <div className="flex items-center gap-4">
-            <div className="hidden md:block w-full max-w-sm">
-              <SearchBar />
+            {/* Left: Mobile Menu & Logo */}
+            <div className="flex items-center gap-4">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden text-deep-forest hover:bg-stone-paper rounded-full">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[300px] bg-heirloom-white border-r border-woven-sand">
+                  <SheetHeader className="border-b border-woven-sand/50 pb-4 mb-4">
+                    <SheetTitle className="font-serif text-2xl font-bold text-deep-forest text-left">
+                      ROOT&LOOM
+                    </SheetTitle>
+                  </SheetHeader>
+
+                  <nav className="flex flex-col gap-2">
+                    {navigation.map((item) => {
+                      const active = isLinkActive(item.href);
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          className={cn(
+                            "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors group",
+                            active
+                              ? "bg-stone-paper text-deep-forest"
+                              : "text-slate-bark hover:bg-stone-paper/50 hover:text-deep-forest"
+                          )}
+                        >
+                          {item.name}
+                          <ChevronRight className={cn(
+                            "h-4 w-4 transition-transform opacity-0 group-hover:opacity-100",
+                            active && "opacity-100"
+                          )} />
+                        </Link>
+                      )
+                    })}
+                  </nav>
+
+                  <div className="mt-8 pt-6 border-t border-woven-sand/50 space-y-4">
+                    {!user ? (
+                      <div className="flex flex-col gap-3">
+                        <Link href="/auth/login">
+                          <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
+                            Login
+                          </Button>
+                        </Link>
+                        <Link href="/auth/signup">
+                          <Button className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90">
+                            Create Account
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 px-2">
+                          <div className="h-10 w-10 rounded-full bg-stone-paper flex items-center justify-center text-deep-forest font-serif font-bold text-lg">
+                            {(user.email?.[0] || user.phone?.[0] || 'U').toUpperCase()}
+                          </div>
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-deep-forest">My Account</p>
+                            <p className="text-xs text-slate-bark truncate max-w-[150px]">{user.email || user.phone}</p>
+                          </div>
+                        </div>
+                        <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/5 px-2">
+                          Sign Out
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <Link href="/" className="flex items-center gap-2 group">
+                <span className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-deep-forest transition-colors group-hover:text-raw-clay">
+                  ROOT&LOOM
+                </span>
+              </Link>
             </div>
 
-            <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="h-5 w-5" />
-                {cartCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            {/* Center: Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-8">
+              {navigation.map((item) => {
+                const active = isLinkActive(item.href);
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "text-sm font-medium relative py-1 transition-colors duration-200",
+                      active
+                        ? "text-deep-forest font-semibold"
+                        : "text-slate-bark hover:text-raw-clay"
+                    )}
                   >
-                    {cartCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
+                    {item.name}
+                    {active && (
+                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-raw-clay rounded-full" />
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
 
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href="/account">My Account</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/account/orders">My Orders</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link href="/auth/login">
-                <Button variant="ghost" size="sm">
-                  Login
+            {/* Right: Icons */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="hidden lg:block w-64 mr-2">
+                <SearchBar />
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden text-deep-forest hover:bg-stone-paper rounded-full"
+                onClick={() => router.push('/search')}
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+
+              <Link href="/account/wishlist">
+                <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">
+                  <Heart className="h-5 w-5" />
                 </Button>
               </Link>
-            )}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
+              <Link href="/cart">
+                <Button variant="ghost" size="icon" className="relative text-deep-forest hover:bg-stone-paper rounded-full">
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <Badge
+                      className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-heirloom-white border-2 border-heirloom-white animate-in zoom-in"
+                    >
+                      {cartCount}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
+
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-stone-paper text-deep-forest">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 p-2 bg-heirloom-white border-woven-sand">
+                    <div className="flex items-center justify-start gap-2 p-2 mb-2 rounded-md bg-stone-paper/50">
+                      <div className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-heirloom-white font-serif font-bold">
+                        {(user.email?.[0] || user.phone?.[0] || 'U').toUpperCase()}
+                      </div>
+                      <div className="flex flex-col space-y-0.5 max-w-[140px]">
+                        <p className="text-sm font-medium truncate text-deep-forest">{user.user_metadata?.full_name || 'User'}</p>
+                        <p className="text-xs text-slate-bark truncate">{user.email || user.phone}</p>
+                      </div>
+                    </div>
+                    {/* Admin Link */}
+                    {isAdmin && (
+                      <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest mb-1 bg-amber-50">
+                        <Link href="/admin" className="w-full font-semibold text-amber-700">Admin Dashboard</Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                      <Link href="/account" className="w-full">My Account</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                      <Link href="/account/wishlist" className="w-full">My Wishlist</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                      <Link href="/account/orders" className="w-full">My Orders</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-2 bg-woven-sand" />
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 rounded-md"
+                    >
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
-                <Menu className="h-5 w-5" />
+                <Link href="/auth/login" className="hidden sm:block ml-2">
+                  <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
+                    Login
+                  </Button>
+                </Link>
               )}
-            </Button>
+            </div>
           </div>
         </div>
-
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t py-4">
-            <nav className="flex flex-col gap-4">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="text-sm font-medium transition-colors hover:text-gray-600"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        )}
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

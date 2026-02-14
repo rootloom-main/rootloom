@@ -5,20 +5,22 @@ import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/product-card';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent } from '@/components/ui/card';
+import { HeroSection } from '@/components/home/hero-section';
 
 export default async function Home() {
   const supabase = await createClient();
 
-  const { data: categories } = await supabase
-    .from('categories')
-    .select('*')
-    .limit(4);
+  const [categoriesResult, featuredProductsResult] = await Promise.all([
+    supabase.from('categories').select('*').limit(4),
+    supabase
+      .from('products')
+      .select('id, name, slug, base_price, product_images(image_url, alt_text)')
+      .eq('featured', true)
+      .limit(8),
+  ]);
 
-  const { data: featuredProducts } = await supabase
-    .from('products')
-    .select('id, name, slug, base_price, product_images(image_url, alt_text)')
-    .eq('featured', true)
-    .limit(8);
+  const categories = categoriesResult.data;
+  const featuredProducts = featuredProductsResult.data;
 
   const features = [
     {
@@ -66,38 +68,7 @@ export default async function Home() {
 
   return (
     <div>
-      <section className="relative h-screen min-h-[600px] w-full overflow-hidden bg-heirloom-white">
-        <div className="flex h-full flex-col md:flex-row">
-          <div className="relative h-[50vh] w-full md:h-full md:w-1/2">
-            <Image
-              src="/hero.png"
-              alt="Man in beige jacket looking away"
-              fill
-              className="object-cover"
-              priority
-            />
-          </div>
-          <div className="flex h-[50vh] w-full flex-col justify-center px-8 md:h-full md:w-1/2 md:px-16 lg:px-24">
-            <div className="max-w-xl">
-              <h1 className="mb-6 font-serif text-5xl font-medium leading-tight text-deep-forest md:text-6xl lg:text-7xl">
-                Crafted from
-                <br />
-                the Ground Up.
-              </h1>
-              <p className="mb-10 text-lg text-slate-bark md:text-xl">
-                Rooted in heritage. Woven for today.
-              </p>
-              <Link
-                href="/shop"
-                className="group inline-flex items-center text-lg font-medium text-raw-clay hover:text-oxide-brown transition-colors"
-              >
-                Explore the Collection
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HeroSection />
 
       <section className="py-16 bg-heirloom-white">
         <div className="container mx-auto px-4">
@@ -161,51 +132,6 @@ export default async function Home() {
             {featuredProducts?.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-16 bg-linen-wash">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-12 text-deep-forest">
-            What Our Customers Say
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="bg-stone-paper border-none">
-                <CardContent className="p-6">
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-5 w-5 fill-raw-clay text-raw-clay"
-                      />
-                    ))}
-                  </div>
-                  <p className="text-slate-bark mb-4">{testimonial.comment}</p>
-                  <p className="font-semibold text-deep-forest">{testimonial.name}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-20 bg-deep-forest text-heirloom-white">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-serif font-bold mb-4">Join Our Style Community</h2>
-          <p className="text-xl mb-8 text-ash-white">
-            Get exclusive offers and be the first to know about new arrivals
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="px-4 py-3 rounded-lg text-deep-forest bg-stone-paper flex-1 placeholder:text-slate-bark/50 focus:outline-none focus:ring-1 focus:ring-woven-sand"
-            />
-            <Button size="lg" className="bg-heirloom-white text-deep-forest hover:bg-stone-paper">
-              Subscribe
-            </Button>
           </div>
         </div>
       </section>
