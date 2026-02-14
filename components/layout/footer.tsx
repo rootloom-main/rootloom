@@ -97,7 +97,8 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="mt-16 pt-8 border-t border-ash-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-ash-white/50">
           <p>&copy; {new Date().getFullYear()} Root & Loom. All rights reserved.</p>
-          <div className="flex gap-6">
+          <div className="flex gap-6 items-center">
+            <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-heirloom-white/80">v1.1</span>
             {/* Payment Icons Placeholder text for now */}
             <span>Secure Payments</span>
             <span>SSL Encrypted</span>
