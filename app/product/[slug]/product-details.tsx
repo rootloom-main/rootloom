@@ -14,6 +14,7 @@ import { Minus, Plus, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { SizeGuide } from '@/components/product/size-guide';
+import { WishlistButton } from '@/components/product/wishlist-button';
 
 interface ProductImage {
   id: string;
@@ -44,10 +45,6 @@ interface Product {
   product_images: ProductImage[];
   product_variants: ProductVariant[];
 }
-
-import { WishlistButton } from '@/components/product/wishlist-button';
-
-// ... interface definitions ...
 
 export function ProductDetails({ product, isWishlisted = false }: { product: Product; isWishlisted?: boolean }) {
   const router = useRouter();
@@ -199,8 +196,6 @@ export function ProductDetails({ product, isWishlisted = false }: { product: Pro
               <p className="text-slate-bark">{product.description}</p>
             </div>
           )}
-
-
 
           <div>
             <div className="flex items-center justify-between mb-3">

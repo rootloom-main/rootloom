@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { createClient } from '@/lib/supabase/server';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { Analytics } from '@vercel/analytics/react';
+import { Suspense } from 'react';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' });
@@ -59,7 +60,9 @@ export default async function RootLayout({
       <body className={`${inter.variable} ${playfair.variable} font-sans antialiased`}>
         <CartProvider>
           <div className="flex min-h-screen flex-col">
-            <Header user={user} isAdmin={isAdmin} />
+            <Suspense fallback={<div className="h-20 bg-heirloom-white border-b border-transparent" />}>
+              <Header user={user} isAdmin={isAdmin} />
+            </Suspense>
             <main className="flex-1">{children}</main>
             <Footer />
           </div>

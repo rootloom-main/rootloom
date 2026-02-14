@@ -94,7 +94,7 @@ const slides = [
 
 export function HeroSection() {
     const plugin = React.useRef(
-        Autoplay({ delay: 3000, stopOnInteraction: false }) as any
+        Autoplay({ delay: 4000, stopOnInteraction: false }) as any
     );
 
     const [api, setApi] = React.useState<CarouselApi>();
@@ -143,12 +143,12 @@ export function HeroSection() {
                                             <p className={cn("text-lg md:text-xl mb-8 max-w-lg font-light leading-relaxed opacity-90", slide.textColor)}>
                                                 {slide.description}
                                             </p>
-                                            <Link href="/shop">
-                                                <Button size="lg" className={cn("h-14 px-8 text-lg rounded-full shadow-lg transition-transform hover:scale-105", slide.ctaColor)}>
+                                            <Button size="lg" className={cn("h-14 px-8 text-lg rounded-full shadow-lg transition-transform hover:scale-105", slide.ctaColor)} asChild>
+                                                <Link href="/shop">
                                                     {slide.cta}
                                                     <ArrowRight className="ml-2 h-5 w-5" />
-                                                </Button>
-                                            </Link>
+                                                </Link>
+                                            </Button>
                                         </div>
 
                                         {/* Right Content (Image) */}

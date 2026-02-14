@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { SmartSearch } from '@/components/search/smart-search';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -24,7 +24,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 
 export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,6 +34,8 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const { cartCount } = useCart();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentCategory = searchParams.get('category');
   const supabase = createClient();
 
   useEffect(() => {
@@ -76,8 +77,21 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   ];
 
   const isLinkActive = (href: string) => {
-    if (href === '/' && pathname !== '/') return false;
-    return pathname.startsWith(href) || (pathname === '/shop' && href.startsWith('/shop?'));
+    const [path, query] = href.split('?');
+    if (path === '/' && pathname !== '/') return false;
+
+    // Check if link has a category param
+    if (query) {
+      const params = new URLSearchParams(query);
+      const targetCategory = params.get('category');
+      return pathname === path && currentCategory === targetCategory;
+    }
+
+    // Special case for 'Shop' (no category): 
+    // Only active if we are on /shop AND no category is selected.
+    if (path === '/shop' && pathname === '/shop' && currentCategory) return false;
+
+    return pathname.startsWith(path);
   };
 
   return (
