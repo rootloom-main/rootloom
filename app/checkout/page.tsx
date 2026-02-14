@@ -221,7 +221,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      let savedAddress;
+      let savedAddress: any;
 
       if (address.id) {
         const { data, error } = await supabase
@@ -369,7 +369,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      let savedAddress;
+      let savedAddress: any;
 
       if (address.id) {
         const { data, error } = await supabase
