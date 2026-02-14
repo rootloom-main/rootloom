@@ -2,11 +2,38 @@ import { MetadataRoute } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rootloom.vercel.app';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    // Static routes that always exist
+    const staticRoutes = [
+        {
+            url: baseUrl,
+            lastModified: new Date(),
+            changeFrequency: 'daily' as const,
+            priority: 1,
+        },
+        {
+            url: `${baseUrl}/shop`,
+            lastModified: new Date(),
+            changeFrequency: 'daily' as const,
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/about`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.5,
+        },
+    ];
+
+    if (!supabaseUrl || !supabaseKey) {
+        console.warn('Supabase credentials missing, generating static sitemap only');
+        return staticRoutes;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch all products
     const { data: products } = await supabase
@@ -16,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Fetch all categories
     const { data: categories } = await supabase
         .from('categories')
-        .select('slug, created_at'); // assuming categories don't have updated_at or using created_at
+        .select('slug, created_at');
 
     const productUrls = (products || []).map((product) => ({
         url: `${baseUrl}/product/${product.slug}`,
@@ -32,26 +59,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
-    return [
-        {
-            url: baseUrl,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 1,
-        },
-        {
-            url: `${baseUrl}/shop`,
-            lastModified: new Date(),
-            changeFrequency: 'daily',
-            priority: 0.9,
-        },
-        {
-            url: `${baseUrl}/about`,
-            lastModified: new Date(),
-            changeFrequency: 'monthly',
-            priority: 0.5,
-        },
-        ...productUrls,
-        ...categoryUrls,
-    ];
+    return [...staticRoutes, ...productUrls, ...categoryUrls];
 }
