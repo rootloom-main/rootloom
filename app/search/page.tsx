@@ -12,6 +12,14 @@ interface SearchPageProps {
     searchParams: { q?: string };
 }
 
+interface SearchResult {
+    id: string;
+    name: string;
+    slug: string;
+    base_price: number;
+    image_url?: string;
+}
+
 export default async function SearchPage({ searchParams }: SearchPageProps) {
     const query = searchParams.q;
 
@@ -45,7 +53,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
             {products.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {products.map((p) => (
+                    {products.map((p: SearchResult) => (
                         <ProductCard
                             key={p.id}
                             product={{
