@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { X, ShoppingBag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { toggleWishlist } from '@/lib/actions/wishlist';
+import { useWishlist } from '@/components/providers/wishlist-provider';
 
 interface WishlistItemProps {
     item: {
@@ -21,14 +21,13 @@ interface WishlistItemProps {
                 image_url: string;
                 alt_text: string;
             }[];
-            // Add stock status if available in future, for now assume in stock
         };
     };
-    onRemove: () => void; // Callback to refresh or update UI
 }
 
-export function WishlistItem({ item, onRemove }: WishlistItemProps) {
+export function WishlistItem({ item }: WishlistItemProps) {
     const { product } = item;
+    const { removeFromWishlist } = useWishlist();
     const image = product.product_images?.[0]?.image_url || '/placeholder.png'; // Fallback
     const alt = product.product_images?.[0]?.alt_text || product.name;
 
@@ -37,10 +36,8 @@ export function WishlistItem({ item, onRemove }: WishlistItemProps) {
 
     const handleRemove = async () => {
         setIsRemoving(true);
-        const result = await toggleWishlist(product.id);
-        if (result.success) {
-            router.refresh();
-        }
+        await removeFromWishlist(product.id);
+        router.refresh();
         setIsRemoving(false);
     };
 

@@ -37,6 +37,16 @@ export default function DebugRolePage() {
         checkRole();
     }, []);
 
+    const makeAdmin = async () => {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ role: 'admin' })
+            .eq('id', data.user_id);
+
+        if (error) alert('Error: ' + error.message);
+        else window.location.reload();
+    };
+
     if (loading) return <div className="p-10">Loading debug info...</div>;
 
     return (
@@ -48,10 +58,19 @@ export default function DebugRolePage() {
             <div className="mt-4 p-4 border rounded bg-yellow-50">
                 <h2 className="font-bold">Interpretation:</h2>
                 <ul className="list-disc ml-5 mt-2">
-                    <li>If <strong>profile_data</strong> is null, the profile row doesn't exist.</li>
-                    <li>If <strong>profile_data.role</strong> is "user", the SQL update didn't run.</li>
-                    <li>If <strong>is_admin_check</strong> is false, the header won't show the link.</li>
+                    <li>If <strong>profile_data</strong> is null, the profile row doesn&apos;t exist.</li>
+                    <li>If <strong>profile_data.role</strong> is &quot;user&quot;, the SQL update didn&apos;t run.</li>
+                    <li>If <strong>is_admin_check</strong> is false, the header won&apos;t show the link.</li>
                 </ul>
+                <div className="mt-4 border-t pt-4">
+                    <button
+                        onClick={makeAdmin}
+                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    >
+                        Force Make Me Admin (Dev Only)
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1">This works because RLS currently allows self-update.</p>
+                </div>
             </div>
         </div>
     );

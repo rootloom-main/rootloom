@@ -55,16 +55,20 @@ export default async function OrdersPage() {
       <h1 className="text-3xl font-bold mb-8">My Orders</h1>
 
       {!orders || orders.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Package className="h-16 w-16 text-slate-bark/50 mb-4" />
-            <h2 className="text-2xl font-serif font-semibold mb-2 text-deep-forest">No orders yet</h2>
-            <p className="text-slate-bark mb-6">When you place an order, it will appear here.</p>
-            <Link href="/shop">
-              <Button>Start Shopping</Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="min-h-[50vh] flex flex-col items-center justify-center text-center py-20 bg-stone-50/50 rounded-xl border border-dashed border-stone-200">
+          <div className="w-20 h-20 bg-heirloom-white rounded-full flex items-center justify-center mb-6">
+            <Package className="h-8 w-8 text-stone-400" />
+          </div>
+          <h2 className="text-2xl font-serif font-medium text-deep-forest mb-3">No orders yet</h2>
+          <p className="text-slate-500 max-w-md mb-8">
+            Once you place your first order, you&apos;ll be able to track it here.
+          </p>
+          <Link href="/shop">
+            <Button size="lg" className="rounded-full px-8 bg-deep-forest hover:bg-deep-forest/90">
+              Start Shopping
+            </Button>
+          </Link>
+        </div>
       ) : (
         <div className="space-y-4">
           {orders.map((order: any) => (

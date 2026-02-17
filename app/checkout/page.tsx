@@ -267,7 +267,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           amount: total,
           currency: 'INR',
-          couponCode: appliedCoupon?.code, // Send coupon code to backend
+          couponCode: appliedCoupon?.code,
+          addressId: savedAddress?.id,
         }),
       });
 

@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
                 order_number: orderNumber,
                 status: 'processing',
                 payment_status: 'pending', // COD is pending until delivery
-                payment_id: 'COD',
+                payment_id: `COD_${orderNumber}`,
                 subtotal,
                 shipping_cost,
                 total, // Ideally: subtotal + shipping_cost - discountAmount

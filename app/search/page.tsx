@@ -44,7 +44,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <div className="container mx-auto px-4 py-8">
             <div className="flex flex-col gap-4 mb-8">
                 <h1 className="text-3xl font-serif font-bold text-deep-forest">
-                    Search Results for <span className="text-primary italic">"{query}"</span>
+                    Search Results for <span className="text-primary italic">&quot;{query}&quot;</span>
                 </h1>
                 <p className="text-slate-500">
                     Found {products.length} {products.length === 1 ? 'result' : 'results'}
@@ -70,7 +70,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                     </div>
                     <h2 className="text-xl font-semibold text-deep-forest mb-2">No results found</h2>
                     <p className="text-stone-500 max-w-md text-center">
-                        We couldn't find any products matching "{query}". Try checking for typos or using different keywords.
+                        We couldn&apos;t find any products matching &quot;{query}&quot;. Try checking for typos or using different keywords.
                     </p>
                 </div>
             )}

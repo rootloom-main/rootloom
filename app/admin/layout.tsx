@@ -16,7 +16,6 @@ export default async function AdminLayout({
         redirect('/auth/login');
     }
 
-    // Double check admin role
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -28,9 +27,9 @@ export default async function AdminLayout({
     }
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
-            <AdminSidebar user={user} role={profile?.role} />
-            <main className="flex-1 overflow-y-auto h-screen">
+        <div className="flex min-h-screen bg-slate-50">
+            <AdminSidebar user={user} role={profile.role} />
+            <main className="flex-1 overflow-x-hidden">
                 {children}
             </main>
         </div>

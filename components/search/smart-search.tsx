@@ -253,7 +253,7 @@ export function SmartSearch() {
                                         // Navigation to search page would happen here
                                     }}
                                 >
-                                    View all results for "{query}"
+                                    View all results for &quot;{query}&quot;
                                 </Button>
                             </div>
                         </div>
@@ -265,7 +265,7 @@ export function SmartSearch() {
                             <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <Search className="h-8 w-8 text-slate-300" />
                             </div>
-                            <h3 className="text-sm font-semibold text-deep-forest">No results for "{query}"</h3>
+                            <h3 className="text-sm font-semibold text-deep-forest">No results for &quot;{query}&quot;</h3>
                             <p className="text-xs text-slate-500 mt-1 mb-4">Check for typos or try a broader search term</p>
 
                             <div className="px-8 text-left">

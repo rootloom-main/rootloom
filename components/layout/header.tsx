@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ShoppingCart, User, Menu, X, Search, ChevronRight, Heart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
+import { useWishlist } from '@/components/providers/wishlist-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
@@ -27,6 +28,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   const { cartCount, setIsCartOpen } = useCart();
+  const { wishlistCount } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -234,9 +236,16 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
                 </Sheet>
               </div>
 
-              <Link href="/account/wishlist">
+              <Link href="/account/wishlist" className="relative group">
                 <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">
                   <Heart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <Badge
+                      className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-red-500 text-white border-2 border-heirloom-white animate-in zoom-in"
+                    >
+                      {wishlistCount}
+                    </Badge>
+                  )}
                 </Button>
               </Link>
 

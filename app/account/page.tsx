@@ -149,7 +149,7 @@ export default async function AccountPage() {
                     For now, showing a prompt to add if empty or placeholder.
                  */}
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <p className="text-slate-500">You haven't set a default shipping address yet.</p>
+              <p className="text-slate-500">You haven&apos;t set a default shipping address yet.</p>
               <Link href="/account/addresses/new">
                 <Button variant="outline" size="sm">Add New Address</Button>
               </Link>

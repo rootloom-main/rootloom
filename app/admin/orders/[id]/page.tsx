@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,11 +93,14 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                                     <div key={item.id} className="flex justify-between items-start">
                                         <div className="flex gap-4">
                                             {item.product?.product_images?.[0]?.image_url ? (
-                                                <img
-                                                    src={item.product.product_images[0].image_url}
-                                                    alt={item.product?.name}
-                                                    className="h-16 w-16 object-cover rounded-md border"
-                                                />
+                                                <div className="relative h-16 w-16 rounded-md overflow-hidden border">
+                                                    <Image
+                                                        src={item.product.product_images[0].image_url}
+                                                        alt={item.product?.name || 'Product Image'}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
                                             ) : (
                                                 <div className="h-16 w-16 bg-gray-100 rounded-md border flex items-center justify-center text-xs text-gray-400">
                                                     Img

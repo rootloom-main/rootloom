@@ -39,7 +39,7 @@ export default function AboutPage() {
             <section id="our-story" className="py-24 md:py-32 container mx-auto px-4 text-center">
                 <div className="max-w-4xl mx-auto">
                     <h2 className="text-3xl md:text-5xl font-serif font-medium leading-tight text-gray-900 mb-12">
-                        "We believe that true luxury lies in the story behind the garment—the hands that wove it, the soil that grew it, and the legacy it carries."
+                        &quot;We believe that true luxury lies in the story behind the garment—the hands that wove it, the soil that grew it, and the legacy it carries.&quot;
                     </h2>
                     <div className="w-24 h-1 bg-gray-900 mx-auto opacity-20"></div>
                 </div>
@@ -86,7 +86,7 @@ export default function AboutPage() {
                                 <h3 className="text-4xl md:text-5xl font-serif text-gray-900">Woven by Masters</h3>
                             </div>
                             <p className="text-gray-600 text-lg leading-relaxed">
-                                Fast fashion has forgotten the art of patience. We haven't. Our fabrics are hand-loomed by master artisans whose skills have been passed down through generations. Each irregularity in the weave is not a flaw, but a signature of human touch.
+                                Fast fashion has forgotten the art of patience. We haven&apos;t. Our fabrics are hand-loomed by master artisans whose skills have been passed down through generations. Each irregularity in the weave is not a flaw, but a signature of human touch.
                             </p>
                             <Link href="/shop" className="inline-flex items-center gap-2 text-gray-900 font-medium hover:text-amber-700 transition-colors group">
                                 Explore Handwoven Collection <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -110,7 +110,7 @@ export default function AboutPage() {
                 <div className="text-center max-w-3xl mx-auto mb-16">
                     <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-6">Our Promise to You</h2>
                     <p className="text-gray-600 text-lg">
-                        We don't just sell clothes; we advocate for a better way of living. One that values quality over quantity and people over profit.
+                        We don&apos;t just sell clothes; we advocate for a better way of living. One that values quality over quantity and people over profit.
                     </p>
                 </div>
 
@@ -155,7 +155,7 @@ export default function AboutPage() {
                 </div>
                 <div className="container mx-auto px-4 relative z-10 text-center">
                     <blockquote className="text-2xl md:text-4xl font-serif italic max-w-4xl mx-auto leading-relaxed">
-                        "Fashion should be a form of escapism, not a form of imprisonment."
+                        &quot;Fashion should be a form of escapism, not a form of imprisonment.&quot;
                     </blockquote>
                     <cite className="block mt-8 text-gray-400 not-italic uppercase tracking-widest text-sm">— Alexander McQueen</cite>
                 </div>

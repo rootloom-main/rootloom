@@ -34,6 +34,9 @@ export default async function WishlistPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
+    // Filter out items where the product might have been deleted
+    const validWishlists = wishlists?.filter((item: any) => item.product !== null) || [];
+
     return (
         <div className="container mx-auto px-4 py-8 md:py-12">
 
@@ -44,11 +47,11 @@ export default async function WishlistPage() {
                         My Wishlist
                     </h1>
                     <p className="text-slate-500">
-                        {wishlists?.length || 0} items saved for later
+                        {validWishlists.length} items saved for later
                     </p>
                 </div>
 
-                {wishlists && wishlists.length > 0 && (
+                {validWishlists.length > 0 && (
                     <Button variant="outline" className="gap-2 rounded-full border-stone-300 hover:bg-stone-50">
                         <Share2 size={16} />
                         Share Wishlist
@@ -57,30 +60,29 @@ export default async function WishlistPage() {
             </div>
 
             {/* List */}
-            {wishlists && wishlists.length > 0 ? (
+            {validWishlists.length > 0 ? (
                 <div className="space-y-4">
-                    {wishlists.map((item: any) => (
+                    {validWishlists.map((item: any) => (
                         <WishlistItem
                             key={item.id}
                             item={item}
-                            onRemove={() => { }} // Component handles self-refresh
                         />
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-stone-50/50 rounded-2xl border border-dashed border-stone-200 text-center">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
-                        <Heart className="h-8 w-8 text-stone-300" />
+                <div className="min-h-[50vh] flex flex-col items-center justify-center text-center py-20">
+                    <div className="w-20 h-20 bg-heirloom-white rounded-full flex items-center justify-center mb-6">
+                        <Heart className="h-8 w-8 text-stone-400" />
                     </div>
-                    <h2 className="text-2xl font-serif font-medium text-deep-forest mb-2">
+                    <h2 className="text-2xl font-serif font-medium text-deep-forest mb-3">
                         Your wishlist is currently empty
                     </h2>
-                    <p className="text-slate-500 max-w-md mb-8">
-                        Explore our curated collection and save your favorites here for later.
+                    <p className="text-slate-500 max-w-md mb-8 leading-relaxed">
+                        Curate your personal collection. Save items you love and revisit them anytime.
                     </p>
                     <Link href="/shop">
                         <Button size="lg" className="rounded-full px-8 bg-deep-forest hover:bg-deep-forest/90">
-                            Start Shopping
+                            Explore Collection
                         </Button>
                     </Link>
                 </div>

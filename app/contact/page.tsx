@@ -48,7 +48,7 @@ export default function ContactPage() {
                 <div className="text-center mb-16">
                     <h1 className="text-4xl font-bold text-deep-forest font-serif mb-4">Get in Touch</h1>
                     <p className="text-slate-bark max-w-xl mx-auto">
-                        Have a question about your order, sizing, or our sustainability practices? We're here to help.
+                        Have a question about your order, sizing, or our sustainability practices? We&apos;re here to help.
                     </p>
                 </div>
 

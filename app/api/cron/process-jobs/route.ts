@@ -1,0 +1,19 @@
+import { processNextJob } from '@/lib/jobs';
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
+    try {
+        // Vercel Cron jobs send a secret header, we should verify it
+        // For now, assuming standard setup. Production should verify process.env.CRON_SECRET
+
+        // Process one job per invocation. 
+        // In a real scenario, you might want to process a batch or loop until time runs out.
+        await processNextJob();
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

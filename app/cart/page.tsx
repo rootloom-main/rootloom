@@ -33,23 +33,23 @@ export default function CartPage() {
 
   if (cartCount === 0) {
     return (
-      <div className="container mx-auto px-4 py-16 bg-stone-50 min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md shadow-sm border-stone-200">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-24 h-24 bg-stone-100 rounded-full flex items-center justify-center mb-6">
-              <ShoppingBag className="h-10 w-10 text-deep-forest/60" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2 text-deep-forest">Your cart is empty</h2>
-            <p className="text-slate-500 mb-8 max-w-xs">
-              Looks like you haven't added anything to your cart yet.
+      <div className="min-h-[80vh] flex flex-col items-center justify-center bg-stone-50 px-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="w-24 h-24 bg-heirloom-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <ShoppingBag className="h-10 w-10 text-deep-forest/40" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-serif font-medium text-deep-forest mb-3">Your cart is empty</h2>
+            <p className="text-slate-500 mb-8 max-w-sm mx-auto leading-relaxed">
+              Looks like you haven&apos;t discovered our collection yet. Find pieces that speak to you.
             </p>
-            <Link href="/shop" className="w-full max-w-xs">
-              <Button className="w-full bg-deep-forest hover:bg-deep-forest/90">
+            <Link href="/shop">
+              <Button className="min-w-[200px] bg-deep-forest hover:bg-deep-forest/90 text-white h-12 rounded-full text-base">
                 Start Shopping
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }

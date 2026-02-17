@@ -35,7 +35,7 @@ export function CartSheet() {
                         </div>
                         <div className="space-y-1">
                             <h3 className="text-lg font-medium text-deep-forest">Your cart is empty</h3>
-                            <p className="text-sm text-slate-bark">Looks like you haven't added anything yet.</p>
+                            <p className="text-sm text-slate-bark">Looks like you haven&apos;t added anything yet.</p>
                         </div>
                         <Button
                             onClick={() => setIsCartOpen(false)}

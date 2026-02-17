@@ -13,11 +13,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { amount, currency } = await req.json();
+    const { amount, currency, addressId, couponCode } = await req.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json(
         { success: false, message: 'Invalid amount' },
+        { status: 400 }
+      );
+    }
+
+    if (!addressId) {
+      return NextResponse.json(
+        { success: false, message: 'Address is required' },
         { status: 400 }
       );
     }
@@ -31,6 +38,11 @@ export async function POST(req: NextRequest) {
       amount: Math.round(amount * 100),
       currency: currency || 'INR',
       receipt: `order_${Date.now()}`,
+      notes: {
+        user_id: user.id,
+        address_id: addressId,
+        coupon_code: couponCode || '',
+      },
     });
 
     return NextResponse.json({

@@ -49,7 +49,7 @@ export default async function AdminReviewsPage() {
                 <div className="p-4 border border-red-200 bg-red-50 rounded-md text-red-800">
                     <p className="font-semibold">Failed to load reviews.</p>
                     <p className="text-sm mt-1">{error.message}</p>
-                    <p className="text-xs mt-2 text-red-600">Hint: Does the 'reviews' table exist in your database?</p>
+                    <p className="text-xs mt-2 text-red-600">Hint: Does the &apos;reviews&apos; table exist in your database?</p>
                 </div>
             </div>
         );

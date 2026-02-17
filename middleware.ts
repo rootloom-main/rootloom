@@ -1,7 +1,19 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { rateLimiter } from '@/lib/rate-limit';
+
 export async function middleware(request: NextRequest) {
+  const ip = request.ip ?? '127.0.0.1';
+
+  // Rate Limiting for API and Auth routes
+  if (request.nextUrl.pathname.startsWith('/api') || request.nextUrl.pathname.startsWith('/auth')) {
+    const { success } = rateLimiter.check(ip);
+    if (!success) {
+      return new NextResponse('Too Many Requests', { status: 429 });
+    }
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -84,5 +96,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/account/:path*', '/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
 };

@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, Playfair_Display } from 'next/font/google';
 import { CartProvider } from '@/components/providers/cart-provider';
+import { WishlistProvider } from '@/components/providers/wishlist-provider';
+import QueryProvider from '@/components/providers/query-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Toaster } from '@/components/ui/sonner';
@@ -59,14 +61,18 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${playfair.variable} font-sans antialiased`}>
         <CartProvider>
-          <div className="flex min-h-screen flex-col">
-            <Suspense fallback={<div className="h-20 bg-heirloom-white border-b border-transparent" />}>
-              <Header user={user} isAdmin={isAdmin} />
-            </Suspense>
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
-          <Toaster />
+          <WishlistProvider>
+            <QueryProvider>
+              <div className="flex min-h-screen flex-col">
+                <Suspense fallback={<div className="h-20 bg-heirloom-white border-b border-transparent" />}>
+                  <Header user={user} isAdmin={isAdmin} />
+                </Suspense>
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </div>
+              <Toaster />
+            </QueryProvider>
+          </WishlistProvider>
         </CartProvider>
         {process.env.NEXT_PUBLIC_GA_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />

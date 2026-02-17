@@ -208,7 +208,7 @@ export default function AdminManagementPage() {
                                                 <DialogHeader>
                                                     <DialogTitle>Change Role for {profile.email}</DialogTitle>
                                                     <DialogDescription>
-                                                        Are you sure you want to change this user's permissions?
+                                                        Are you sure you want to change this user&apos;s permissions?
                                                     </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="flex flex-col gap-3 py-4">
