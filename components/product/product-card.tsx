@@ -94,7 +94,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Mobile Add to Cart (visible only on mobile) */}
         <Link href={`/product/${product.slug}`} className="w-full mt-3 md:hidden">
-          <Button size="sm" className="w-full bg-slate-900 text-white text-xs h-8 rounded-sm">
+          <Button size="sm" className="w-full bg-deep-forest text-heirloom-white text-sm h-10 rounded-md shadow-sm">
             View Details
           </Button>
         </Link>

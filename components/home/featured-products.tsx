@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { FadeIn, FadeInStagger, fadeInItemVariants } from '@/components/ui/fade-in';
+import { motion } from 'framer-motion';
 
 interface Product {
     id: string;
@@ -19,33 +21,40 @@ interface FeaturedProductsProps {
 
 export function FeaturedProducts({ products }: FeaturedProductsProps) {
     return (
-        <section className="py-20 bg-white">
+        <section className="py-24 bg-white overflow-hidden">
             <div className="container mx-auto px-6">
-                <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
-                    <div className="max-w-2xl">
-                        <span className="text-xs font-medium tracking-widest text-[#8c5a45] uppercase">Curated Collection</span>
-                        <h2 className="text-3xl md:text-4xl font-serif text-slate-900 mt-2 mb-4">Featured Artifacts</h2>
-                        <p className="text-slate-600 font-light leading-relaxed">
-                            Handpicked selections representing the finest craftsmanship and timeless design.
-                        </p>
-                    </div>
-                    <Button variant="outline" className="border-slate-800 text-slate-800 hover:bg-slate-900 hover:text-white rounded-none px-6 tracking-wide uppercase text-xs h-10 transition-all duration-300" asChild>
-                        <Link href="/shop">
-                            View All Collection
-                        </Link>
-                    </Button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                    {products?.map((product) => (
-                        <div key={product.id} className="group">
-                            <ProductCard product={product} />
+                <FadeIn>
+                    <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-4">
+                        <div className="max-w-2xl">
+                            <span className="text-xs font-bold tracking-[0.2em] text-raw-clay uppercase mb-3 block">Curated Collection</span>
+                            <h2 className="text-4xl md:text-5xl font-serif text-deep-forest mb-4 leading-tight">Featured Artifacts</h2>
+                            <p className="text-slate-600 font-light leading-relaxed text-lg max-w-xl">
+                                Handpicked selections representing the finest craftsmanship and timeless design for the discerning individual.
+                            </p>
                         </div>
+                        <Button variant="outline" className="hidden md:flex border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white rounded-full px-8 tracking-wide uppercase text-xs h-12 transition-all duration-300 group" asChild>
+                            <Link href="/shop">
+                                View Collection
+                                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                            </Link>
+                        </Button>
+                    </div>
+                </FadeIn>
+
+                <FadeInStagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
+                    {products?.map((product) => (
+                        <motion.div
+                            key={product.id}
+                            variants={fadeInItemVariants}
+                            className="group"
+                        >
+                            <ProductCard product={product} />
+                        </motion.div>
                     ))}
-                </div>
+                </FadeInStagger>
 
                 <div className="mt-16 text-center md:hidden">
-                    <Button variant="outline" className="w-full border-slate-800 text-slate-800 hover:bg-slate-900 hover:text-white rounded-none uppercase text-xs h-11" asChild>
+                    <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white rounded-full uppercase text-xs h-12 shadow-sm" asChild>
                         <Link href="/shop">
                             View All Collection
                         </Link>

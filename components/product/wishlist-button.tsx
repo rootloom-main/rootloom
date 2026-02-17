@@ -66,7 +66,7 @@ export function WishlistButton({ productId, isWishlisted: initialIsWishlisted = 
             variant="ghost"
             size="icon"
             className={cn(
-                "rounded-full hover:bg-neutral-100",
+                "rounded-full hover:bg-neutral-100 h-10 w-10",
                 isActive && "text-red-500 hover:text-red-600 hover:bg-red-50",
                 className
             )}

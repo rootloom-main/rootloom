@@ -6,6 +6,7 @@ import { WishlistProvider } from '@/components/providers/wishlist-provider';
 import QueryProvider from '@/components/providers/query-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { MobileNav } from '@/components/layout/mobile-nav';
 import { Toaster } from '@/components/ui/sonner';
 import { createClient } from '@/lib/supabase/server';
 import { GoogleAnalytics } from '@next/third-parties/google';
@@ -63,12 +64,13 @@ export default async function RootLayout({
         <CartProvider>
           <WishlistProvider>
             <QueryProvider>
-              <div className="flex min-h-screen flex-col">
+              <div className="flex min-h-screen flex-col pb-16 md:pb-0">
                 <Suspense fallback={<div className="h-20 bg-heirloom-white border-b border-transparent" />}>
                   <Header user={user} isAdmin={isAdmin} />
                 </Suspense>
                 <main className="flex-1">{children}</main>
                 <Footer />
+                <MobileNav />
               </div>
               <Toaster />
             </QueryProvider>
