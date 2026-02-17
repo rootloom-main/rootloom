@@ -100,15 +100,15 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
 
       <header
         className={cn(
-          "sticky top-0 z-50 w-full transition-all duration-300 ease-in-out font-sans",
+          "sticky top-0 z-50 w-full transition-all duration-500 ease-in-out font-sans",
           isVisible ? "translate-y-0" : "-translate-y-full",
           isScrolled
-            ? "bg-heirloom-white/90 backdrop-blur-md shadow-sm border-b border-woven-sand/50"
-            : "bg-heirloom-white border-b border-transparent"
+            ? "bg-white/70 backdrop-blur-xl shadow-sm border-b border-white/20"
+            : "bg-transparent border-b border-transparent"
         )}
       >
         <div className="container mx-auto px-4">
-          <div className="flex h-20 items-center justify-between">
+          <div className="flex h-16 md:h-20 items-center justify-between">
 
             {/* Left: Mobile Menu & Logo */}
             <div className="flex items-center gap-4">
@@ -183,8 +183,8 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
                 </SheetContent>
               </Sheet>
 
-              <Link href="/" className="flex items-center gap-2 group">
-                <span className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-deep-forest transition-colors group-hover:text-raw-clay">
+              <Link href="/" className="flex items-center gap-2 group relative z-50">
+                <span className="font-serif text-3xl md:text-4xl font-black tracking-tighter text-deep-forest transition-colors duration-300 group-hover:text-raw-clay">
                   ROOT&LOOM
                 </span>
               </Link>
@@ -199,16 +199,17 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
                     key={item.name}
                     href={item.href}
                     className={cn(
-                      "text-sm font-medium relative py-1 transition-colors duration-200",
+                      "text-sm font-medium relative py-1 transition-colors duration-300 group",
                       active
                         ? "text-deep-forest font-semibold"
-                        : "text-slate-bark hover:text-raw-clay"
+                        : "text-slate-bark hover:text-deep-forest"
                     )}
                   >
                     {item.name}
-                    {active && (
-                      <span className="absolute bottom-0 left-0 w-full h-0.5 bg-raw-clay rounded-full" />
-                    )}
+                    <span className={cn(
+                      "absolute bottom-0 left-0 h-0.5 bg-raw-clay rounded-full transition-all duration-300 ease-out",
+                      active ? "w-full" : "w-0 group-hover:w-full"
+                    )} />
                   </Link>
                 );
               })}
