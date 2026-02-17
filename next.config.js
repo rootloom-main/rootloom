@@ -14,10 +14,14 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -29,13 +33,28 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'elnlegunapxogcovwqcs.supabase.co', // Create a pattern that matches the project ID dynamically if possible, but hardcoding the current one is fine for now based on env.local
+        hostname: 'elnlegunapxogcovwqcs.supabase.co',
       },
     ],
   },
   experimental: {
     serverActions: true,
     instrumentationHook: true,
+    optimizePackageImports: ['lucide-react', 'date-fns', 'recharts'],
+  },
+  async headers() {
+    return [
+      {
+        source: '/:all*(svg|jpg|png)',
+        locale: false,
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          }
+        ],
+      },
+    ];
   },
 };
 
