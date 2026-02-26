@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendAbandonedCartEmail } from '@/lib/email';
 
-export const runtime = 'edge'; // Use Edge for cron if possible, or nodejs if using heavier deps
+export const dynamic = 'force-dynamic'; // Use Node.js runtime and force dynamic to prevent build-time execution failures
 
 export async function GET(req: Request) {
     // Optional: Check for auth header to secure this endpoint
@@ -85,9 +85,9 @@ export async function GET(req: Request) {
         if (result && result.success) {
             // 4. Mark as sent
             const itemIds = items.map((i: any) => i.id);
-            await supabase
-                .from('cart_items')
-                .update({ recovery_email_sent: true } as any)
+            await (supabase
+                .from('cart_items') as any)
+                .update({ recovery_email_sent: true })
                 .in('id', itemIds);
 
             results.push({ userId, status: 'sent' });

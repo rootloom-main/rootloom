@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice, formatDate } from '@/lib/utils/format';
@@ -15,15 +16,13 @@ export default async function OrderDetailPage({
   params: { id: string };
 }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect('/auth/login');
   }
 
-  const { data: order, error } = await supabase
+  const { data: order } = (await supabase
     .from('orders')
     .select(
       `
@@ -56,9 +55,9 @@ export default async function OrderDetailPage({
     )
     .eq('id', params.id)
     .eq('user_id', user.id)
-    .single();
+    .single()) as { data: any | null };
 
-  if (error || !order) {
+  if (!order) {
     notFound();
   }
 

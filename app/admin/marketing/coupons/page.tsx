@@ -1,4 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
+import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -9,17 +11,53 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils/format';
+import { CouponActions } from '@/components/admin/coupon-actions';
+
+export const dynamic = 'force-dynamic';
 
 export default async function CouponsPage() {
-    const supabase = await createClient();
+    let user;
+    try {
+        user = await getCurrentUser();
+    } catch {
+        redirect('/auth/login');
+    }
 
-    const { data: coupons } = await supabase
-        .from('coupons')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (!user) {
+        redirect('/auth/login');
+    }
+
+    const supabase = await createSSRClient();
+
+    let profile: { role: string } | null = null;
+    try {
+        const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        profile = data as { role: string } | null;
+    } catch {
+        redirect('/');
+    }
+
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
+        redirect('/');
+    }
+
+    let coupons: any[] = [];
+    try {
+        const { data, error } = await supabase
+            .from('coupons')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (!error && data) coupons = data;
+    } catch (e) {
+        console.error('Error fetching coupons:', e);
+    }
 
     return (
         <div className="container mx-auto px-6 py-8">
@@ -34,7 +72,7 @@ export default async function CouponsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Active Coupons</CardTitle>
+                    <CardTitle>All Coupons</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -49,7 +87,7 @@ export default async function CouponsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {coupons?.map((coupon) => (
+                            {coupons.map((coupon) => (
                                 <TableRow key={coupon.id}>
                                     <TableCell className="font-mono font-medium">{coupon.code}</TableCell>
                                     <TableCell className="capitalize">{coupon.discount_type}</TableCell>
@@ -65,18 +103,11 @@ export default async function CouponsPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon">
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        <CouponActions couponId={coupon.id} isActive={coupon.is_active} />
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {coupons?.length === 0 && (
+                            {coupons.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                                         No coupons found. Create one to get started.

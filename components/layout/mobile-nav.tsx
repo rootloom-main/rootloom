@@ -44,7 +44,7 @@ export function MobileNav() {
 
     // Hide on auth pages or admin pages if needed, but usually good to keep for consistency or hide on specific flows.
     // For now, let's keep it everywhere except maybe checkout.
-    if (pathname.startsWith('/checkout') || pathname.startsWith('/admin')) {
+    if (pathname?.startsWith('/checkout') || pathname?.startsWith('/admin')) {
         return null;
     }
 
@@ -52,7 +52,7 @@ export function MobileNav() {
         <div className="fixed bottom-0 left-0 z-50 w-full h-16 bg-white/80 backdrop-blur-lg border-t border-stone-200 md:hidden pb-safe">
             <nav className="grid h-full grid-cols-5 mx-auto">
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                    const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
                     const Icon = item.icon;
 
                     return (

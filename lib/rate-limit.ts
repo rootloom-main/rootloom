@@ -1,22 +1,24 @@
-export class RateLimiter {
-    private limit: number;
-    private window: number;
-    private tokens: Map<string, { count: number; expiresAt: number }>;
+import { Ratelimit } from '@upstash/ratelimit';
+import { redis } from './redis';
 
-    constructor(limit: number = 10, window: number = 60 * 1000) {
+class InMemoryRateLimiter {
+    private tokens: Map<string, { count: number; expiresAt: number }> = new Map();
+    limit: number;
+    windowMs: number;
+
+    constructor(limit: number, windowMs: number) {
         this.limit = limit;
-        this.window = window;
-        this.tokens = new Map();
+        this.windowMs = windowMs;
     }
 
-    check(identifier: string): { success: boolean; limit: number; remaining: number } {
+    async check(identifier: string): Promise<{ success: boolean; limit: number; remaining: number }> {
         const now = Date.now();
         const token = this.tokens.get(identifier);
 
         if (!token || now > token.expiresAt) {
             this.tokens.set(identifier, {
                 count: 1,
-                expiresAt: now + this.window,
+                expiresAt: now + this.windowMs,
             });
             return { success: true, limit: this.limit, remaining: this.limit - 1 };
         }
@@ -29,17 +31,22 @@ export class RateLimiter {
         this.tokens.set(identifier, token);
         return { success: true, limit: this.limit, remaining: this.limit - token.count };
     }
-
-    // Cleanup expired tokens to prevent memory leaks
-    cleanup() {
-        const now = Date.now();
-        for (const [key, token] of this.tokens.entries()) {
-            if (now > token.expiresAt) {
-                this.tokens.delete(key);
-            }
-        }
-    }
 }
 
-// Default limiter: 20 requests per minute per IP
-export const rateLimiter = new RateLimiter(20, 60 * 1000);
+// Memory fallback: 5 reqs per minute
+const memoryLimiter = new InMemoryRateLimiter(5, 60 * 1000);
+
+// Upstash limiter: 5 reqs per minute Window
+const upstashLimiter = redis ? new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(5, "1 m"),
+    analytics: true,
+}) : null;
+
+export async function checkRateLimit(ip: string) {
+    if (upstashLimiter) {
+        const result = await upstashLimiter.limit(ip);
+        return { success: result.success };
+    }
+    return await memoryLimiter.check(ip);
+}

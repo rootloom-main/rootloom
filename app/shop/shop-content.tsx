@@ -52,17 +52,17 @@ export function ShopContent({
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [priceRange, setPriceRange] = useState([0, 5000]);
+  const [priceRange, setPriceRange] = useState([0, 20000]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    (params.get('category') as string) || 'all'
+    (params?.get('category') as string) || 'all'
   );
-  const [sortBy, setSortBy] = useState<string>(params.get('sort') || 'latest');
-  const [search, setSearch] = useState<string>(params.get('search') || '');
+  const [sortBy, setSortBy] = useState<string>(params?.get('sort') || 'latest');
+  const [search, setSearch] = useState<string>(params?.get('search') || '');
 
   useEffect(() => {
-    setSearch(params.get('search') || '');
-    setSelectedCategory(params.get('category') || 'all');
-    setSortBy(params.get('sort') || 'latest');
+    setSearch(params?.get('search') || '');
+    setSelectedCategory(params?.get('category') || 'all');
+    setSortBy(params?.get('sort') || 'latest');
   }, [params]);
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function ShopContent({
   };
 
   const updateURL = (key: string, value: string) => {
-    const current = new URLSearchParams(Array.from(params.entries()));
+    const current = new URLSearchParams(Array.from(params?.entries() || []));
     if (value) {
       current.set(key, value);
     } else {
@@ -136,21 +136,21 @@ export function ShopContent({
     updateURL('sort', sort);
   };
 
-  const FiltersContent = () => (
+  const renderFilters = (idPrefix: string) => (
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold mb-4 text-deep-forest">Category</h3>
         <RadioGroup value={selectedCategory} onValueChange={handleCategoryChange}>
           <div className="flex items-center space-x-2 mb-2">
-            <RadioGroupItem value="all" id="all" />
-            <Label htmlFor="all" className="cursor-pointer text-slate-bark">
+            <RadioGroupItem value="all" id={`${idPrefix}-all`} />
+            <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer text-slate-bark">
               All Products
             </Label>
           </div>
           {categories.map((category) => (
             <div key={category.id} className="flex items-center space-x-2 mb-2">
-              <RadioGroupItem value={category.slug} id={category.slug} />
-              <Label htmlFor={category.slug} className="cursor-pointer">
+              <RadioGroupItem value={category.slug} id={`${idPrefix}-${category.slug}`} />
+              <Label htmlFor={`${idPrefix}-${category.slug}`} className="cursor-pointer">
                 {category.name}
               </Label>
             </div>
@@ -164,7 +164,7 @@ export function ShopContent({
           <Slider
             value={priceRange}
             onValueChange={setPriceRange}
-            max={5000}
+            max={20000}
             step={100}
             className="w-full"
           />
@@ -180,7 +180,7 @@ export function ShopContent({
         className="w-full"
         onClick={() => {
           setSelectedCategory('all');
-          setPriceRange([0, 5000]);
+          setPriceRange([0, 20000]);
           setSortBy('latest');
           router.push('/shop');
         }}
@@ -194,7 +194,7 @@ export function ShopContent({
     <div className="grid md:grid-cols-4 gap-8">
       <aside className="hidden md:block">
         <div className="sticky top-24 space-y-6">
-          <FiltersContent />
+          {renderFilters('desktop')}
         </div>
       </aside>
 
@@ -227,7 +227,7 @@ export function ShopContent({
                   <SheetTitle className="text-deep-forest">Filters</SheetTitle>
                 </SheetHeader>
                 <div className="mt-6">
-                  <FiltersContent />
+                  {renderFilters('mobile')}
                 </div>
               </SheetContent>
             </Sheet>
@@ -244,7 +244,7 @@ export function ShopContent({
             <Button
               onClick={() => {
                 setSelectedCategory('all');
-                setPriceRange([0, 5000]);
+                setPriceRange([0, 20000]);
                 router.push('/shop');
               }}
               className="bg-deep-forest text-heirloom-white hover:bg-oxide-brown"

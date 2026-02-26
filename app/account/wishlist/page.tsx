@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { Heart, Share2 } from 'lucide-react';
 import Link from 'next/link';
@@ -8,7 +8,7 @@ import { WishlistItem } from '@/components/wishlist/wishlist-item';
 export const dynamic = 'force-dynamic';
 
 export default async function WishlistPage() {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

@@ -1,0 +1,54 @@
+name: Daily Supabase Database Backup
+
+on:
+  schedule:
+    # Runs at 02:00 UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Create backup
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # The Supabase connection string usually looks like:
+          # postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="backup_${TIMESTAMP}.sql"
+          
+          echo "Starting database backup..."
+          pg_dump -h ${{ secrets.SUPABASE_DB_HOST }} \
+                  -U ${{ secrets.SUPABASE_DB_USER }} \
+                  -d postgres \
+                  -p 6543 \
+                  -F c \
+                  -f $BACKUP_FILE
+                  
+          echo "Backup completed: $BACKUP_FILE"
+          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-db-backup
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 7
+
+      # Optional: Add steps to upload to AWS S3, Google Cloud Storage, etc.
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "Backup failed! Please check the GitHub Actions logs."
+          # Optionally add a curl command to send a Discord/Slack webhook here
+          # curl -X POST -H 'Content-type: application/json' --data '{"text":"🚨 Supabase Database Backup Failed!"}' ${{ secrets.SLACK_WEBHOOK_URL }}

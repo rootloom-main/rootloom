@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { SmartSearch } from '@/components/search/smart-search';
+import { SearchOverlay } from '@/components/search/search-overlay';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import { createClient } from '@/lib/supabase/client';
 import { CartSheet } from '@/components/layout/cart-sheet';
 
 export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
+  // ... state ...
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -32,25 +34,20 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentCategory = searchParams.get('category');
-  const supabase = createClient();
+  const currentCategory = searchParams?.get('category');
 
   useEffect(() => {
+    // ... scroll logic ...
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-
-      // Update scrolled state for styling
       setIsScrolled(currentScrollY > 10);
-
-      // Handle visibility
       if (currentScrollY < 10) {
         setIsVisible(true);
       } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false); // Hide when scrolling down
+        setIsVisible(false);
       } else {
-        setIsVisible(true); // Show when scrolling up
+        setIsVisible(true);
       }
-
       setLastScrollY(currentScrollY);
     };
 
@@ -59,8 +56,8 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   }, [lastScrollY]);
 
   const handleSignOut = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/');
     router.refresh();
   };
 
@@ -88,7 +85,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
     // Only active if we are on /shop AND no category is selected.
     if (path === '/shop' && pathname === '/shop' && currentCategory) return false;
 
-    return pathname.startsWith(path);
+    return pathname?.startsWith(path);
   };
 
   return (
@@ -222,27 +219,15 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
               </div>
 
               <div className="lg:hidden">
-                {/* Mobile Search - Consider moving this to a full width bar below header if needed, but for now keeping icon which toggles a modal or just the component if it fits */}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">
-                      <Search className="h-5 w-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="top" className="h-auto">
-                    <div className="pt-8 pb-4">
-                      <SmartSearch />
-                    </div>
-                  </SheetContent>
-                </Sheet>
+                <SearchOverlay />
               </div>
 
               <Link href="/account/wishlist" className="relative group">
-                <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full">
+                <Button variant="ghost" size="icon" className="text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors">
                   <Heart className="h-5 w-5" />
                   {wishlistCount > 0 && (
                     <Badge
-                      className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-red-500 text-white border-2 border-heirloom-white animate-in zoom-in"
+                      className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-red-500 text-white border-2 border-white animate-in zoom-in"
                     >
                       {wishlistCount}
                     </Badge>
@@ -253,13 +238,13 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative text-deep-forest hover:bg-stone-paper rounded-full"
+                className="relative text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors"
                 onClick={() => setIsCartOpen(true)}
               >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
                   <Badge
-                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-heirloom-white border-2 border-heirloom-white animate-in zoom-in"
+                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-white border-2 border-white animate-in zoom-in"
                   >
                     {cartCount}
                   </Badge>
@@ -269,18 +254,18 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-stone-paper text-deep-forest">
+                    <Button variant="ghost" size="icon" className="rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors">
                       <User className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 p-2 bg-heirloom-white border-woven-sand">
-                    <div className="flex items-center justify-start gap-2 p-2 mb-2 rounded-md bg-stone-paper/50">
-                      <div className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-heirloom-white font-serif font-bold">
-                        {(user.email?.[0] || user.phone?.[0] || 'U').toUpperCase()}
+                  <DropdownMenuContent align="end" className="w-56 p-2 bg-white border border-stone-200 shadow-lg rounded-xl">
+                    <div className="flex items-center justify-start gap-2 p-2 mb-2 rounded-lg bg-stone-50">
+                      <div className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-white font-serif font-bold">
+                        {(user.user_metadata?.full_name?.[0] || user.user_metadata?.name?.[0] || user.email?.[0] || 'U').toUpperCase()}
                       </div>
-                      <div className="flex flex-col space-y-0.5 max-w-[140px]">
-                        <p className="text-sm font-medium truncate text-deep-forest">{user.user_metadata?.full_name || 'User'}</p>
-                        <p className="text-xs text-slate-bark truncate">{user.email || user.phone}</p>
+                      <div className="flex flex-col space-y-0.5 max-w-[160px]">
+                        <p className="text-sm font-semibold truncate text-stone-900">{user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'}</p>
+                        <p className="text-xs text-stone-500 truncate">{user.email || user.phone}</p>
                       </div>
                     </div>
                     {/* Admin Link */}

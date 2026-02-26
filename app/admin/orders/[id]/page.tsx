@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { RefundOrderButton } from '@/components/admin/orders/refund-order-button
 import { CancelOrderButton } from '@/app/account/orders/[id]/cancel-order-button';
 
 export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const { id } = params;
 
     // Fetch Logic
@@ -31,7 +31,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
       )
     `)
         .eq('id', id)
-        .single();
+        .single() as { data: any | null };
 
     if (!order) {
         return <div>Order not found</div>;

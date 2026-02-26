@@ -48,7 +48,7 @@ export async function processOrderCreation({
             quantity: item.quantity,
             price: item.price
         }))
-    });
+    } as any);
 
     if (rpcError) throw rpcError;
 
@@ -72,7 +72,7 @@ export async function processOrderCreation({
             .from('product_variants')
             .select('stock, size, color, product:products(id, name)')
             .eq('id', item.variant_id)
-            .single();
+            .single() as { data: any | null };
 
         if (variant && variant.stock < 5) {
             try {

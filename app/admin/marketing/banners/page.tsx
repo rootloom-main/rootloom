@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -9,17 +10,67 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { redirect } from 'next/navigation';
+import { BannerActions } from '@/components/admin/banner-actions';
+
+interface Banner {
+    id: string;
+    title: string;
+    image_url: string;
+    link: string | null;
+    position: string;
+    active: boolean;
+    created_at: string;
+}
+
+export const dynamic = 'force-dynamic';
 
 export default async function BannersPage() {
-    const supabase = await createClient();
+    let user;
+    try {
+        user = await getCurrentUser();
+    } catch {
+        redirect('/auth/login');
+    }
 
-    const { data: banners } = await supabase
-        .from('banners')
-        .select('*')
-        .order('created_at', { ascending: false });
+    if (!user) {
+        redirect('/auth/login');
+    }
+
+    const supabase = await createSSRClient();
+
+    let profile: { role: string } | null = null;
+    try {
+        const { data } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+        profile = data as { role: string } | null;
+    } catch {
+        redirect('/');
+    }
+
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
+        redirect('/');
+    }
+
+    let banners: Banner[] = [];
+    try {
+        const { data, error } = await supabase
+            .from('banners')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (!error && data) {
+            banners = data as Banner[];
+        }
+    } catch (e) {
+        console.error('Error fetching banners:', e);
+    }
 
     return (
         <div className="container mx-auto px-6 py-8">
@@ -34,7 +85,7 @@ export default async function BannersPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Active Banners</CardTitle>
+                    <CardTitle>All Banners</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -48,16 +99,18 @@ export default async function BannersPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {banners?.map((banner) => (
+                            {banners.map((banner) => (
                                 <TableRow key={banner.id}>
                                     <TableCell>
-                                        <div className="relative h-12 w-20 rounded overflow-hidden">
-                                            <Image
-                                                src={banner.image_url}
-                                                alt={banner.title}
-                                                fill
-                                                className="object-cover"
-                                            />
+                                        <div className="relative h-12 w-20 rounded overflow-hidden bg-gray-100">
+                                            {banner.image_url && (
+                                                <Image
+                                                    src={banner.image_url}
+                                                    alt={banner.title}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-medium">{banner.title}</TableCell>
@@ -68,18 +121,11 @@ export default async function BannersPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="ghost" size="icon">
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600">
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        <BannerActions bannerId={banner.id} active={banner.active} />
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {banners?.length === 0 && (
+                            {banners.length === 0 && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                                         No banners found. Create one to get started.

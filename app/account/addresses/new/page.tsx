@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { AddressForm } from '@/components/account/address-form';
 
 export default async function NewAddressPage() {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

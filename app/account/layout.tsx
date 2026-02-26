@@ -1,5 +1,5 @@
 import { AccountSidebar } from '@/components/account/account-sidebar';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 
 export default async function AccountLayout({
@@ -7,7 +7,7 @@ export default async function AccountLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

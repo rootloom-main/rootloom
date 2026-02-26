@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +12,8 @@ import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 
 export default function SEOSettingsPage() {
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [keywords, setKeywords] = useState('');
@@ -17,6 +21,7 @@ export default function SEOSettingsPage() {
     const supabase = createClient();
 
     useEffect(() => {
+        if (!user) return;
         const fetchSettings = async () => {
             const { data } = await supabase
                 .from('store_settings')
@@ -24,14 +29,20 @@ export default function SEOSettingsPage() {
                 .in('key', ['seo_title', 'seo_description', 'seo_keywords']);
 
             if (data) {
-                const settings = data.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+                const settings = data.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
                 setTitle(settings['seo_title'] || '');
                 setDescription(settings['seo_description'] || '');
                 setKeywords(settings['seo_keywords'] || '');
             }
         };
         fetchSettings();
-    }, []);
+    }, [user, supabase]);
+
+    if (authLoading) return <div className="p-8">Loading...</div>;
+    if (!user) {
+        router.push('/auth/login');
+        return null;
+    }
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();

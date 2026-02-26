@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { DashboardMetrics } from '@/components/admin/dashboard-metrics';
 import { SalesChart } from '@/components/admin/analytics/sales-chart';
@@ -17,36 +18,33 @@ import {
 import { formatPrice } from '@/lib/utils/format';
 
 export default async function AdminAnalyticsPage() {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
 
-    if (!user) redirect('/auth/login');
+    if (!user) {
+        redirect('/auth/login');
+    }
 
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single() as { data: any | null };
 
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         redirect('/');
     }
 
-    // Reuse existing logic for headers via DashboardMetrics if we want, 
-    // but let's fetch specific analytics data here.
-
     // 1. Fetch all completed orders for revenue calc
     const { data: orders } = await supabase
         .from('orders')
         .select('total, created_at, status')
-        .neq('status', 'cancelled');
+        .neq('status', 'cancelled') as { data: any[] | null };
 
     // 2. Fetch order items for top products
     const { data: orderItems } = await supabase
         .from('order_items')
-        .select('quantity, price, product:products(name)');
+        .select('quantity, price, product:products(name)') as { data: any[] | null };
 
     // Calculate Metrics
     const totalRevenue = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
@@ -78,7 +76,7 @@ export default async function AdminAnalyticsPage() {
         .select('total, created_at')
         .neq('status', 'cancelled')
         .gte('created_at', thirtyDaysAgo.toISOString())
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }) as { data: any[] | null };
 
     // Aggregate daily revenue
     const dailyRevenue: Record<string, number> = {};
@@ -90,13 +88,12 @@ export default async function AdminAnalyticsPage() {
         d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         dailyRevenue[dateStr] = 0;
-        chartData.push({ name: dateStr, total: 0 }); // Placeholder order
+        chartData.push({ name: dateStr, total: 0 });
     }
 
     historicalOrders?.forEach(order => {
         const date = new Date(order.created_at);
         const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        // Use a map for O(1) lookups if we wanted, but array find is fine for 30 items
         const dayEntry = chartData.find(d => d.name === dateStr);
         if (dayEntry) {
             dayEntry.total += order.total;
@@ -112,7 +109,7 @@ export default async function AdminAnalyticsPage() {
             product:products(
                 categories(name)
             )
-        `);
+        `) as { data: any[] | null };
 
     const categorySales: Record<string, number> = {};
     categoryItems?.forEach((item: any) => {
@@ -139,18 +136,17 @@ export default async function AdminAnalyticsPage() {
         .select(`
             quantity,
             variant:product_variants!inner(size)
-        `);
+        `) as { data: any[] | null };
 
     const sizeDataMap = new Map<string, number>();
     sizeOrderItems?.forEach(item => {
-        // @ts-ignore - Supabase type inference for nested joins can be tricky
         const size = item.variant?.size;
         if (size) {
             sizeDataMap.set(size, (sizeDataMap.get(size) || 0) + item.quantity);
         }
     });
 
-    // Sort sizes logically (S, M, L, XL...)
+    // Sort sizes logically
     const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
     const sizeData = Array.from(sizeDataMap.entries())
         .map(([name, value]) => ({ name, value }))
@@ -164,11 +160,11 @@ export default async function AdminAnalyticsPage() {
     const customerThirtyDaysAgo = new Date();
     customerThirtyDaysAgo.setDate(customerThirtyDaysAgo.getDate() - 30);
 
-    const { data: profiles } = await supabase
+    const { data: userProfiles } = await supabase
         .from('profiles')
         .select('created_at')
         .gte('created_at', customerThirtyDaysAgo.toISOString())
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }) as { data: any[] | null };
 
     const customerGrowthData: { date: string; count: number }[] = [];
 
@@ -176,11 +172,11 @@ export default async function AdminAnalyticsPage() {
     for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const dateStr = d.toISOString().split('T')[0];
         customerGrowthData.push({ date: dateStr, count: 0 });
     }
 
-    profiles?.forEach(profile => {
+    userProfiles?.forEach(profile => {
         const dateStr = new Date(profile.created_at).toISOString().split('T')[0];
         const dayEntry = customerGrowthData.find(d => d.date === dateStr);
         if (dayEntry) {
@@ -192,7 +188,6 @@ export default async function AdminAnalyticsPage() {
         <div className="container mx-auto px-6 py-8">
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-8">Analytics Dashboard</h1>
 
-            {/* Overview Cards */}
             <div className="grid gap-4 md:grid-cols-4 mb-8">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -236,7 +231,6 @@ export default async function AdminAnalyticsPage() {
                 <CategoryPieChart data={pieChartData} />
             </div>
 
-            {/* Top Products Table */}
             <Card className="col-span-4">
                 <CardHeader>
                     <CardTitle>Top Selling Products</CardTitle>

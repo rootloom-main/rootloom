@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import {
     Table,
@@ -15,19 +16,19 @@ import { CheckCircle, XCircle, RefreshCcw } from 'lucide-react';
 import { updateReturnStatus } from './actions';
 
 export default async function AdminReturnsPage() {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
 
-    if (!user) redirect('/auth/login');
+    if (!user) {
+        redirect('/auth/login');
+    }
 
     // Verify Admin
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single() as { data: any | null };
 
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         redirect('/');

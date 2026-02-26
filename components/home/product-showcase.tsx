@@ -11,7 +11,7 @@ interface Product {
     name: string;
     slug: string;
     base_price: number;
-    product_images: { image_url: string; alt_text: string }[];
+    product_images: { image_url: string; alt_text: string | null }[];
     // Add other fields as needed by ProductCard
     category?: { name: string };
 }

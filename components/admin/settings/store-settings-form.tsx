@@ -31,7 +31,7 @@ export function StoreSettingsForm() {
                 .in('key', ['store_name', 'support_email', 'currency', 'tax_rate', 'gstin', 'maintenance_mode']);
 
             if (data) {
-                const settings = data.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+                const settings = data.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {} as Record<string, string>);
                 setStoreName(settings['store_name'] || 'Root & Loom');
                 setSupportEmail(settings['support_email'] || '');
                 setCurrency(settings['currency'] || 'USD');

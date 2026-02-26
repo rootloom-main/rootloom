@@ -9,7 +9,7 @@ export async function enqueueJob(type: JobType, payload: any) {
     // Note: For client-side enqueuing, we rely on RLS allowing specific inserts
     // For now, let's assume this is called from Server Actions with proper permissions
 
-    const { error } = await supabase.from('jobs').insert({
+    const { error } = await (supabase.from('jobs') as any).insert({
         type,
         payload,
         status: 'pending',
@@ -33,14 +33,15 @@ export async function processNextJob() {
         .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
-        .limit(1);
+        .order('created_at', { ascending: true })
+        .limit(1) as { data: any[] | null, error: any };
 
     if (error || !jobs || jobs.length === 0) return null;
 
     const job = jobs[0];
 
     // Lock job
-    await supabase.from('jobs').update({ status: 'processing', updated_at: new Date().toISOString() }).eq('id', job.id);
+    await (supabase.from('jobs') as any).update({ status: 'processing', updated_at: new Date().toISOString() }).eq('id', job.id);
 
     try {
         logger.info('Processing job', { id: job.id, type: job.type });
@@ -49,12 +50,12 @@ export async function processNextJob() {
         // if (job.type === 'send_email') ...
 
         // Complete
-        await supabase.from('jobs').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', job.id);
+        await (supabase.from('jobs') as any).update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', job.id);
     } catch (err: any) {
         logger.error('Job failed', { id: job.id, error: err.message });
 
         const nextStatus = job.attempts + 1 >= job.max_attempts ? 'failed' : 'pending';
-        await supabase.from('jobs').update({
+        await (supabase.from('jobs') as any).update({
             status: nextStatus,
             attempts: job.attempts + 1,
             last_error: err.message,

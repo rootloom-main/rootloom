@@ -1,8 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { getWishlist, toggleWishlist } from '@/lib/actions/wishlist';
 
 interface WishlistItem {
     id: string;
@@ -24,26 +25,42 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 export function WishlistProvider({ children }: { children: ReactNode }) {
     const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const supabase = createClient();
+    const { user, loading: authLoading } = useAuth();
 
     const fetchWishlist = async () => {
-        try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
-            if (!user) {
+        if (!user) {
+            const stored = localStorage.getItem('guestWishlist');
+            if (stored) {
+                try {
+                    setWishlist(JSON.parse(stored));
+                } catch { setWishlist([]); }
+            } else {
                 setWishlist([]);
-                setIsLoading(false);
-                return;
+            }
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            let data = await getWishlist();
+
+            // Sync guest wishlist on login
+            const stored = localStorage.getItem('guestWishlist');
+            if (stored) {
+                try {
+                    const localItems = JSON.parse(stored);
+                    if (localItems.length > 0) {
+                        for (const item of localItems) {
+                            if (!data?.some((d: any) => d.product_id === item.product_id)) {
+                                await toggleWishlist(item.product_id);
+                            }
+                        }
+                        localStorage.removeItem('guestWishlist');
+                        data = await getWishlist(); // Refresh after sync
+                    }
+                } catch (e) { }
             }
 
-            const { data, error } = await supabase
-                .from('wishlists')
-                .select('id, product_id')
-                .eq('user_id', user.id);
-
-            if (error) throw error;
             setWishlist(data || []);
         } catch (error) {
             console.error('Error fetching wishlist:', error);
@@ -53,94 +70,65 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
-        fetchWishlist();
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange(() => {
+        if (!authLoading) {
             fetchWishlist();
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
+        }
+    }, [user, authLoading]);
 
     const isInWishlist = (productId: string) => {
         return wishlist.some((item) => item.product_id === productId);
     };
 
-    const addToWishlist = async (productId: string) => {
-        try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
-            if (!user) {
-                toast.error('Please login to use wishlist');
-                return;
+    const handleToggle = async (productId: string, optimisticAction: 'add' | 'remove') => {
+        if (!user) {
+            // Guest mode: save to local storage
+            let newWishlist = [...wishlist];
+            if (optimisticAction === 'add') {
+                newWishlist.push({ id: Math.random().toString(), product_id: productId });
+            } else {
+                newWishlist = newWishlist.filter((item) => item.product_id !== productId);
             }
+            setWishlist(newWishlist);
+            localStorage.setItem('guestWishlist', JSON.stringify(newWishlist));
+            toast.success(optimisticAction === 'add' ? 'Added to local wishlist' : 'Removed from local wishlist');
+            return;
+        }
 
-            // Optimistic update
-            const tempId = Math.random().toString();
+        const tempId = Math.random().toString();
+
+        // Optimistic Update
+        if (optimisticAction === 'add') {
             setWishlist((prev) => [...prev, { id: tempId, product_id: productId }]);
+        } else {
+            setWishlist((prev) => prev.filter((item) => item.product_id !== productId));
+        }
 
-            const { data, error } = await supabase
-                .from('wishlists')
-                .insert({
-                    user_id: user.id,
-                    product_id: productId,
-                })
-                .select()
-                .single();
-
-            if (error) {
-                // Revert on error
-                setWishlist((prev) => prev.filter((item) => item.id !== tempId));
-                throw error;
+        try {
+            const result = await toggleWishlist(productId);
+            if (!result.success) {
+                throw new Error(result.message);
             }
 
-            // Update with real ID
-            setWishlist((prev) =>
-                prev.map(item => item.id === tempId ? { ...item, id: data.id } : item)
-            );
+            await fetchWishlist();
+            toast.success(result.message);
 
-            toast.success('Added to wishlist');
-        } catch (error) {
-            console.error('Error adding to wishlist:', error);
-            toast.error('Failed to add to wishlist');
+        } catch (error: any) {
+            console.error('Wishlist toggle error:', error);
+            if (optimisticAction === 'add') {
+                setWishlist((prev) => prev.filter((item) => item.id !== tempId));
+            } else {
+                await fetchWishlist();
+            }
+            toast.error(error.message || 'Failed to update wishlist');
         }
     };
 
+    const addToWishlist = async (productId: string) => {
+        await handleToggle(productId, 'add');
+    };
+
     const removeFromWishlist = async (productId: string) => {
-        try {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-
-            if (!user) return;
-
-            // Optimistic update
-            const itemToRemove = wishlist.find(item => item.product_id === productId);
-            if (!itemToRemove) return;
-
-            setWishlist((prev) => prev.filter((item) => item.product_id !== productId));
-
-            // We need the ID to delete efficiently, but if we only have product_Id, we can query or delete by unique constraint
-            // Assuming unique(user_id, product_id)
-            const { error } = await supabase
-                .from('wishlists')
-                .delete()
-                .match({ user_id: user.id, product_id: productId });
-
-            if (error) {
-                setWishlist((prev) => [...prev, itemToRemove]); // Revert
-                throw error;
-            }
-
-            toast.success('Removed from wishlist');
-        } catch (error) {
-            console.error('Error removing from wishlist:', error);
-            toast.error('Failed to remove from wishlist');
-        }
+        await handleToggle(productId, 'remove');
     };
 
     const refreshWishlist = async () => {

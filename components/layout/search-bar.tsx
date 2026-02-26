@@ -18,7 +18,7 @@ declare global {
 export function SearchBar() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [query, setQuery] = useState(searchParams.get('search') || '');
+    const [query, setQuery] = useState(searchParams?.get('search') || '');
     const [isListening, setIsListening] = useState(false);
 
     const handleSearch = (e: React.FormEvent) => {

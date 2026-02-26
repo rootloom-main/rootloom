@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient, getCurrentUser } from '@/lib/utils/auth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +7,8 @@ import { Package, MapPin, User, ArrowRight, CreditCard } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 export default async function AccountPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = await createSSRClient();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect('/auth/login');
@@ -20,17 +18,17 @@ export default async function AccountPage() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .single() as { data: any | null };
 
   // Fetch recent orders (limit 1 for preview)
-  const { data: recentOrders } = await supabase
+  const { data: orders } = await supabase
     .from('orders')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(3) as { data: any[] | null };
 
-  const recentOrder = recentOrders?.[0];
+  const recentOrder = orders?.[0];
 
   return (
     <div className="space-y-8">

@@ -1,10 +1,11 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function updateOrderNotes(formData: FormData) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
     const orderId = formData.get('orderId') as string;
     const notes = formData.get('notes') as string;
 
@@ -13,9 +14,7 @@ export async function updateOrderNotes(formData: FormData) {
     }
 
     // Verify admin
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
         return { error: 'Unauthorized' };

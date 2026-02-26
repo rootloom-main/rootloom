@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -10,8 +11,8 @@ const profileSchema = z.object({
 });
 
 export async function updateProfile(prevState: any, formData: FormData) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabase = await createClient() as any;
+    const user = await getCurrentUser();
 
     if (!user) {
         return { success: false, message: 'Unauthorized' };

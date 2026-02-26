@@ -100,7 +100,7 @@ export function AdminSidebar({ user, role }: { user: any; role?: string }) {
                         </h3>
                         <nav className="space-y-0.5">
                             {group.items.map((item) => {
-                                const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+                                const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href));
                                 return (
                                     <Link
                                         key={item.name}
@@ -134,7 +134,7 @@ export function AdminSidebar({ user, role }: { user: any; role?: string }) {
                                 href="/admin/admins"
                                 className={cn(
                                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 group",
-                                    pathname.startsWith('/admin/admins')
+                                    pathname?.startsWith('/admin/admins')
                                         ? "bg-slate-800 text-white"
                                         : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                                 )}

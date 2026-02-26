@@ -1,15 +1,14 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function cancelOrder(orderId: string) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
     // Verify user is authenticated
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
         return { success: false, message: 'Unauthorized' };
@@ -27,16 +26,11 @@ export async function cancelOrder(orderId: string) {
     }
 
     // Check if user is admin
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    const isAdmin = profile?.role === 'admin' || profile?.role === 'superadmin';
+    const { isAdmin } = await import('@/lib/utils/auth');
+    const isUserAdmin = await isAdmin();
 
     // Verify user owns this order OR is admin
-    if (order.user_id !== user.id && !isAdmin) {
+    if (order.user_id !== user.id && !isUserAdmin) {
         return { success: false, message: 'Unauthorized' };
     }
 

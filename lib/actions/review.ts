@@ -1,13 +1,14 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function approveReview(reviewId: string) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
     // Check Admin
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return { success: false, message: 'Unauthorized' };
 
     const { data: profile } = await supabase
@@ -32,17 +33,17 @@ export async function approveReview(reviewId: string) {
 }
 
 export async function deleteReview(reviewId: string) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
     // Check Admin
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return { success: false, message: 'Unauthorized' };
 
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single(); // ... rest of func
 
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         return { success: false, message: 'Forbidden' };
@@ -60,12 +61,21 @@ export async function deleteReview(reviewId: string) {
 }
 
 export async function submitReview(formData: FormData) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
     const productId = formData.get('productId') as string;
     const rating = parseInt(formData.get('rating') as string);
     const comment = formData.get('comment') as string;
+    const title = formData.get('title') as string;
+    const imagesJson = formData.get('images') as string;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    let images: string[] = [];
+    try {
+        images = imagesJson ? JSON.parse(imagesJson) : [];
+    } catch (e) {
+        console.error('Error parsing images JSON:', e);
+    }
+
+    const user = await getCurrentUser();
 
     if (!user) {
         return { success: false, message: 'You must be logged in to submit a review' };
@@ -88,6 +98,8 @@ export async function submitReview(formData: FormData) {
         product_id: productId,
         rating,
         comment,
+        title,
+        images,
         is_approved: false // Default to pending
     });
 
@@ -96,6 +108,6 @@ export async function submitReview(formData: FormData) {
         return { success: false, message: 'Failed to submit review' };
     }
 
-    revalidatePath(`/products/${productId}`);
+    revalidatePath(`/product/${productId}`);
     return { success: true, message: 'Review submitted for approval' };
 }

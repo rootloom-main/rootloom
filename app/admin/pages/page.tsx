@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,12 +13,12 @@ import { Edit, Eye } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function PagesListing() {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
 
     const { data: pages } = await supabase
         .from('pages')
         .select('*')
-        .order('title', { ascending: true });
+        .order('title', { ascending: true }) as { data: any[] | null };
 
     return (
         <div className="container mx-auto px-6 py-8">

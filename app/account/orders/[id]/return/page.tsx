@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect, notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,7 @@ export default async function ReturnRequestPage({
     const supabase = await createClient();
     const { id } = params;
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
         redirect('/auth/login');
@@ -37,19 +36,24 @@ export default async function ReturnRequestPage({
         .select(`
       *,
       order_items (
-        id,
-        quantity,
-        price,
-        product:products (name, image_url),
-        variant:product_variants (size, color)
+        *,
+        product:products (*),
+        variant:product_variants (*)
       )
     `)
         .eq('id', id)
         .eq('user_id', user.id)
-        .single();
+        .single() as { data: any | null };
 
     if (!order) {
-        notFound();
+        return (
+            <div className="container mx-auto px-4 py-16 text-center">
+                <h1 className="text-2xl font-bold mb-4">Order not found</h1>
+                <Link href="/account/orders">
+                    <Button>Back to Orders</Button>
+                </Link>
+            </div>
+        );
     }
 
     // Calculate return eligibility (e.g. within 30 days)

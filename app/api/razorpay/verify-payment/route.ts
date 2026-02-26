@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { processOrderCreation } from '@/lib/order-processing';
 import { validateCouponLogic } from '@/lib/coupon';
 
@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       .from('orders')
       .select('id, order_number')
       .eq('payment_id', razorpay_payment_id)
-      .single();
+      .single() as { data: any | null };
 
     if (existingOrder) {
       return NextResponse.json({
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
           product:products(name, base_price),
           variant:product_variants(price_adjustment)
         `)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id) as { data: any[] | null };
 
     if (!cartItemsDB || cartItemsDB.length === 0) {
       // Fallback or Error? 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         if (result.success) {
           discountAmount = result.discountAmount || 0;
           if (result.couponId) {
-            await supabase.rpc('increment_coupon_usage', { coupon_id: result.couponId });
+            await supabase.rpc('increment_coupon_usage', { coupon_id: result.couponId } as any);
           }
         }
       } catch (e) {
@@ -125,6 +125,16 @@ export async function POST(req: NextRequest) {
       subtotal,
       userEmail: user.email!,
       userName: user.user_metadata.full_name || 'Customer'
+    });
+
+    // Enterprise Phase 1: Atomically Commit Reserved Stock
+    const stockItems = cartItems.map((item: any) => ({
+      variant_id: item.variant_id,
+      quantity: item.quantity
+    }));
+
+    await supabase.rpc('commit_stock_batch', {
+      items: stockItems
     });
 
     // Clear Cart

@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 
@@ -7,10 +8,8 @@ export default async function AdminLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
+    const supabase = await createSSRClient() as any;
 
     if (!user) {
         redirect('/auth/login');
@@ -20,7 +19,7 @@ export default async function AdminLayout({
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single() as { data: any | null };
 
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         redirect('/');

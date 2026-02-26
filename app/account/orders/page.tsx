@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { formatPrice, formatDate } from '@/lib/utils/format';
 import { Package } from 'lucide-react';
 
 export default async function OrdersPage() {
-  const supabase = await createClient();
+  const supabase = await createSSRClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

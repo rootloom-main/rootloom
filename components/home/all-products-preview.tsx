@@ -18,7 +18,7 @@ export async function AllProductsPreview({ limit = 12 }: { limit?: number }) {
             subtitle="Discover More"
             products={products}
             viewAllLink="/shop"
-            viewAllText="Browser Full Catalog"
+            viewAllText="Browse Full Catalog"
             className="bg-white"
         />
     );

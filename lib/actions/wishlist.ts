@@ -1,13 +1,33 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 
+export async function getWishlist() {
+    const supabase = await createClient() as any;
+    const user = await getCurrentUser();
+
+    if (!user) return [];
+
+    const { data, error } = await supabase
+        .from('wishlists')
+        .select('id, product_id')
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error('Error fetching wishlist:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
 export async function toggleWishlist(productId: string) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
 
     // Check User
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return { success: false, message: 'Please login to use wishlist' };
 
     // Check if already in wishlist

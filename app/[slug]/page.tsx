@@ -8,7 +8,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         .select('title')
         .eq('slug', params.slug)
         .eq('is_published', true)
-        .single();
+        .single() as { data: { title: string } | null };
 
     if (!page) return { title: 'Page Not Found' };
     return { title: page.title };
@@ -21,7 +21,7 @@ export default async function DynamicPage({ params }: { params: { slug: string }
         .select('*')
         .eq('slug', params.slug)
         .eq('is_published', true)
-        .single();
+        .single() as { data: any | null };
 
     if (!page) {
         notFound();

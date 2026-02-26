@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Insert Return Request
-    const { error } = await supabase
-        .from('returns')
+    const { error } = await (supabase
+        .from('returns') as any)
         .insert({
             user_id: user.id,
             order_id: orderId,

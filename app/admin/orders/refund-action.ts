@@ -1,10 +1,11 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function processRefund(formData: FormData) {
-    const supabase = await createClient();
+    const supabase = await createClient() as any;
     const orderId = formData.get('orderId') as string;
     const amount = formData.get('amount') as string;
     const restock = formData.get('restock') === 'true';
@@ -14,7 +15,7 @@ export async function processRefund(formData: FormData) {
     }
 
     // Verify Admin
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
     if (!user) return { error: 'Unauthorized' };
 
     const { data: profile } = await supabase

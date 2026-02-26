@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export const runtime = 'nodejs';
 
@@ -10,15 +11,7 @@ export async function GET(request: NextRequest) {
     const next = searchParams.get('next') ?? '/';
 
     if (code) {
-        const cookieStore = {
-            getAll() {
-                return []; // Next.js cookies() is read-only in route handlers in some versions, but we need to pass something
-            },
-            setAll(cookiesToSet: any[]) {
-                // We'll handle setting cookies in the response
-            },
-        };
-
+        const cookieStore = cookies();
         const response = NextResponse.redirect(`${origin}${next}`);
 
         const supabase = createServerClient(
@@ -26,22 +19,17 @@ export async function GET(request: NextRequest) {
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
                 cookies: {
-                    get(name: string) {
-                        return request.cookies.get(name)?.value;
+                    getAll() {
+                        return cookieStore.getAll();
                     },
-                    set(name: string, value: string, options: CookieOptions) {
-                        response.cookies.set({
-                            name,
-                            value,
-                            ...options,
-                        });
-                    },
-                    remove(name: string, options: CookieOptions) {
-                        response.cookies.set({
-                            name,
-                            value: '',
-                            ...options,
-                        });
+                    setAll(cookiesToSet) {
+                        try {
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                cookieStore.set(name, value, options)
+                            );
+                        } catch {
+                            // Ignored if called from a Server Component
+                        }
                     },
                 },
             }

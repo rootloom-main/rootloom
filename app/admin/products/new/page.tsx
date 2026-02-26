@@ -1,13 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { ProductForm } from '../_components/product-form';
 
 export default async function NewProductPage() {
-    const supabase = await createClient();
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = await createSSRClient() as any;
+    const user = await getCurrentUser();
 
     if (!user) redirect('/auth/login');
 

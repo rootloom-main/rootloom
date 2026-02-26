@@ -1,11 +1,11 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { ProfileForm } from '@/components/account/profile-form';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ProfilePage() {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 import {
     Table,
     TableBody,
@@ -37,6 +38,7 @@ interface Profile {
 export default function AdminManagementPage() {
     const supabase = createClient();
     const router = useRouter();
+    const { user, loading: authLoading } = useAuth();
     const [profiles, setProfiles] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -45,15 +47,9 @@ export default function AdminManagementPage() {
     const [actionLoading, setActionLoading] = useState(false);
 
     const fetchProfiles = useCallback(async () => {
+        if (!user) return;
         setLoading(true);
         try {
-            // Check current user role first
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                router.push('/auth/login');
-                return;
-            }
-
             const { data: currentProfile } = await supabase
                 .from('profiles')
                 .select('role')
@@ -89,7 +85,7 @@ export default function AdminManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [supabase, router, searchTerm]);
+    }, [supabase, router, searchTerm, user]);
 
     useEffect(() => {
         // Debounce search
@@ -137,12 +133,17 @@ export default function AdminManagementPage() {
         }
     };
 
-    if (loading && profiles.length === 0) {
+    if ((loading || authLoading) && profiles.length === 0) {
         return (
             <div className="container mx-auto px-4 py-16 flex justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
+    }
+
+    if (!user && !authLoading) {
+        router.push('/auth/login');
+        return null;
     }
 
     return (

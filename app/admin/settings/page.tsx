@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,18 +9,18 @@ import { Separator } from '@/components/ui/separator';
 import { StoreSettingsForm } from '@/components/admin/settings/store-settings-form';
 
 export default async function AdminSettingsPage() {
-    const supabase = await createClient();
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
 
-    if (!user) redirect('/auth/login');
+    if (!user) {
+        redirect('/auth/login');
+    }
 
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .single() as { data: any | null };
 
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         redirect('/');

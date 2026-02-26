@@ -13,6 +13,7 @@ import {
     InputOTP,
     InputOTPGroup,
     InputOTPSlot,
+    InputOTPSeparator,
 } from '@/components/ui/input-otp';
 
 export function LoginForm() {
@@ -55,9 +56,17 @@ export function LoginForm() {
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
-                    shouldCreateUser: true,
+                    shouldCreateUser: false,
                 },
             });
+
+            if (error) {
+                // Check if the error is due to user not found (Supabase specific)
+                // Note: specific error message depends on Supabase/Auth version, usually 'Signups not allowed for this instance' 
+                // or generic error if shouldCreateUser is false. 
+                // We will catch it in the catch block generally, or throw specific if needed.
+                throw error;
+            }
 
             if (error) throw error;
 
@@ -65,6 +74,12 @@ export function LoginForm() {
             setTimeLeft(60);
             toast.success('OTP sent to your email.');
         } catch (error: any) {
+            console.error(error);
+            if (error.message.includes('Signups not allowed') || error.message.includes('User not found') || error.status === 400) {
+                toast.error('Account not found. Redirecting to register...');
+                setTimeout(() => router.push('/auth/signup'), 1500);
+                return;
+            }
             toast.error(error.message || 'Failed to send email OTP');
         } finally {
             setLoading(false);
@@ -87,7 +102,7 @@ export function LoginForm() {
 
             toast.success('Logged in successfully!');
             router.refresh();
-            const next = searchParams.get('next') || '/';
+            const next = searchParams?.get('next') || '/';
             router.push(next);
         } catch (error: any) {
             toast.error(error.message || 'Invalid code');
@@ -135,6 +150,9 @@ export function LoginForm() {
                                     <InputOTPSlot index={0} />
                                     <InputOTPSlot index={1} />
                                     <InputOTPSlot index={2} />
+                                </InputOTPGroup>
+                                <InputOTPSeparator />
+                                <InputOTPGroup>
                                     <InputOTPSlot index={3} />
                                     <InputOTPSlot index={4} />
                                     <InputOTPSlot index={5} />
@@ -177,6 +195,6 @@ export function LoginForm() {
                     </form>
                 )}
             </CardContent>
-        </Card>
+        </Card >
     );
 }

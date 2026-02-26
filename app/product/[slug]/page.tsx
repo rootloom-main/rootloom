@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { ProductService } from '@/lib/services/productService';
 import { ProductDetails } from './product-details';
 import { Metadata } from 'next';
 import { Reviews } from '@/components/product/reviews';
@@ -11,6 +12,8 @@ interface ProductPageProps {
   params: { slug: string };
 }
 
+export const revalidate = 60; // Cache this route for 60 seconds
+
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
@@ -19,7 +22,7 @@ export async function generateMetadata({
     .from('products')
     .select('name, description, product_images(image_url)')
     .eq('slug', params.slug)
-    .single();
+    .single() as { data: any | null };
 
   if (!product) {
     return {
@@ -42,31 +45,23 @@ export async function generateMetadata({
   };
 }
 
+import { RecentlyViewed } from '@/components/product/recently-viewed';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { Slash } from 'lucide-react';
+
 export default async function ProductPage({ params }: ProductPageProps) {
   const supabase = await createClient();
 
-  const [userResult, productResult] = await Promise.all([
+  const [userResult, product] = await Promise.all([
     supabase.auth.getUser(),
-    supabase
-      .from('products')
-      .select(
-        `
-      *,
-      category:categories(name, slug),
-      product_images(id, image_url, alt_text, display_order),
-      product_variants(id, size, color, stock, price_adjustment, sku)
-    `
-      )
-      .eq('slug', params.slug)
-      .single(),
+    ProductService.getProductBySlug(params.slug),
   ]);
 
   const {
     data: { user },
   } = userResult;
-  const { data: product, error } = productResult;
 
-  if (error || !product) {
+  if (!product) {
     notFound();
   }
 
@@ -88,7 +83,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         .eq('product_id', product.id)
         .single()
       : Promise.resolve({ data: null }),
-    getRelatedProducts(product.id, product.embedding),
+    getRelatedProducts(product.id, product.category_id || product.category?.id),
   ]);
 
   const reviews = reviewsResult.data;
@@ -106,7 +101,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const siteUrl = 'https://rootloom.vercel.app';
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 bg-white">
+      {/* SEO Schemas */}
       <BreadcrumbSchema
         items={[
           { name: 'Home', item: siteUrl },
@@ -140,10 +136,44 @@ export default async function ProductPage({ params }: ProductPageProps) {
           })),
         }}
       />
-      <ProductDetails product={product} isWishlisted={isWishlisted} />
+
+      {/* Visual Breadcrumbs */}
+      <div className="container mx-auto px-4 py-4">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Home</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator><Slash className="w-3 h-3" /></BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/shop">Shop</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator><Slash className="w-3 h-3" /></BreadcrumbSeparator>
+            {product.category && (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href={`/shop?category=${product.category.slug}`}>{product.category.name}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator><Slash className="w-3 h-3" /></BreadcrumbSeparator>
+              </>
+            )}
+            <BreadcrumbItem>
+              <BreadcrumbPage>{product.name}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <ProductDetails
+        product={product}
+        isWishlisted={isWishlisted}
+        averageRating={averageRating}
+        totalReviews={totalReviews}
+      />
 
       <div className="container mx-auto px-4">
         <RelatedProducts products={relatedProducts} />
+        <RecentlyViewed currentProductId={product.id} />
         <Reviews productId={product.id} reviews={reviews || []} user={user} />
       </div>
     </div>

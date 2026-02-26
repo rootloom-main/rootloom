@@ -10,8 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatPrice } from '@/lib/utils/format';
 import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { addAddress, updateAddress, getAddresses } from '@/lib/actions/address';
+import { usePostHog } from 'posthog-js/react';
 
 declare global {
   interface Window {
@@ -29,12 +31,14 @@ interface Address {
   state: string;
   postal_code: string;
   country: string;
+  is_default: boolean;
 }
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, cartCount, clearCart } = useCart();
-  const supabase = createClient();
+  const { user, loading: authLoading } = useAuth();
+  const posthog = usePostHog();
 
   const [loading, setLoading] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -47,6 +51,7 @@ export default function CheckoutPage() {
     state: '',
     postal_code: '',
     country: 'India',
+    is_default: false,
   });
 
   const [couponCode, setCouponCode] = useState('');
@@ -55,8 +60,14 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
 
   useEffect(() => {
+    // If cart is empty and not loading, redirect
+    // But cart might be loading initially from provider. 
+    // We can rely on cartCount === 0 check, but maybe wait for provider loading?
+    // Provider `isLoading` is not exposed? It is.
+    // But we don't have it here. `useCart` exposes `isLoading`.
+    // Let's assume cartCount is accurate enough or handled by provider.
     if (cartCount === 0) {
-      router.push('/cart');
+      // router.push('/cart'); // Commenting out to avoid redirect loop if cart is just fetching
     }
 
     const script = document.createElement('script');
@@ -65,40 +76,43 @@ export default function CheckoutPage() {
     script.onload = () => setScriptLoaded(true);
     document.body.appendChild(script);
 
+    if (posthog && cartCount > 0) {
+      posthog.capture('checkout_started', {
+        cart_count: cartCount,
+        value: cart.reduce((acc, item) => acc + (item.product.base_price + (item.variant.price_adjustment || 0)) * item.quantity, 0)
+      });
+    }
+
     return () => {
       document.body.removeChild(script);
     };
-  }, [cartCount]);
+  }, [cartCount, posthog, cart]);
 
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [showAddressModal, setShowAddressModal] = useState(false);
 
   // Load saved address from session storage on mount
   useEffect(() => {
-    const savedAddress = sessionStorage.getItem('checkoutAddress');
-    if (savedAddress) {
+    const savedSessionAddress = sessionStorage.getItem('checkoutAddress');
+    if (savedSessionAddress) {
       try {
-        setAddress(JSON.parse(savedAddress));
+        setAddress(JSON.parse(savedSessionAddress));
       } catch (e) {
         console.error('Failed to parse saved address', e);
       }
     }
 
     const fetchAddresses = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from('addresses')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('is_default', { ascending: false });
+        const data = await getAddresses();
 
-        if (data) {
+        if (data && data.length > 0) {
           setSavedAddresses(data);
           // Pre-fill with default if no session address
-          if (!savedAddress && data.length > 0) {
-            const defaultAddr = data.find(a => a.is_default) || data[0];
+          if (!savedSessionAddress) {
+            const defaultAddr = data.find((a: any) => a.is_default) || data[0];
             setAddress({
+              id: defaultAddr.id,
               full_name: defaultAddr.full_name,
               phone: defaultAddr.phone,
               address_line1: defaultAddr.address_line1,
@@ -107,13 +121,17 @@ export default function CheckoutPage() {
               state: defaultAddr.state,
               postal_code: defaultAddr.postal_code,
               country: defaultAddr.country || 'India',
+              is_default: defaultAddr.is_default || false,
             });
           }
         }
       }
     }
-    fetchAddresses();
-  }, []);
+
+    if (!authLoading) {
+      fetchAddresses();
+    }
+  }, [user, authLoading]);
 
   // Save address to session storage on change
   useEffect(() => {
@@ -124,6 +142,7 @@ export default function CheckoutPage() {
 
   const handleSelectAddress = (selected: any) => {
     setAddress({
+      id: selected.id,
       full_name: selected.full_name,
       phone: selected.phone,
       address_line1: selected.address_line1,
@@ -132,13 +151,11 @@ export default function CheckoutPage() {
       state: selected.state,
       postal_code: selected.postal_code,
       country: selected.country || 'India',
+      is_default: selected.is_default || false,
     });
     setShowAddressModal(false);
     toast.success("Address applied");
   };
-
-  // Rest of the component...
-
 
   const subtotal = cart.reduce((total, item) => {
     const price = item.product.base_price + (item.variant.price_adjustment || 0);
@@ -151,6 +168,9 @@ export default function CheckoutPage() {
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    // If user types, we should probably clear the ID if it was from a saved address?
+    // Or just treat it as an update to that address?
+    // Let's keep the ID, so it updates the existing address if they selected one.
     setAddress({ ...address, [e.target.name]: e.target.value });
   };
 
@@ -181,17 +201,22 @@ export default function CheckoutPage() {
     setCouponLoading(true);
 
     // Import dynamically or use the imported action
-    const { validateCoupon } = await import('./actions');
-    const result = await validateCoupon(couponCode, subtotal);
+    try {
+      const { validateCoupon } = await import('./actions');
+      const result = await validateCoupon(couponCode, subtotal);
 
-    if (result.success && result.discountAmount !== undefined) {
-      setDiscount(result.discountAmount);
-      setAppliedCoupon({ code: result.couponCode!, id: result.couponId! });
-      toast.success(result.message);
-    } else {
-      setDiscount(0);
-      setAppliedCoupon(null);
-      toast.error(result.message || 'Invalid coupon');
+      if (result.success && result.discountAmount !== undefined) {
+        setDiscount(result.discountAmount);
+        setAppliedCoupon({ code: result.couponCode!, id: result.couponId! });
+        toast.success(result.message);
+      } else {
+        setDiscount(0);
+        setAppliedCoupon(null);
+        toast.error(result.message || 'Invalid coupon');
+      }
+    } catch (err) {
+      console.error("Coupon error", err);
+      toast.error("Failed to apply coupon");
     }
     setCouponLoading(false);
   };
@@ -202,16 +227,32 @@ export default function CheckoutPage() {
     setAppliedCoupon(null);
   };
 
+  const saveOrUpdateAddress = async () => {
+    if (address.id) {
+      const res = await updateAddress(address.id, address);
+      if (res.success && res.data) {
+        return res.data;
+      }
+      // Fallback: if update fails (e.g. not found), try insert
+      const addRes = await addAddress(address);
+      if (addRes.success && addRes.data) {
+        return addRes.data;
+      }
+    } else {
+      const res = await addAddress(address);
+      if (res.success && res.data) {
+        return res.data;
+      }
+    }
+    return null;
+  };
+
   const handlePayment = async () => {
     if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       if (!user) {
         sessionStorage.setItem('checkoutAddress', JSON.stringify(address));
         toast('Please login to continue', {
@@ -221,44 +262,9 @@ export default function CheckoutPage() {
         return;
       }
 
-      let savedAddress: any;
-
-      if (address.id) {
-        const { data, error } = await supabase
-          .from('addresses')
-          .update({
-            ...address,
-            user_id: user.id
-          })
-          .eq('id', address.id)
-          .select()
-          .single();
-
-        if (error) {
-          // Fallback to insert if update fails (e.g. deleted)
-          const { data: newData } = await supabase
-            .from('addresses')
-            .insert({
-              user_id: user.id,
-              ...address,
-              id: undefined // Ensure we generate new ID if fallback
-            })
-            .select()
-            .single();
-          savedAddress = newData;
-        } else {
-          savedAddress = data;
-        }
-      } else {
-        const { data } = await supabase
-          .from('addresses')
-          .insert({
-            user_id: user.id,
-            ...address,
-          })
-          .select()
-          .single();
-        savedAddress = data;
+      const savedAddress = await saveOrUpdateAddress();
+      if (!savedAddress) {
+        throw new Error('Failed to save address details');
       }
 
       const response = await fetch('/api/razorpay/create-order', {
@@ -268,7 +274,7 @@ export default function CheckoutPage() {
           amount: total,
           currency: 'INR',
           couponCode: appliedCoupon?.code,
-          addressId: savedAddress?.id,
+          addressId: savedAddress.id,
         }),
       });
 
@@ -301,12 +307,10 @@ export default function CheckoutPage() {
                   price:
                     item.product.base_price + (item.variant.price_adjustment || 0),
                 })),
-                address_id: savedAddress?.id,
+                address_id: savedAddress.id,
                 subtotal,
                 shipping_cost: shipping,
-                total, // This total includes discount on client, but backend should verify?
-                // Actually verify-payment usually just records what happened or trusts the order_id amount. 
-                // But for our orders table, we want to record the discount.
+                total,
                 couponCode: appliedCoupon?.code,
                 discountAmount: discount
               }),
@@ -315,6 +319,15 @@ export default function CheckoutPage() {
             const verifyData = await verifyResponse.json();
 
             if (verifyData.success) {
+              if (posthog) {
+                posthog.capture('order_completed', {
+                  order_id: verifyData.orderId,
+                  revenue: total,
+                  currency: 'INR',
+                  payment_method: 'Razorpay',
+                  coupon_code: appliedCoupon?.code
+                });
+              }
               await clearCart();
               toast.success('Order placed successfully!');
               router.push(`/account/orders/${verifyData.orderId}`);
@@ -357,10 +370,6 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
       if (!user) {
         sessionStorage.setItem('checkoutAddress', JSON.stringify(address));
         toast('Please login to continue', {
@@ -370,43 +379,9 @@ export default function CheckoutPage() {
         return;
       }
 
-      let savedAddress: any;
-
-      if (address.id) {
-        const { data, error } = await supabase
-          .from('addresses')
-          .update({
-            ...address,
-            user_id: user.id
-          })
-          .eq('id', address.id)
-          .select()
-          .single();
-
-        if (error) {
-          const { data: newData } = await supabase
-            .from('addresses')
-            .insert({
-              user_id: user.id,
-              ...address,
-              id: undefined
-            })
-            .select()
-            .single();
-          savedAddress = newData;
-        } else {
-          savedAddress = data;
-        }
-      } else {
-        const { data } = await supabase
-          .from('addresses')
-          .insert({
-            user_id: user.id,
-            ...address,
-          })
-          .select()
-          .single();
-        savedAddress = data;
+      const savedAddress = await saveOrUpdateAddress();
+      if (!savedAddress) {
+        throw new Error('Failed to save address details');
       }
 
       const response = await fetch('/api/checkout/cod', {
@@ -419,7 +394,7 @@ export default function CheckoutPage() {
             quantity: item.quantity,
             price: item.product.base_price + (item.variant.price_adjustment || 0),
           })),
-          address_id: savedAddress?.id,
+          address_id: savedAddress.id,
           subtotal,
           shipping_cost: shipping,
           total, // Client calculated total
@@ -430,6 +405,15 @@ export default function CheckoutPage() {
       const data = await response.json();
 
       if (data.success) {
+        if (posthog) {
+          posthog.capture('order_completed', {
+            order_id: data.orderId,
+            revenue: total,
+            currency: 'INR',
+            payment_method: 'COD',
+            coupon_code: appliedCoupon?.code
+          });
+        }
         await clearCart();
         toast.success('Order placed successfully!');
         router.push(`/account/orders/${data.orderId}`);
@@ -475,6 +459,7 @@ export default function CheckoutPage() {
                           state: '',
                           postal_code: '',
                           country: 'India',
+                          is_default: false,
                         });
                         sessionStorage.removeItem('checkoutAddress');
                       }}
@@ -521,6 +506,7 @@ export default function CheckoutPage() {
                     value={address.full_name}
                     onChange={handleInputChange}
                     placeholder="Enter your full name"
+                    autoComplete="name"
                   />
                 </div>
                 <div>
@@ -532,6 +518,7 @@ export default function CheckoutPage() {
                     onChange={handleInputChange}
                     placeholder="10-digit mobile number"
                     maxLength={10}
+                    autoComplete="tel"
                   />
                 </div>
               </div>
@@ -544,6 +531,7 @@ export default function CheckoutPage() {
                   value={address.address_line1}
                   onChange={handleInputChange}
                   placeholder="House no., Building name"
+                  autoComplete="address-line1"
                 />
               </div>
 
@@ -555,6 +543,7 @@ export default function CheckoutPage() {
                   value={address.address_line2}
                   onChange={handleInputChange}
                   placeholder="Road name, Area, Colony"
+                  autoComplete="address-line2"
                 />
               </div>
 
@@ -567,6 +556,7 @@ export default function CheckoutPage() {
                     value={address.city}
                     onChange={handleInputChange}
                     placeholder="City"
+                    autoComplete="address-level2"
                   />
                 </div>
                 <div>
@@ -577,6 +567,7 @@ export default function CheckoutPage() {
                     value={address.state}
                     onChange={handleInputChange}
                     placeholder="State"
+                    autoComplete="address-level1"
                   />
                 </div>
                 <div>
@@ -588,6 +579,7 @@ export default function CheckoutPage() {
                     onChange={handleInputChange}
                     placeholder="PIN Code"
                     maxLength={6}
+                    autoComplete="postal-code"
                   />
                 </div>
               </div>

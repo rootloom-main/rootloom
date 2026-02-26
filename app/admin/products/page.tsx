@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import {
     Table,
     TableBody,
@@ -15,11 +16,9 @@ import { ProductActions } from './product-actions';
 import { formatPrice } from '@/lib/utils/format';
 
 export default async function AdminProductsPage() {
-    const supabase = await createClient();
+    const supabase = await createSSRClient();
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (!user) {
         redirect('/auth/login');
@@ -30,9 +29,9 @@ export default async function AdminProductsPage() {
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .single() as { data: any | null };
 
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
         redirect('/');
     }
 
@@ -41,7 +40,7 @@ export default async function AdminProductsPage() {
         .from('products')
         .select('*, categories(name)')
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as { data: any[] | null; error: any };
 
     if (error) {
         console.error('Error fetching products:', error);

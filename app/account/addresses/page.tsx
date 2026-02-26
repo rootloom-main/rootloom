@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
+import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,8 @@ import { Plus } from 'lucide-react';
 import { AddressCard } from '@/components/account/address-card';
 
 export default async function AddressesPage() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
 
     if (!user) {
         redirect('/auth/login');
@@ -18,7 +19,7 @@ export default async function AddressesPage() {
         .select('*')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as { data: any[] | null };
 
     return (
         <div className="container mx-auto px-4 py-8">

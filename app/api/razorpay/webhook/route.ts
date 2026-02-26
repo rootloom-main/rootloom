@@ -3,16 +3,25 @@ import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { processOrderCreation } from '@/lib/order-processing';
 import { validateCouponLogic } from '@/lib/coupon';
+import * as Sentry from '@sentry/nextjs';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
     const signature = req.headers.get('x-razorpay-signature');
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET;
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const secret = webhookSecret || keySecret;
 
-    if (!signature || !secret) {
-        return NextResponse.json({ message: 'Missing signature or secret' }, { status: 400 });
+    if (!signature) {
+        console.error('Webhook Error: Missing x-razorpay-signature header');
+        return NextResponse.json({ message: 'Missing signature' }, { status: 400 });
+    }
+
+    if (!secret) {
+        console.error('Webhook Error: RAZORPAY_WEBHOOK_SECRET and RAZORPAY_KEY_SECRET are both missing');
+        return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
     }
 
     const expectedSignature = crypto
@@ -21,15 +30,20 @@ export async function POST(req: NextRequest) {
         .digest('hex');
 
     if (expectedSignature !== signature) {
+        console.error('Webhook Error: Invalid signature', {
+            received: signature,
+            expectedLength: expectedSignature.length,
+            usingWebhookSecret: !!webhookSecret
+        });
         return NextResponse.json({ message: 'Invalid signature' }, { status: 400 });
     }
 
     const event = JSON.parse(body);
+    console.log(`Webhook Received: ${event.event}`, { id: event.id });
 
     if (event.event === 'payment.captured') {
         const payment = event.payload.payment.entity;
 
-        // Strict Status Check
         if (payment.status !== 'captured') {
             console.log(`Webhook: Payment status is ${payment.status}, ignoring.`);
             return NextResponse.json({ received: true });
@@ -43,25 +57,22 @@ export async function POST(req: NextRequest) {
         const amountPaid = payment.amount / 100; // Convert to main currency unit
 
         if (!userId || !addressId) {
-            console.error('Webhook: Missing user_id or address_id in notes');
-            return NextResponse.json({ message: 'Missing metadata' }, { status: 200 }); // Return 200 to acknowledge
+            console.error('Webhook Error: Missing user_id or address_id in notes', { notes });
+            return NextResponse.json({ message: 'Missing metadata' }, { status: 200 });
         }
 
-        const supabase = await createClient(); // Use service role if possible, but here we use standard client.
-        // Ideally webhook should use Service Role client to bypass RLS if needed, 
-        // but we can rely on standard client if we assume it works or use our own admin rights.
-        // Actually, for webhook, we don't have a user session! We MUST use Service Role or admin.
-        // But `createClient` uses cookies? No, `createClient` in server usually uses cookies.
-        // Here we have NO cookies. We need a SUPABASE_SERVICE_ROLE_KEY client.
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-        // TEMPORARY: using standard createClient might fail RLS if no session.
-        // I need to use `createClient(url, serviceRoleKey)`.
+        if (!serviceRoleKey || serviceRoleKey === 'your_supabase_service_role_key') {
+            console.error('Webhook Error: SUPABASE_SERVICE_ROLE_KEY is missing or invalid');
+            return NextResponse.json({ message: 'Admin configuration error' }, { status: 500 });
+        }
 
-        // Re-import standard supabase-js for service client
         const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
         const adminSupabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
+            supabaseUrl!,
+            serviceRoleKey
         );
 
         // Check Idempotency
@@ -168,6 +179,13 @@ export async function POST(req: NextRequest) {
                 userName
             });
 
+            // Enterprise Phase 1: Atomically Commit Stock
+            const stockItems = cartItems.map((item: any) => ({
+                variant_id: item.variant_id,
+                quantity: item.quantity
+            }));
+            await adminSupabase.rpc('commit_stock_batch', { items: stockItems });
+
             // 4. Clear Cart
             await adminSupabase.from('cart_items').delete().eq('user_id', userId);
 
@@ -175,8 +193,44 @@ export async function POST(req: NextRequest) {
 
         } catch (err) {
             console.error('Webhook: Processing failed', err);
+            Sentry.captureException(err, {
+                extra: {
+                    paymentId,
+                    userId,
+                    event: event.event
+                }
+            });
             return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
         }
+    }
+
+    if (event.event === 'payment.failed') {
+        const payment = event.payload.payment.entity;
+        const userId = payment.notes?.user_id;
+
+        if (userId) {
+            const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            if (serviceRoleKey && supabaseUrl) {
+                const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+                const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
+
+                const { data: cartItemsDB } = await adminSupabase
+                    .from('cart_items')
+                    .select('variant_id, quantity')
+                    .eq('user_id', userId);
+
+                if (cartItemsDB && cartItemsDB.length > 0) {
+                    const stockItems = cartItemsDB.map((item: any) => ({
+                        variant_id: item.variant_id,
+                        quantity: item.quantity
+                    }));
+                    await adminSupabase.rpc('release_stock_batch', { items: stockItems });
+                    console.log(`Webhook: Released stock for failed payment associated with user ${userId}`);
+                }
+            }
+        }
+        return NextResponse.json({ received: true });
     }
 
     return NextResponse.json({ received: true });

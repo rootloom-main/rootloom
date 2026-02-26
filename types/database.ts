@@ -37,6 +37,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       returns: {
         Row: {
@@ -69,6 +70,29 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'returns_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'returns_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'returns_order_item_id_fkey';
+            columns: ['order_item_id'];
+            isOneToOne: false;
+            referencedRelation: 'order_items';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       categories: {
         Row: {
@@ -95,6 +119,7 @@ export interface Database {
           image_url?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       products: {
         Row: {
@@ -107,7 +132,7 @@ export interface Database {
           featured: boolean;
           status: 'draft' | 'active' | 'archived';
           deleted_at: string | null;
-          embedding?: string | number[] | null; // Vector type
+          embedding?: string | number[] | null;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +164,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'products_category_id_fkey';
+            columns: ['category_id'];
+            isOneToOne: false;
+            referencedRelation: 'categories';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       reviews: {
         Row: {
@@ -171,6 +205,22 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'reviews_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reviews_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       wishlists: {
         Row: {
@@ -191,6 +241,22 @@ export interface Database {
           product_id?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'wishlists_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'wishlists_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       product_images: {
         Row: {
@@ -217,6 +283,15 @@ export interface Database {
           display_order?: number;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'product_images_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       product_variants: {
         Row: {
@@ -252,6 +327,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'product_variants_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       cart_items: {
         Row: {
@@ -284,6 +368,29 @@ export interface Database {
           updated_at?: string;
           recovery_email_sent?: boolean;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'cart_items_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cart_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cart_items_variant_id_fkey';
+            columns: ['variant_id'];
+            isOneToOne: false;
+            referencedRelation: 'product_variants';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       addresses: {
         Row: {
@@ -331,6 +438,15 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'addresses_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       orders: {
         Row: {
@@ -381,6 +497,22 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'orders_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'orders_shipping_address_id_fkey';
+            columns: ['shipping_address_id'];
+            isOneToOne: false;
+            referencedRelation: 'addresses';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       order_items: {
         Row: {
@@ -410,13 +542,280 @@ export interface Database {
           price?: number;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: 'order_items_order_id_fkey';
+            columns: ['order_id'];
+            isOneToOne: false;
+            referencedRelation: 'orders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'order_items_product_id_fkey';
+            columns: ['product_id'];
+            isOneToOne: false;
+            referencedRelation: 'products';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'order_items_variant_id_fkey';
+            columns: ['variant_id'];
+            isOneToOne: false;
+            referencedRelation: 'product_variants';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      banners: {
+        Row: {
+          id: string;
+          title: string;
+          image_url: string;
+          link: string | null;
+          position: string;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          image_url: string;
+          link?: string | null;
+          position?: string;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          image_url?: string;
+          link?: string | null;
+          position?: string;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      coupons: {
+        Row: {
+          id: string;
+          code: string;
+          discount_type: string;
+          value: number;
+          min_order_value: number;
+          usage_limit: number | null;
+          times_used: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          discount_type: string;
+          value: number;
+          min_order_value?: number;
+          usage_limit?: number | null;
+          times_used?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          discount_type?: string;
+          value?: number;
+          min_order_value?: number;
+          usage_limit?: number | null;
+          times_used?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      store_settings: {
+        Row: {
+          key: string;
+          value: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      pages: {
+        Row: {
+          id: string;
+          slug: string;
+          title: string;
+          content: string | null;
+          meta_description: string | null;
+          is_published: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          title: string;
+          content?: string | null;
+          meta_description?: string | null;
+          is_published?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          title?: string;
+          content?: string | null;
+          meta_description?: string | null;
+          is_published?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      contact_submissions: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          subject: string;
+          message: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          email: string;
+          subject: string;
+          message: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          email?: string;
+          subject?: string;
+          message?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      jobs: {
+        Row: {
+          id: string;
+          type: string;
+          payload: Json;
+          status: 'pending' | 'processing' | 'completed' | 'failed';
+          error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: string;
+          payload: Json;
+          status?: 'pending' | 'processing' | 'completed' | 'failed';
+          error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: string;
+          payload?: Json;
+          status?: 'pending' | 'processing' | 'completed' | 'failed';
+          error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      increment_coupon_usage: {
+        Args: {
+          coupon_id: string;
+        };
+        Returns: undefined;
+      };
+      create_complete_order: {
+        Args: {
+          p_user_id: string;
+          p_order_number: string;
+          p_payment_id: string;
+          p_subtotal: number;
+          p_shipping_cost: number;
+          p_total: number;
+          p_discount_amount: number;
+          p_coupon_code: string | null;
+          p_shipping_address_id: string;
+          p_items: Json;
+        };
+        Returns: Json;
+      };
+      match_products: {
+        Args: {
+          query_embedding: number[];
+          match_threshold: number;
+          match_count: number;
+          current_product_id: string;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          slug: string;
+          base_price: number;
+          similarity: number;
+        }[];
+      };
+      increment_stock: {
+        Args: {
+          variant_id: string;
+          qty: number;
+        };
+        Returns: undefined;
+      };
+      search_products: {
+        Args: {
+          query_text: string;
+          filter_category_id: string | null;
+          min_price: number | null;
+          max_price: number | null;
+          sort_by: string;
+          limit_count: number;
+          offset_count: number;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          slug: string;
+          base_price: number;
+          product_images: Json;
+          total_count: number;
+        }[];
+      };
     };
     Enums: {
       [_ in never]: never;

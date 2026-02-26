@@ -1,74 +1,64 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-
-import { rateLimiter } from '@/lib/rate-limit';
+import { createServerClient } from '@supabase/ssr';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function middleware(request: NextRequest) {
   const ip = request.ip ?? '127.0.0.1';
+  const path = request.nextUrl.pathname;
 
-  // Rate Limiting for API and Auth routes
-  if (request.nextUrl.pathname.startsWith('/api') || request.nextUrl.pathname.startsWith('/auth')) {
-    const { success } = rateLimiter.check(ip);
+  // Protect sensitive routes: auth, checkout, orders
+  const requiresRateLimit = path.startsWith('/api/auth') ||
+    path.startsWith('/api/checkout') ||
+    path.startsWith('/api/orders') ||
+    path.startsWith('/auth'); // also protect frontend auth routes
+
+  if (requiresRateLimit) {
+    const { success } = await checkRateLimit(ip);
     if (!success) {
       return new NextResponse('Too Many Requests', { status: 429 });
     }
   }
 
+  // Create an unmodified response
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables in middleware');
+    return response;
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
+        getAll() {
+          return request.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
         },
       },
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // This will refresh the session if expired
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Protected routes that require authentication
   if (request.nextUrl.pathname.startsWith('/account') && !user) {
@@ -80,20 +70,12 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
+    // Deep role check happens in the page/layout
   }
 
   return response;
 }
+
 
 export const config = {
   matcher: [

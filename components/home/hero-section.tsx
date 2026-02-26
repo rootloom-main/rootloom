@@ -35,62 +35,84 @@ const slides = [
         imageAlt: 'Man in forest green outfit',
         cta: 'Discover Now',
         ctaColor: 'bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]', // White btn on dark bg
+        link: '/shop'
     },
     {
         id: 2,
-        theme: 'linen',
-        bgColor: 'bg-[#f9f5ed]', // Heirloom White
-        textColor: 'text-[#8c5a45]', // Raw Clay
-        badge: 'PURE LINEN',
-        title: 'Breathe Easy',
-        description: '100% organic linen essentials for the rising temperatures. effortless style meets comfort.',
-        image: 'https://images.pexels.com/photos/5325885/pexels-photo-5325885.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2', // Bright/Sand vibes
-        imageAlt: 'Man in linen shirt',
-        cta: 'Shop Linen',
-        ctaColor: 'bg-[#8c5a45] text-[#f9f5ed] hover:bg-[#704837]', // Clay btn on light bg
+        theme: 'earth',
+        bgColor: 'bg-[#dcd6cb]', // Woven Sand
+        textColor: 'text-[#1e2f23]', // Deep Forest
+        badge: 'EARTH & FIBER',
+        title: 'Purely Organic',
+        description: 'Breathe easy in our ethically sourced linen collection. Soft on your skin, kind to the planet.',
+        image: 'https://images.unsplash.com/photo-1470058869958-2a77ade41c02?auto=format&fit=crop&w=1280&q=80',
+        imageAlt: 'Man in organic linen in nature',
+        cta: 'Shop Earth Edit',
+        ctaColor: 'bg-[#1e2f23] text-[#f9f5ed] hover:bg-[#2a4030]',
+        link: '/shop'
     },
     {
         id: 3,
-        theme: 'ethnic',
-        bgColor: 'bg-[#f2efe9]', // Stone Paper
-        textColor: 'text-[#1e2f23]', // Deep Forest
-        badge: 'WEDDING EDIT',
-        title: 'Royal Heritage',
-        description: 'Timeless sherwanis and kurtas handcrafted for your most cherished moments.',
-        image: 'https://images.pexels.com/photos/12730626/pexels-photo-12730626.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2', // Traditional
-        imageAlt: 'Man in ethnic wear',
-        cta: 'View Ethnic',
-        ctaColor: 'bg-[#1e2f23] text-[#f9f5ed] hover:bg-[#2a4030]', // Dark btn on neutral bg
+        theme: 'artisan',
+        bgColor: 'bg-[#8c5a45]', // Raw Clay
+        textColor: 'text-[#f9f5ed]', // Heirloom White
+        badge: 'ARTISAN LEGACY',
+        title: 'Handwoven Heritage',
+        description: 'Every thread tells a story. Discover handcrafted masterpieces by master weavers of India.',
+        image: 'https://images.unsplash.com/photo-1606744837616-56c9a5c6a6eb?auto=format&fit=crop&w=1280&q=80',
+        imageAlt: 'Artisan weaving on handloom',
+        cta: 'Meet the Makers',
+        ctaColor: 'bg-[#f9f5ed] text-[#8c5a45] hover:bg-[#dcd6cb]',
+        link: '/shop'
     },
     {
         id: 4,
-        theme: 'winter',
-        bgColor: 'bg-[#4a4a4a]', // Slate Bark/Grey
+        theme: 'indigo',
+        bgColor: 'bg-[#1e2f23]', // Deep Forest
         textColor: 'text-[#f9f5ed]', // Heirloom White
-        badge: 'WINTER ESSENTIALS',
-        title: 'Layered Luxury',
-        description: 'Premium wool blends and structured jackets to keep you warm in style.',
-        image: 'https://images.pexels.com/photos/837129/pexels-photo-837129.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2', // Urban/Winter
-        imageAlt: 'Man in winter coat',
-        cta: 'Shop Winter',
-        ctaColor: 'bg-[#f9f5ed] text-[#4a4a4a] hover:bg-[#dcd6cb]', // White btn on grey bg
+        badge: 'INDIGO TALES',
+        title: 'The Blue Gold',
+        description: 'Immerse yourself in the depth of natural indigo. Hand-dyeped luxury for the discerning soul.',
+        image: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=1280&q=80',
+        imageAlt: 'Natural indigo dyed fabric',
+        cta: 'Explore Indigo',
+        ctaColor: 'bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]',
+        link: '/shop'
     },
     {
         id: 5,
-        theme: 'sale',
-        bgColor: 'bg-[#8c5a45]', // Raw Clay (instead of red)
-        textColor: 'text-[#f9f5ed]', // Heirloom White
-        badge: 'FLAT 50% OFF',
-        title: 'End of Season Sale',
-        description: 'Your favorite premium styles are now available at exclusive prices.',
-        image: 'https://images.pexels.com/photos/1192609/pexels-photo-1192609.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2', // Happy/Shopping
-        imageAlt: 'Man shopping',
-        cta: 'Grab Offers',
-        ctaColor: 'bg-[#f9f5ed] text-[#8c5a45] hover:bg-[#dcd6cb]', // White btn on clay bg
+        theme: 'sustainable',
+        bgColor: 'bg-[#f2efe9]', // Stone Paper
+        textColor: 'text-[#1e2f23]', // Deep Forest
+        badge: 'CONSCIOUSLY CRAFTED',
+        title: 'Sustainable Future',
+        description: 'Fashion that respects nature. 100% biodegradable materials for a zero-waste lifestyle.',
+        image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1280&q=80',
+        imageAlt: 'Sustainable fashion concept',
+        cta: 'Our Impact',
+        ctaColor: 'bg-[#1e2f23] text-[#f9f5ed] hover:bg-[#2a4030]',
+        link: '/shop'
     }
 ];
 
-export function HeroSection() {
+export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
+    const displaySlides = heroBanners.length > 0
+        ? heroBanners.map((banner, index) => ({
+            id: banner.id,
+            theme: 'default',
+            bgColor: index % 2 === 0 ? 'bg-deep-forest' : 'bg-heirloom-white',
+            textColor: index % 2 === 0 ? 'text-heirloom-white' : 'text-deep-forest',
+            badge: 'PROMO',
+            title: banner.title,
+            description: '',
+            image: banner.image_url,
+            imageAlt: banner.title,
+            cta: 'Discover',
+            ctaColor: index % 2 === 0 ? 'bg-heirloom-white text-deep-forest hover:bg-stone-paper' : 'bg-deep-forest text-heirloom-white hover:bg-deep-forest/90',
+            link: banner.link || '/shop'
+        }))
+        : slides;
+
     const plugin = React.useRef(
         Autoplay({ delay: 5000, stopOnInteraction: false }) as any
     );
@@ -123,7 +145,7 @@ export function HeroSection() {
                 }}
             >
                 <CarouselContent className="-ml-0">
-                    {slides.map((slide) => (
+                    {displaySlides.map((slide) => (
                         <CarouselItem key={slide.id} className="pl-0 basis-full">
                             <div className={cn("relative w-full min-h-[85vh] flex items-center overflow-hidden transition-colors duration-1000", slide.bgColor)}>
                                 <div className="container mx-auto px-4 h-full relative z-20">
@@ -143,13 +165,13 @@ export function HeroSection() {
 
                                             <div className="flex flex-wrap gap-4 mb-12">
                                                 <Button size="lg" className={cn("h-14 px-8 text-lg rounded-full shadow-xl transition-all hover:scale-105 hover:shadow-2xl", slide.ctaColor)} asChild>
-                                                    <Link href="/shop">
+                                                    <Link href={slide.link || '/shop'}>
                                                         {slide.cta}
                                                         <ArrowRight className="ml-2 h-5 w-5" />
                                                     </Link>
                                                 </Button>
                                                 <Button size="lg" variant="outline" className={cn("h-14 px-8 text-lg rounded-full border-2 hover:scale-105 transition-all bg-transparent backdrop-blur-sm", slide.textColor)} asChild>
-                                                    <Link href="/shop">
+                                                    <Link href={slide.link || '/shop'}>
                                                         View Collection
                                                     </Link>
                                                 </Button>
@@ -196,7 +218,7 @@ export function HeroSection() {
 
             {/* Indicators */}
             <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
-                {slides.map((_, index) => (
+                {displaySlides.map((_, index) => (
                     <button
                         key={index}
                         onClick={() => api?.scrollTo(index)}
