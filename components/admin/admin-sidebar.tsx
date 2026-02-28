@@ -80,16 +80,6 @@ export function AdminSidebar({ user, role }: { user: any; role?: string }) {
                 </Badge>
             </div>
 
-            {/* Global Search */}
-            <div className="px-4 py-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                    <Input
-                        placeholder="Search..."
-                        className="pl-9 h-9 bg-slate-800/50 border-slate-700 text-slate-200 placeholder:text-slate-500 focus-visible:ring-slate-600 focus-visible:border-slate-600 rounded-md"
-                    />
-                </div>
-            </div>
 
             {/* Navigation */}
             <div className="flex-1 overflow-y-auto py-2 px-3 space-y-6">
