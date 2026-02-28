@@ -67,30 +67,19 @@ export async function POST(req: NextRequest) {
 
     const total = Math.max(0, subtotal + shippingCost - discountAmount);
 
-    if (total <= 0) {
+    // Razorpay requires minimum ₹1.00 (100 paise)
+    if (total < 1) {
       return NextResponse.json(
-        { success: false, message: 'Invalid order amount' },
+        { success: false, message: 'Order amount must be at least ₹1.00 for online payment.' },
         { status: 400 }
       );
     }
 
-    if (!addressId) {
-      return NextResponse.json(
-        { success: false, message: 'Address is required' },
-        { status: 400 }
-      );
-    }
-
-    // Stock availability was already validated per-item in the map() above.
-    // We do NOT reserve stock here — that would permanently lock it if the user
-    // cancels or fails payment. Stock is committed atomically in verify-payment,
-    // AFTER the payment signature is confirmed.
-
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    // Use strictly backend key if provided, otherwise fallback to public one
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
-      console.error('Razorpay keys are missing in environment configuration.');
       return NextResponse.json(
         { success: false, message: 'Payment gateway configuration is missing' },
         { status: 500 }
@@ -122,12 +111,21 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Error creating Razorpay order:', error);
+    // Log the raw error for debugging in terminal
+    console.error('RAZORPAY SDK ERROR:', error);
 
-    // Intercept Razorpay SDK bug where it crashes on network failures
+    // Handle structural errors from Razorpay SDK
+    if (error.statusCode === 400 && error.error?.description) {
+      return NextResponse.json(
+        { success: false, message: `Razorpay: ${error.error.description}` },
+        { status: 400 }
+      );
+    }
+
+    // Intercept Razorpay SDK bug where it crashes with a TypeError on connection/parsing issues
     let errorMessage = error.message || 'Failed to create order';
-    if (errorMessage.includes("reading 'status'")) {
-      errorMessage = 'Payment gateway network connection failed. Please check your internet or try again later.';
+    if (typeof errorMessage === 'string' && (errorMessage.includes("reading 'status'") || error.code === 'ECONNRESET')) {
+      errorMessage = 'Payment gateway connection failed. Please check your internet or try again later.';
     }
 
     return NextResponse.json(

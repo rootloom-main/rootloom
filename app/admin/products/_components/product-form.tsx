@@ -67,6 +67,7 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
     const supabase = createClient();
     const [loading, setLoading] = useState(false);
     const [images, setImages] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [existingImages, setExistingImages] = useState<any[]>(
         initialData?.product_images || []
     );
@@ -159,6 +160,24 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const newFiles = Array.from(e.target.files);
+            setImages(prev => [...prev, ...newFiles]);
+
+            const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+            setImagePreviews(prev => [...prev, ...newPreviews]);
+        }
+    };
+
+    const removeNewImage = (index: number) => {
+        // Revoke the URL to avoid memory leaks
+        URL.revokeObjectURL(imagePreviews[index]);
+
+        setImages(prev => prev.filter((_, i) => i !== index));
+        setImagePreviews(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleImageDelete = async (imageId: string) => {
@@ -310,36 +329,85 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
                         <div>
                             <FormLabel>Images</FormLabel>
                             <div className="grid grid-cols-3 gap-4 mb-4">
+                                {/* Existing Images */}
                                 {existingImages.map((image) => (
-                                    <div key={image.id} className="relative aspect-square border rounded overflow-hidden group">
+                                    <div key={image.id} className="relative aspect-square border-2 border-stone-100 rounded-xl overflow-hidden group shadow-sm hover:shadow-md transition-shadow">
                                         <Image
                                             src={image.image_url}
                                             alt="Product"
                                             fill
                                             className="object-cover"
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleImageDelete(image.id)}
-                                            className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleImageDelete(image.id)}
+                                                className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                                                title="Delete existing image"
+                                            >
+                                                <Trash className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-white/90 backdrop-blur-sm rounded text-[10px] font-bold text-stone-600 border border-stone-200">
+                                            Existing
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* New Image Previews */}
+                                {imagePreviews.map((preview, index) => (
+                                    <div key={index} className="relative aspect-square border-2 border-dashed border-deep-forest/30 rounded-xl overflow-hidden group bg-stone-50">
+                                        <Image
+                                            src={preview}
+                                            alt="New selection"
+                                            fill
+                                            className="object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeNewImage(index)}
+                                                className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                                                title="Remove selection"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-deep-forest text-white rounded text-[10px] font-bold shadow-sm">
+                                            New
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <Input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        setImages(Array.from(e.target.files));
-                                    }
-                                }}
-                            />
-                            <p className="text-sm text-gray-500 mt-2">
-                                Upload new images. Existing images are shown above.
+
+                            <div className="relative">
+                                <Input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                    id="image-upload"
+                                />
+                                <label
+                                    htmlFor="image-upload"
+                                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer bg-stone-50 hover:bg-stone-100 hover:border-stone-400 transition-all"
+                                >
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <Plus className="w-8 h-8 mb-3 text-stone-400" />
+                                        <p className="mb-2 text-sm text-stone-500 font-semibold text-center px-4">
+                                            Click to upload multiple images or drag and drop
+                                        </p>
+                                        <p className="text-xs text-stone-400">
+                                            PNG, JPG or WEBP
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                            <p className="text-xs text-stone-400 mt-3 flex items-center gap-1">
+                                <span className="font-bold text-stone-600">{images.length}</span> newly selected,
+                                <span className="font-bold text-stone-600 ml-1">{existingImages.length}</span> existing.
+                                Images are uploaded immediately upon saving.
                             </p>
                         </div>
 

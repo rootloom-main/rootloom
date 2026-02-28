@@ -31,10 +31,24 @@ export async function createSSRClient() {
 export async function getCurrentUser() {
   try {
     const supabase = await createSSRClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error) {
+      console.warn('Auth: Error fetching Supabase user in Server Component', error.message);
+      return null;
+    }
+
+    if (!user) {
+      // Log headers length to see if cookies might be too large/truncated
+      const cookieHeader = cookies().get('sb-access-token')?.value || '';
+      if (cookieHeader) {
+        console.log('Auth: Cookie present but getUser returned no user. Potential token issue.');
+      }
+    }
+
     return user;
   } catch (error) {
-    console.error('Error fetching Supabase user in Server Component', error);
+    console.error('Auth: Critical error in getCurrentUser', error);
     return null;
   }
 }

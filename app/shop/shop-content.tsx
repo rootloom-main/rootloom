@@ -37,6 +37,13 @@ interface Product {
   slug: string;
   base_price: number;
   product_images: Array<{ image_url: string; alt_text: string | null }>;
+  product_variants: Array<{
+    id: string;
+    size: string;
+    color: string;
+    stock: number;
+    price_adjustment: number;
+  }>;
 }
 
 export function ShopContent({
@@ -74,7 +81,7 @@ export function ShopContent({
     try {
       let query = supabase
         .from('products')
-        .select('id, name, slug, base_price, product_images(image_url, alt_text)');
+        .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)');
 
       if (search) {
         query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);

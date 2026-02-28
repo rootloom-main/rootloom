@@ -6,6 +6,7 @@ import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
 import { useCart } from '@/components/providers/cart-provider'; // Adjust import if needed
+import { toast } from 'sonner';
 
 interface CartItemProps {
     item: any; // Replace with proper type from your types/index.ts
@@ -76,7 +77,10 @@ export function CartItem({ item }: CartItemProps) {
                             variant="outline"
                             size="icon"
                             className="h-8 w-8 rounded-full border-stone-300"
-                            onClick={() => updateCartItem(item.id, item.quantity + 1)}
+                            onClick={() => {
+                                updateCartItem(item.id, item.quantity + 1);
+                                toast.info(`Increased quantity of ${item.product.name}`);
+                            }}
                             disabled={item.quantity >= item.variant.stock}
                         >
                             <Plus className="h-3 w-3" />
@@ -85,7 +89,16 @@ export function CartItem({ item }: CartItemProps) {
 
                     {/* Remove Action */}
                     <button
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => {
+                            removeFromCart(item.id);
+                            toast.success(`${item.product.name} removed from cart`, {
+                                description: "We'll be here if you change your mind.",
+                                action: {
+                                    label: "Undo",
+                                    onClick: () => console.log("Undo logic would go here"),
+                                }
+                            });
+                        }}
                         className="text-base font-medium text-deep-forest hover:text-red-600 uppercase transition-colors"
                     >
                         Remove

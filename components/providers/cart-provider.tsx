@@ -85,8 +85,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const result = await addToCartAction(productId, variantId, quantity);
       if (!result.success) throw new Error(result.message);
 
+
       await fetchCart();
-      toast.success(result.message);
       setIsCartOpen(true);
     } catch (error: any) {
       console.error('Error adding to cart:', error);

@@ -30,7 +30,7 @@ export default async function Home() {
     supabase.from('categories').select('*').limit(4),
     supabase
       .from('products')
-      .select('id, name, slug, base_price, product_images(image_url, alt_text)')
+      .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
       .eq('featured', true)
       .limit(8),
     supabase

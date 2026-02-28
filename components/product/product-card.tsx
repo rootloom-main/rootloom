@@ -19,6 +19,13 @@ interface ProductCardProps {
     base_price: number;
     description?: string;
     product_images: Array<{ image_url: string; alt_text: string | null }>;
+    product_variants?: Array<{
+      id: string;
+      size: string;
+      color: string;
+      stock: number;
+      price_adjustment: number;
+    }>;
   };
   highlight?: string;
 }

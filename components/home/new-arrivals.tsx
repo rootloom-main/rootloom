@@ -6,7 +6,7 @@ export async function NewArrivals({ limit = 8 }: { limit?: number }) {
 
     const { data: products } = await supabase
         .from('products')
-        .select('id, name, slug, base_price, product_images(image_url, alt_text)')
+        .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
         .order('created_at', { ascending: false })
         .limit(limit);
 

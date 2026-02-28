@@ -40,6 +40,7 @@ interface SearchResult {
     slug: string;
     base_price: number;
     product_images: { image_url: string; alt_text: string | null }[];
+    product_variants?: { id: string; size: string; color: string; stock: number; price_adjustment: number }[];
     total_count: number;
 }
 
@@ -77,7 +78,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     if (!results || results.length === 0) {
         const { data: recs } = await supabase
             .from('products')
-            .select('id, name, slug, base_price, product_images(image_url, alt_text)')
+            .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
             .eq('featured', true)
             .limit(4);
         recommendedProducts = recs || [];
@@ -309,7 +310,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                                         <h3 className="text-lg font-bold text-deep-forest mb-6 text-left">You might like these</h3>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
                                             {recommendedProducts.map(p => (
-                                                <ProductCard key={p.id} product={{ ...p, id: p.id, name: p.name, slug: p.slug, base_price: p.base_price, product_images: p.product_images }} />
+                                                <ProductCard key={p.id} product={p as any} />
                                             ))}
                                         </div>
                                     </div>

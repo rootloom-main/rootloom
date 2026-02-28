@@ -30,7 +30,6 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('Missing Supabase environment variables in middleware');
     return response;
   }
 
@@ -45,9 +44,7 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
+            request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
@@ -57,20 +54,22 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // This will refresh the session if expired
-  const { data: { user } } = await supabase.auth.getUser();
+  // This will refresh the session if expired - critical for Server Components
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  // Protected routes that require authentication
-  if (request.nextUrl.pathname.startsWith('/account') && !user) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
-  }
-
-  // Admin routes
+  // Admin routes protection
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!user) {
+    if (!user || userError) {
+      console.log('Middleware: Redirecting to login - No user or error', userError?.message);
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
-    // Deep role check happens in the page/layout
+  }
+
+  // Account routes protection
+  if (request.nextUrl.pathname.startsWith('/account')) {
+    if (!user || userError) {
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
   }
 
   return response;

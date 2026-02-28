@@ -13,6 +13,7 @@ interface Product {
     slug: string;
     base_price: number;
     product_images: { image_url: string; alt_text: string | null }[];
+    product_variants?: { id: string; size: string; color: string; stock: number; price_adjustment: number }[];
 }
 
 interface FeaturedProductsProps {
