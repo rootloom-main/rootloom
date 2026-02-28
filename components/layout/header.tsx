@@ -21,9 +21,12 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
 import { CartSheet } from '@/components/layout/cart-sheet';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 
-export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
+export function Header() {
+  const { user, isAdmin } = useAuth();
   // ... state ...
+  const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -37,6 +40,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
   const currentCategory = searchParams?.get('category');
 
   useEffect(() => {
+    setMounted(true);
     // ... scroll logic ...
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -225,7 +229,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
               <Link href="/account/wishlist" className="relative group">
                 <Button variant="ghost" size="icon" className="text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors">
                   <Heart className="h-5 w-5" />
-                  {wishlistCount > 0 && (
+                  {mounted && wishlistCount > 0 && (
                     <Badge
                       className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-red-500 text-white border-2 border-white animate-in zoom-in"
                     >
@@ -242,7 +246,7 @@ export function Header({ user, isAdmin }: { user: any; isAdmin?: boolean }) {
                 onClick={() => setIsCartOpen(true)}
               >
                 <ShoppingCart className="h-5 w-5" />
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <Badge
                     className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-white border-2 border-white animate-in zoom-in"
                   >

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { AccountSidebar } from '@/components/account/account-sidebar';
 import { createSSRClient } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';

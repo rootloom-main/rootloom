@@ -7,11 +7,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils/format";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 
 export function CartSheet() {
     const { cart, isCartOpen, setIsCartOpen, updateCartItem, removeFromCart, cartCount } = useCart();
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const subtotal = cart.reduce((total, item) => {
         const price = item.product.base_price + item.variant.price_adjustment;
@@ -24,11 +30,11 @@ export function CartSheet() {
                 <SheetHeader className="p-4 border-b border-woven-sand/50 bg-stone-paper/30">
                     <SheetTitle className="flex items-center gap-2 font-serif text-deep-forest text-xl">
                         <ShoppingBag className="w-5 h-5" />
-                        Your Cart ({cartCount})
+                        Your Cart ({mounted ? cartCount : 0})
                     </SheetTitle>
                 </SheetHeader>
 
-                {cart.length === 0 ? (
+                {!mounted || cart.length === 0 ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
                         <div className="w-16 h-16 bg-stone-paper rounded-full flex items-center justify-center text-stone-400">
                             <ShoppingBag className="w-8 h-8" />

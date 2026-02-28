@@ -6,7 +6,7 @@ const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const createRedisClient = () => {
     if (!redisUrl || !redisToken || !redisUrl.startsWith('https://')) {
-        logger.warn('Redis credentials not found or invalid, caching will be disabled.');
+        logger.info('Redis credentials not found or invalid, caching will be disabled.');
         return null;
     }
 

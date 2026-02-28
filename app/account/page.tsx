@@ -30,6 +30,15 @@ export default async function AccountPage() {
 
   const recentOrder = orders?.[0];
 
+  // Fetch default address
+  const { data: addresses } = await supabase
+    .from('addresses')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('is_default', { ascending: false }) as { data: any[] | null };
+
+  const defaultAddress = addresses?.find(a => a.is_default) || addresses?.[0];
+
   return (
     <div className="space-y-8">
       {/* Welcome Header */}
@@ -142,16 +151,30 @@ export default async function AccountPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            {/* 
-                    TODO: Fetch default address from 'addresses' table once integrated.
-                    For now, showing a prompt to add if empty or placeholder.
-                 */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <p className="text-slate-500">You haven&apos;t set a default shipping address yet.</p>
-              <Link href="/account/addresses/new">
-                <Button variant="outline" size="sm">Add New Address</Button>
-              </Link>
-            </div>
+            {defaultAddress ? (
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="font-medium text-deep-forest">{defaultAddress.full_name}</p>
+                  <p className="text-sm text-slate-600">
+                    {defaultAddress.address_line1}{defaultAddress.address_line2 ? `, ${defaultAddress.address_line2}` : ''}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    {defaultAddress.city}, {defaultAddress.state} {defaultAddress.postal_code}
+                  </p>
+                  <p className="text-sm text-slate-600">{defaultAddress.phone}</p>
+                </div>
+                <Link href="/account/addresses">
+                  <Button variant="outline" size="sm">Edit Address</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <p className="text-slate-500">You haven&apos;t set a default shipping address yet.</p>
+                <Link href="/account/addresses/new">
+                  <Button variant="outline" size="sm">Add New Address</Button>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

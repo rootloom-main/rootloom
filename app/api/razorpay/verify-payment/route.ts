@@ -127,15 +127,22 @@ export async function POST(req: NextRequest) {
       userName: user.user_metadata.full_name || 'Customer'
     });
 
-    // Enterprise Phase 1: Atomically Commit Reserved Stock
+    // Atomically deduct stock AFTER confirmed payment — this is the safe point
+    // to commit stock changes since we know the payment is real.
     const stockItems = cartItems.map((item: any) => ({
       variant_id: item.variant_id,
       quantity: item.quantity
     }));
 
-    await supabase.rpc('commit_stock_batch', {
+    const { error: stockError } = await supabase.rpc('reserve_stock_batch', {
       items: stockItems
     });
+
+    if (stockError) {
+      // Log the error but don't fail the order — payment is already captured.
+      // In a production scenario, this should trigger a manual review alert.
+      console.error('Stock deduction failed after payment:', stockError);
+    }
 
     // Clear Cart
     await supabase.from('cart_items').delete().eq('user_id', user.id);

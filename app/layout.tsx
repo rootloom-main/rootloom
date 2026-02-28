@@ -8,7 +8,7 @@ import { CartProvider } from '@/components/providers/cart-provider';
 import { WishlistProvider } from '@/components/providers/wishlist-provider';
 import QueryProvider from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
-import { getCurrentUser, isAdmin as checkIsAdmin } from '@/lib/utils/auth';
+
 
 const inter = Inter({
 	subsets: ['latin'],
@@ -29,14 +29,11 @@ export const metadata: Metadata = {
 
 import { PHProvider } from '@/lib/analytics/posthog';
 
-export default async function RootLayout({
+export default function RootLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
-	const user = await getCurrentUser();
-	const isAdmin = await checkIsAdmin();
-
 	return (
 		<html lang="en" className={`${inter.variable} ${playfair.variable}`}>
 			<body className="min-h-screen bg-background font-sans antialiased">
@@ -46,7 +43,7 @@ export default async function RootLayout({
 							<WishlistProvider>
 								<CartProvider>
 									<div className="relative flex min-h-screen flex-col">
-										<Header user={user} isAdmin={isAdmin} />
+										<Header />
 										<main className="flex-1">
 											{children}
 										</main>

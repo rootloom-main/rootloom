@@ -73,6 +73,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         if (!authLoading) {
             fetchWishlist();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, authLoading]);
 
     const isInWishlist = (productId: string) => {

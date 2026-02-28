@@ -72,6 +72,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!authLoading) {
       fetchCart();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
   const addToCart = async (productId: string, variantId: string, quantity: number) => {

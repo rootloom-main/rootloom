@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { createSSRClient } from '@/lib/utils/auth';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';

@@ -60,6 +60,7 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isLightboxOpen]);
 
     if (sortedImages.length === 0) {

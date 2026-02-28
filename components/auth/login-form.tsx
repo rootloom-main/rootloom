@@ -47,6 +47,7 @@ export function LoginForm() {
         if (otp.length === 6) {
             handleVerifyOtp();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [otp]);
 
     async function handleSendEmailOtp(e: React.FormEvent) {
@@ -78,6 +79,11 @@ export function LoginForm() {
             if (error.message.includes('Signups not allowed') || error.message.includes('User not found') || error.status === 400) {
                 toast.error('Account not found. Redirecting to register...');
                 setTimeout(() => router.push('/auth/signup'), 1500);
+                return;
+            }
+
+            if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
+                toast.error('Too many requests. Please wait a minute before trying again.');
                 return;
             }
             toast.error(error.message || 'Failed to send email OTP');

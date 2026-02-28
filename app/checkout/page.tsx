@@ -284,8 +284,13 @@ export default function CheckoutPage() {
         throw new Error(orderData.message || 'Failed to create order');
       }
 
+      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      if (!rzpKey) {
+        throw new Error('Payment gateway configuration is missing on this environment.');
+      }
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: rzpKey,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: 'Root&Loom',
@@ -341,11 +346,12 @@ export default function CheckoutPage() {
         },
         prefill: {
           name: address.full_name,
-          email: user.email || '',
+          ...(user?.email ? { email: user.email } : {}),
           contact: address.phone,
         },
         theme: {
-          color: '#000000',
+          color: '#1F2F26', // Matching 'deep-forest' from tailwind.config
+          backdrop_color: '#00000080',
         },
       };
 

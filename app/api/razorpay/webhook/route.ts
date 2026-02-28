@@ -159,9 +159,13 @@ export async function POST(req: NextRequest) {
             // Verify Amount (Tolerance of 1 rupee for rounding?)
             if (Math.abs(expectedTotal - amountPaid) > 1) {
                 console.error('Webhook: Amount mismatch', { expected: expectedTotal, paid: amountPaid });
-                // Force create anyway? Or fail? 
-                // Safest is to record it as is, but maybe flag for review.
-                // For now, let's proceed but log error.
+                Sentry.captureMessage('Razorpay Webhook Amount Mismatch', {
+                    extra: { paymentId, expectedTotal, amountPaid, userId }
+                });
+
+                // Return 200 to acknowledge receipt and prevent Razorpay from infinitely retrying, 
+                // but DO NOT process the order to prevent fraud.
+                return NextResponse.json({ success: false, message: 'Amount mismatch' }, { status: 200 });
             }
 
             await processOrderCreation({
@@ -200,7 +204,9 @@ export async function POST(req: NextRequest) {
                     event: event.event
                 }
             });
-            return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+            // Return 200 OK to prevent Razorpay from entering an infinite retry loop 
+            // for errors that require manual intervention or code fixes anyway.
+            return NextResponse.json({ success: false, message: 'Processing failed, error logged' }, { status: 200 });
         }
     }
 

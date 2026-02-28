@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
           product_id,
           variant_id,
           product:products(name, base_price),
-          variant:product_variants(price_adjustment)
+          variant:product_variants(price_adjustment, stock)
         `)
       .eq('user_id', user.id);
 
@@ -40,6 +40,11 @@ export async function POST(req: NextRequest) {
     const cartItems = cartItemsDB.map((item: any) => {
       const product = Array.isArray(item.product) ? item.product[0] : item.product;
       const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
+
+      if (variant.stock < item.quantity) {
+        throw new Error(`Not enough stock for ${product?.name}. Only ${variant.stock} left.`);
+      }
+
       const price = product.base_price + (variant?.price_adjustment || 0);
       return { price, quantity: item.quantity };
     });
@@ -76,27 +81,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Enterprise Phase 1: Atomically Reserve Stock
-    const stockItems = cartItemsDB.map((item: any) => ({
-      variant_id: item.variant_id,
-      quantity: item.quantity
-    }));
+    // Stock availability was already validated per-item in the map() above.
+    // We do NOT reserve stock here — that would permanently lock it if the user
+    // cancels or fails payment. Stock is committed atomically in verify-payment,
+    // AFTER the payment signature is confirmed.
 
-    const { error: reserveError } = await supabase.rpc('reserve_stock_batch', {
-      items: stockItems
-    });
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (reserveError) {
-      console.error('Stock Reservation Failed:', reserveError);
+    if (!keyId || !keySecret) {
+      console.error('Razorpay keys are missing in environment configuration.');
       return NextResponse.json(
-        { success: false, message: 'Not enough stock available for one or more items in your cart.' },
-        { status: 400 }
+        { success: false, message: 'Payment gateway configuration is missing' },
+        { status: 500 }
       );
     }
 
     const razorpay = new Razorpay({
-      key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-      key_secret: process.env.RAZORPAY_KEY_SECRET!,
+      key_id: keyId,
+      key_secret: keySecret,
     });
 
     const order = await razorpay.orders.create({
@@ -120,8 +123,15 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error creating Razorpay order:', error);
+
+    // Intercept Razorpay SDK bug where it crashes on network failures
+    let errorMessage = error.message || 'Failed to create order';
+    if (errorMessage.includes("reading 'status'")) {
+      errorMessage = 'Payment gateway network connection failed. Please check your internet or try again later.';
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create order' },
+      { success: false, message: errorMessage },
       { status: 500 }
     );
   }

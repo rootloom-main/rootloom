@@ -86,7 +86,11 @@ function SignupPageContent() {
         toast.success('OTP sent to verify your number');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Signup failed');
+      if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+        toast.error('Too many requests. Please wait a minute before trying again.');
+      } else {
+        toast.error(error.message || 'Signup failed');
+      }
     } finally {
       setLoading(false);
     }

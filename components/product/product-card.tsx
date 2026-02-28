@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatPrice } from '@/lib/utils/format';
 import { Star, Eye, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, highlight }: ProductCardProps) {
+  const [mounted, setMounted] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const imageUrl =
     product.product_images?.[0]?.image_url ||
@@ -89,19 +94,21 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
           </div>
 
           {/* Quick Actions overlay on desktop */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur-sm hidden md:flex flex-col gap-2 border-t border-stone-100">
-            <Button size="sm" className="w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-sm text-xs font-semibold h-9 shadow-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
-              <ShoppingCart className="w-3.5 h-3.5 mr-2" /> Add to Cart
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-stone-200 hover:bg-stone-50 text-stone-700 rounded-sm text-xs font-medium h-9"
-              onClick={handleQuickView}
-            >
-              <Eye className="w-3.5 h-3.5 mr-2" /> Quick View
-            </Button>
-          </div>
+          {mounted && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur-sm hidden md:flex flex-col gap-2 border-t border-stone-100">
+              <Button size="sm" className="w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-sm text-xs font-semibold h-9 shadow-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
+                <ShoppingCart className="w-3.5 h-3.5 mr-2" /> Add to Cart
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-stone-200 hover:bg-stone-50 text-stone-700 rounded-sm text-xs font-medium h-9"
+                onClick={handleQuickView}
+              >
+                <Eye className="w-3.5 h-3.5 mr-2" /> Quick View
+              </Button>
+            </div>
+          )}
         </Link>
 
         <div className="p-4 flex flex-col flex-1 gap-1.5">
@@ -136,14 +143,16 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
           </div>
 
           {/* Mobile Add to Cart (visible only on mobile) */}
-          <div className="md:hidden mt-3 gap-2 flex">
-            <Button variant="outline" size="sm" className="w-10 px-0 flex-shrink-0 border-stone-200 text-stone-600 hover:bg-stone-50 h-9 font-medium" onClick={handleQuickView}>
-              <Eye className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-9 font-medium" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
-              Add to Cart
-            </Button>
-          </div>
+          {mounted && (
+            <div className="md:hidden mt-3 gap-2 flex">
+              <Button variant="outline" size="sm" className="w-10 px-0 flex-shrink-0 border-stone-200 text-stone-600 hover:bg-stone-50 h-9 font-medium" onClick={handleQuickView}>
+                <Eye className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-9 font-medium" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
+                Add to Cart
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

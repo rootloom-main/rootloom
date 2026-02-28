@@ -1,7 +1,22 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/database';
 
-export function createClient() {
+type SupabaseBrowserClient = ReturnType<typeof createBrowserClient<Database>>;
+
+// Use globalThis to preserve the singleton across Next.js HMR reloads in dev.
+// In production, a plain module-level variable would suffice, but in dev,
+// each file save invalidates the module and resets module-level variables,
+// creating multiple Supabase instances that compete for the same browser lock.
+declare global {
+  // eslint-disable-next-line no-var
+  var __supabaseBrowserClient: SupabaseBrowserClient | undefined;
+}
+
+export function createClient(): SupabaseBrowserClient {
+  if (globalThis.__supabaseBrowserClient) {
+    return globalThis.__supabaseBrowserClient;
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -10,8 +25,6 @@ export function createClient() {
     throw new Error('Supabase URL and Key are required for the browser client.');
   }
 
-  return createBrowserClient<Database>(
-    supabaseUrl,
-    supabaseKey
-  );
+  globalThis.__supabaseBrowserClient = createBrowserClient<Database>(supabaseUrl, supabaseKey);
+  return globalThis.__supabaseBrowserClient;
 }
