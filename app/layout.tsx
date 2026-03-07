@@ -8,6 +8,7 @@ import { CartProvider } from '@/components/providers/cart-provider';
 import { WishlistProvider } from '@/components/providers/wishlist-provider';
 import QueryProvider from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
+import { Suspense } from 'react';
 
 
 const inter = Inter({
@@ -43,7 +44,9 @@ export default function RootLayout({
 							<WishlistProvider>
 								<CartProvider>
 									<div className="relative flex min-h-screen flex-col">
-										<Header />
+										<Suspense fallback={<div className="h-16 md:h-20" />}>
+											<Header />
+										</Suspense>
 										<main className="flex-1">
 											{children}
 										</main>

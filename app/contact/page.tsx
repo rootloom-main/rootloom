@@ -1,131 +1,84 @@
-'use client';
-
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Metadata } from 'next';
 import { Mail, MapPin, Phone } from 'lucide-react';
-import { toast } from 'sonner';
+
+export const metadata: Metadata = {
+    title: 'Contact Us | Root & Loom',
+    description: 'Get in touch with the Root & Loom concierge team.',
+};
 
 export default function ContactPage() {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-
-        try {
-            const formData = new FormData(e.currentTarget);
-            const response = await fetch('/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.get('name'),
-                    email: formData.get('email'),
-                    subject: formData.get('subject'),
-                    message: formData.get('message'),
-                }),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                toast.success('Message sent successfully! We will get back to you soon.');
-                (e.target as HTMLFormElement).reset();
-            } else {
-                toast.error(data.message || 'Failed to send message. Please try again.');
-            }
-        } catch (error) {
-            toast.error('Something went wrong. Please try again later.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     return (
-        <div className="bg-heirloom-white min-h-screen py-12">
-            <div className="container mx-auto px-4">
-                <div className="text-center mb-16">
-                    <h1 className="text-4xl font-bold text-deep-forest font-serif mb-4">Get in Touch</h1>
-                    <p className="text-slate-bark max-w-xl mx-auto">
-                        Have a question about your order, sizing, or our sustainability practices? We&apos;re here to help.
-                    </p>
-                </div>
+        <div className="container mx-auto px-4 py-16 max-w-4xl">
+            <h1 className="text-4xl font-serif font-bold text-deep-forest text-center mb-12">Contact Concierge</h1>
 
-                <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
-                    {/* Contact Info */}
-                    <div className="space-y-8">
-                        <div className="bg-stone-paper p-8 rounded-lg space-y-6">
-                            <h2 className="text-2xl font-bold text-deep-forest mb-6">Contact Information</h2>
+            <div className="grid md:grid-cols-2 gap-12">
+                <div className="space-y-8">
+                    <div>
+                        <h2 className="text-2xl font-bold text-stone-900 mb-4">We're here to help</h2>
+                        <p className="text-stone-600 leading-relaxed">
+                            Whether you need assistance with an ongoing order, have a question about our heirloom pieces, or wish to inquire about bespoke items, our dedicated concierge team is available to assist you.
+                        </p>
+                    </div>
 
-                            <div className="flex items-start gap-4">
-                                <div className="bg-deep-forest/10 p-3 rounded-full text-deep-forest">
-                                    <Mail className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-deep-forest">Email Us</h3>
-                                    <p className="text-slate-bark">support@rootandloom.com</p>
-                                    <p className="text-sm text-slate-bark/80 mt-1">Response time: Within 24 hours</p>
-                                </div>
+                    <div className="space-y-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-stone-100 rounded-full text-deep-forest">
+                                <Mail className="w-5 h-5" />
                             </div>
-
-                            <div className="flex items-start gap-4">
-                                <div className="bg-deep-forest/10 p-3 rounded-full text-deep-forest">
-                                    <Phone className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-deep-forest">Call Us</h3>
-                                    <p className="text-slate-bark">+91 98765 43210</p>
-                                    <p className="text-sm text-slate-bark/80 mt-1">Mon-Fri, 9am - 6pm IST</p>
-                                </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900">Email</h3>
+                                <p className="text-stone-600">support@rootloom.com</p>
+                                <p className="text-sm text-stone-400">Expect a response within 24 hours.</p>
                             </div>
+                        </div>
 
-                            <div className="flex items-start gap-4">
-                                <div className="bg-deep-forest/10 p-3 rounded-full text-deep-forest">
-                                    <MapPin className="w-6 h-6" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-deep-forest">Studio Address</h3>
-                                    <p className="text-slate-bark">
-                                        Root & Loom Design Studio<br />
-                                        12, Heritage Lane, Hauz Khas Village<br />
-                                        New Delhi, 110016
-                                    </p>
-                                </div>
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-stone-100 rounded-full text-deep-forest">
+                                <Phone className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900">Phone</h3>
+                                <p className="text-stone-600">+91 98765 43210</p>
+                                <p className="text-sm text-stone-400">Mon-Fri from 9am to 6pm IST.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-stone-100 rounded-full text-deep-forest">
+                                <MapPin className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-stone-900">Studio (No Storefront)</h3>
+                                <p className="text-stone-600">123 Artisan Lane, Craft District</p>
+                                <p className="text-stone-600">New Delhi, DL 110001</p>
+                                <p className="text-stone-600">India</p>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* Contact Form */}
-                    <div className="bg-white p-8 rounded-lg shadow-sm border border-stone-paper">
-                        <h2 className="text-2xl font-bold text-deep-forest mb-6">Send a Message</h2>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="grid sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label htmlFor="name" className="text-sm font-medium text-deep-forest">Name</label>
-                                    <Input id="name" placeholder="John Doe" required />
-                                </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="email" className="text-sm font-medium text-deep-forest">Email</label>
-                                    <Input id="email" type="email" placeholder="john@example.com" required />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="subject" className="text-sm font-medium text-deep-forest">Subject</label>
-                                <Input id="subject" placeholder="Order inquiry, partnership, etc." required />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label htmlFor="message" className="text-sm font-medium text-deep-forest">Message</label>
-                                <Textarea id="message" placeholder="How can we assist you?" className="min-h-[150px]" required />
-                            </div>
-
-                            <Button type="submit" className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90" disabled={isSubmitting}>
-                                {isSubmitting ? 'Sending...' : 'Send Message'}
-                            </Button>
-                        </form>
-                    </div>
+                <div className="bg-stone-50 p-8 rounded-2xl border border-stone-100">
+                    <form className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-bold text-stone-700 mb-2">Name</label>
+                            <input type="text" className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-deep-forest transition-all" placeholder="Your full name" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-stone-700 mb-2">Email</label>
+                            <input type="email" className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-deep-forest transition-all" placeholder="your@email.com" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-stone-700 mb-2">Order ID (Optional)</label>
+                            <input type="text" className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-deep-forest transition-all" placeholder="e.g. ORD-123456" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-stone-700 mb-2">Message</label>
+                            <textarea rows={4} className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-deep-forest transition-all" placeholder="How can we help you?" />
+                        </div>
+                        <button type="button" className="w-full bg-deep-forest text-white font-bold py-4 rounded-xl hover:bg-deep-forest/90 transition-all">
+                            Send Message
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

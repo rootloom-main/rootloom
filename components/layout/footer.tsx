@@ -17,109 +17,111 @@ export function Footer() {
     ],
     help: [
       { name: 'Track Order', href: '/account/orders' },
-      { name: 'shipping Policy', href: '/shipping-policy' },
-      { name: 'Returns & Exchanges', href: '/refund-policy' },
+      { name: 'Shipping Policy', href: '/legal/shipping' },
+      { name: 'Returns & Exchanges', href: '/legal/refund' },
       { name: 'FAQ', href: '/contact' },
     ],
     legal: [
-      { name: 'Privacy Policy', href: '/privacy-policy' },
-      { name: 'Terms & Conditions', href: '/terms' },
-      { name: 'Refund Policy', href: '/refund-policy' },
+      { name: 'Privacy Policy', href: '/legal/privacy' },
+      { name: 'Terms & Conditions', href: '/legal/terms' },
+      { name: 'Refund Policy', href: '/legal/refund' },
     ]
   };
 
   return (
     <footer className="border-t border-woven-sand bg-forest-ash text-ash-white font-sans">
-      <div className="container mx-auto px-6 py-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8">
+      <div className="container mx-auto px-6 py-12 md:py-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 md:gap-12 lg:gap-8">
 
           {/* Brand Column */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 md:space-y-6">
             <Link href="/" className="block">
-              <h3 className="font-serif text-3xl font-bold text-heirloom-white tracking-wide">ROOT & LOOM</h3>
+              <h3 className="font-serif text-2xl md:text-3xl font-bold text-heirloom-white tracking-wide">ROOT & LOOM</h3>
             </Link>
             <p className="text-sm text-ash-white/70 leading-relaxed max-w-sm">
               Weaving tradition into modern luxury. Sustainable, ethical, and crafted for the contemporary journey.
-              Join us in celebrating the art of slow fashion.
             </p>
 
-            <div className="flex gap-4 pt-4">
-              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Instagram className="h-5 w-5 text-ash-white group-hover:text-white" />
+            <div className="flex gap-4 pt-2">
+              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+                <Instagram className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
-              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Facebook className="h-5 w-5 text-ash-white group-hover:text-white" />
+              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+                <Facebook className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
-              <a href="#" className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Twitter className="h-5 w-5 text-ash-white group-hover:text-white" />
+              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+                <Twitter className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
             </div>
 
-            <div className="space-y-3 pt-4 border-t border-white/5">
-              <div className="flex items-center gap-3 text-sm text-ash-white/80">
+            <div className="pt-4 border-t border-white/5">
+              <div className="flex items-center gap-3 text-xs md:text-sm text-ash-white/80">
                 <Mail className="h-4 w-4 text-raw-clay" />
                 <span>support@rootandloom.com</span>
               </div>
             </div>
           </div>
 
-          {/* Shop Column */}
-          <div>
-            <h4 className="font-semibold text-heirloom-white mb-6 tracking-widest uppercase text-xs">Shop</h4>
-            <ul className="space-y-3">
-              {footerLinks.shop.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Link Columns Wrapper for Mobile 2-cols */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-4 lg:contents">
+            {/* Shop Column */}
+            <div>
+              <h4 className="font-semibold text-heirloom-white mb-4 md:mb-6 tracking-widest uppercase text-[10px] md:text-xs">Shop</h4>
+              <ul className="space-y-3">
+                {footerLinks.shop.map((link) => (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Company Column */}
-          <div>
-            <h4 className="font-semibold text-heirloom-white mb-6 tracking-widest uppercase text-xs">Company</h4>
-            <ul className="space-y-3">
-              {footerLinks.company.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+            {/* Company Column */}
+            <div>
+              <h4 className="font-semibold text-heirloom-white mb-4 md:mb-6 tracking-widest uppercase text-[10px] md:text-xs">Company</h4>
+              <ul className="space-y-3">
+                {footerLinks.company.map((link) => (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Help Column */}
-          <div>
-            <h4 className="font-semibold text-heirloom-white mb-6 tracking-widest uppercase text-xs">Support</h4>
-            <ul className="space-y-3">
-              {footerLinks.help.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {/* Help Column */}
+            <div className="col-span-2 md:col-span-1">
+              <h4 className="font-semibold text-heirloom-white mb-4 md:mb-6 tracking-widest uppercase text-[10px] md:text-xs">Support</h4>
+              <ul className="space-y-3 grid grid-cols-2 md:grid-cols-1 gap-y-3 gap-x-8">
+                {footerLinks.help.map((link) => (
+                  <li key={link.name}>
+                    <Link
+                      href={link.href}
+                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                    >
+                      {link.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-ash-white/50">
+        <div className="mt-12 md:mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] md:text-xs text-ash-white/50 text-center md:text-left">
           <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center">
             <p>&copy; {new Date().getFullYear()} Root & Loom. All rights reserved.</p>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               {footerLinks.legal.map(link => (
                 <Link key={link.name} href={link.href} className="hover:text-ash-white transition-colors">
                   {link.name}
@@ -129,7 +131,7 @@ export function Footer() {
           </div>
           <div className="flex gap-6 items-center">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-green-500"></span>
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
               Secure SSL Encryption
             </span>
           </div>

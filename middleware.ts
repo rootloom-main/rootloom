@@ -19,12 +19,44 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Create an unmodified response
+  // Create a strict CSP
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com https://js.stripe.com https://v2.posthog.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data: https: https://razorpay.com *.razorpay.com;
+    font-src 'self' data:;
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self' https://checkout.razorpay.com https://api.razorpay.com;
+    frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com;
+    connect-src 'self' wss: https: https://api.razorpay.com https://lumberjack-cx.razorpay.com;
+    upgrade-insecure-requests;
+`
+  // Replace newline characters and spaces
+  const contentSecurityPolicyHeaderValue = cspHeader
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  // Set the CSP header so Next.js can read it if needed
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
+
+  // Create an unmodified response with the new headers
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   });
+
+  // Also attach it directly to the outgoing response back to the browser
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  )
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

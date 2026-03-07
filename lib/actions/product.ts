@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { redis } from '@/lib/redis';
 
 export async function deleteProduct(productId: string) {
     const { isAdmin } = await import('@/lib/utils/auth');
@@ -23,6 +24,12 @@ export async function deleteProduct(productId: string) {
     }
 
     revalidatePath('/admin/products');
+
+    // Invalidate Search Cache
+    if (redis) {
+        await redis.flushdb();
+    }
+
     return { success: true, message: 'Product archived successfully' };
 }
 
@@ -76,7 +83,13 @@ export async function createProduct(data: any) {
     }
 
     revalidatePath('/admin/products');
-    return { success: true, message: 'Product created', productId: newProduct.id };
+
+    // Invalidate Search Cache
+    if (redis) {
+        await redis.flushdb();
+    }
+
+    return { success: true, message: 'Product created', productId: newProduct?.id };
 }
 
 export async function updateProduct(productId: string, data: any) {
@@ -129,5 +142,11 @@ export async function updateProduct(productId: string, data: any) {
 
     revalidatePath('/admin/products');
     revalidatePath(`/products/${data.slug}`);
+
+    // Invalidate Search Cache
+    if (redis) {
+        await redis.flushdb();
+    }
+
     return { success: true, message: 'Product updated', productId };
 }

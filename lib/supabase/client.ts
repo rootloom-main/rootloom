@@ -25,6 +25,20 @@ export function createClient(): SupabaseBrowserClient {
     throw new Error('Supabase URL and Key are required for the browser client.');
   }
 
-  globalThis.__supabaseBrowserClient = createBrowserClient<Database>(supabaseUrl, supabaseKey);
+  globalThis.__supabaseBrowserClient = createBrowserClient<Database>(
+    supabaseUrl,
+    supabaseKey,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        // Custom lock function to bypass Navigator LockManager timeout in development
+        lock: async (name: string, acquireTimeout: number, acquire: () => Promise<any>) => {
+          return await acquire();
+        },
+      }
+    }
+  );
   return globalThis.__supabaseBrowserClient;
 }

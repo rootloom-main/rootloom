@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient as createClient } from '@/lib/utils/auth';
 import { NextResponse } from 'next/server';
 import { getCache, setCache } from '@/lib/redis';
 

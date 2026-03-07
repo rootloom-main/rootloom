@@ -72,7 +72,7 @@ const slides = [
         textColor: 'text-[#f9f5ed]', // Heirloom White
         badge: 'INDIGO TALES',
         title: 'The Blue Gold',
-        description: 'Immerse yourself in the depth of natural indigo. Hand-dyeped luxury for the discerning soul.',
+        description: 'Immerse yourself in the depth of natural indigo. Hand-dyed luxury for the discerning soul.',
         image: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=1280&q=80',
         imageAlt: 'Natural indigo dyed fabric',
         cta: 'Explore Indigo',
@@ -170,7 +170,7 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                                                         <ArrowRight className="ml-2 h-5 w-5" />
                                                     </Link>
                                                 </Button>
-                                                <Button size="lg" variant="outline" className={cn("h-14 px-8 text-lg rounded-full border-2 hover:scale-105 transition-all bg-transparent backdrop-blur-sm", slide.textColor)} asChild>
+                                                <Button size="lg" variant="outline" className={cn("h-14 px-8 text-lg rounded-full border-2 hover:scale-105 transition-all bg-transparent backdrop-blur-sm hidden sm:inline-flex", slide.textColor)} asChild>
                                                     <Link href={slide.link || '/shop'}>
                                                         View Collection
                                                     </Link>
@@ -185,7 +185,7 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                                                    30-Day Returns
+                                                    7-Day Easy Returns
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-current" />

@@ -47,34 +47,19 @@ export default function NewBannerPage() {
         try {
             if (!imageFile) throw new Error('Please select an image');
 
-            // 1. Upload Image
-            const fileExt = imageFile.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
-            const filePath = `${fileName}`;
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('link', link);
+            formData.append('position', position);
+            formData.append('active', active.toString());
+            formData.append('image', imageFile);
 
-            const { error: uploadError } = await supabase.storage
-                .from('banners')
-                .upload(filePath, imageFile);
+            const { createBannerAction } = await import('@/app/admin/marketing/banners/banner-actions');
+            const result = await createBannerAction(formData);
 
-            if (uploadError) throw uploadError;
-
-            // 2. Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('banners')
-                .getPublicUrl(filePath);
-
-            // 3. Create Record
-            const { error: dbError } = await supabase
-                .from('banners')
-                .insert({
-                    title,
-                    link,
-                    position,
-                    active,
-                    image_url: publicUrl
-                });
-
-            if (dbError) throw dbError;
+            if (!result.success) {
+                throw new Error(result.error);
+            }
 
             toast.success('Banner created successfully');
             router.push('/admin/marketing/banners');

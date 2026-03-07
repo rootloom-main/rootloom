@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Razorpay from 'razorpay';
 import { createSSRClient } from '@/lib/utils/auth';
+import https from 'https';
+import dns from 'dns';
+
+export const runtime = 'nodejs';
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createSSRClient();
@@ -57,25 +61,30 @@ export async function POST(req: NextRequest) {
       try {
         const { validateCouponLogic } = await import('@/lib/coupon');
         const result = await validateCouponLogic(supabase, couponCode, subtotal);
-        if (result.success) {
-          discountAmount = result.discountAmount || 0;
+        if (result.success && result.discountAmount !== undefined) {
+          discountAmount = result.discountAmount;
+        } else {
+          throw new Error(result.message || 'Invalid coupon applied');
         }
-      } catch (e) {
-        console.error('Create Order: Coupon validation failed', e);
+      } catch (e: any) {
+        return NextResponse.json({ success: false, message: e.message || 'Failed to validate coupon' }, { status: 400 });
       }
     }
 
-    const total = Math.max(0, subtotal + shippingCost - discountAmount);
+    // Strict NaN guard — prevents Razorpay from receiving NaN amounts
+    const safeSubtotal = Number(subtotal) || 0;
+    let safeDiscount = Number(discountAmount);
+    if (isNaN(safeDiscount)) safeDiscount = 0;
 
-    // Razorpay requires minimum ₹1.00 (100 paise)
-    if (total < 1) {
+    const total = Math.round(Math.max(0, safeSubtotal + shippingCost - safeDiscount));
+
+    if (isNaN(total) || total < 1) {
       return NextResponse.json(
         { success: false, message: 'Order amount must be at least ₹1.00 for online payment.' },
         { status: 400 }
       );
     }
 
-    // Use strictly backend key if provided, otherwise fallback to public one
     const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -86,50 +95,86 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const razorpay = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
-    });
-
-    const order = await razorpay.orders.create({
+    // Node 18+ Undici `fetch` often crashes with "fetch failed" in local development 
+    // due to IPv6 DNS loopbacks. We use `https` forcing IPv4 (`family: 4`) to bypass this.
+    const credentials = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const orderPayload = JSON.stringify({
       amount: Math.round(total * 100),
       currency: currency || 'INR',
-      receipt: `order_${Date.now()}`,
+      receipt: `rcpt_${Date.now()}`,
       notes: {
         user_id: user.id,
-        address_id: addressId,
-        coupon_code: couponCode || '',
+        address_id: String(addressId),
+        coupon_code: couponCode ? String(couponCode) : '',
       },
+    });
+
+    // DNS Resilience: Manually resolve api.razorpay.com if system DNS fails (ENOTFOUND)
+    const resolveHostname = async (hostname: string) => {
+      try {
+        const resolver = new dns.promises.Resolver();
+        // Fallback to Google DNS if local DNS is broken
+        resolver.setServers(['8.8.8.8', '1.1.1.1']);
+        const addresses = await resolver.resolve4(hostname);
+        return addresses[0];
+      } catch (e) {
+        console.error('DNS Resolution Fallback failed:', e);
+        return hostname; // Fallback to original hostname and hope system DNS works
+      }
+    };
+
+    const targetIp = await resolveHostname('api.razorpay.com');
+
+    const razorpayData = await new Promise<any>((resolve, reject) => {
+      const options = {
+        hostname: targetIp,
+        port: 443,
+        path: '/v1/orders',
+        method: 'POST',
+        headers: {
+          'Host': 'api.razorpay.com', // MUST set Host header when using IP
+          'Authorization': `Basic ${credentials}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(orderPayload),
+        },
+        family: 4 // Force IPv4 to prevent ECONNREFUSED / fetch failed on Windows
+      };
+
+      const request = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(parsed);
+            } else {
+              reject(new Error(parsed?.error?.description || parsed?.error?.reason || 'Razorpay API returned an error'));
+            }
+          } catch (e) {
+            reject(new Error('Razorpay response parse failed'));
+          }
+        });
+      });
+
+      request.on('error', (e) => reject(new Error(`Network error: ${e.message}`)));
+      request.write(orderPayload);
+      request.end();
     });
 
     return NextResponse.json({
       success: true,
       order: {
-        id: order.id,
-        amount: order.amount,
-        currency: order.currency,
+        id: razorpayData.id,
+        amount: razorpayData.amount,
+        currency: razorpayData.currency,
       },
     });
+
   } catch (error: any) {
-    // Log the raw error for debugging in terminal
-    console.error('RAZORPAY SDK ERROR:', error);
-
-    // Handle structural errors from Razorpay SDK
-    if (error.statusCode === 400 && error.error?.description) {
-      return NextResponse.json(
-        { success: false, message: `Razorpay: ${error.error.description}` },
-        { status: 400 }
-      );
-    }
-
-    // Intercept Razorpay SDK bug where it crashes with a TypeError on connection/parsing issues
-    let errorMessage = error.message || 'Failed to create order';
-    if (typeof errorMessage === 'string' && (errorMessage.includes("reading 'status'") || error.code === 'ECONNRESET')) {
-      errorMessage = 'Payment gateway connection failed. Please check your internet or try again later.';
-    }
-
+    console.error('CREATE ORDER ERROR:', error);
     return NextResponse.json(
-      { success: false, message: errorMessage },
+      { success: false, message: error.message || 'Failed to create order' },
       { status: 500 }
     );
   }

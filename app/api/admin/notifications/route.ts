@@ -4,6 +4,11 @@ import { NextResponse } from 'next/server';
 export async function GET() {
     try {
         const supabase = await createSSRClient();
+        const { isAdmin } = await import('@/lib/utils/auth');
+
+        if (!(await isAdmin())) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
 
         // 1. Fetch Low Stock Alerts
         const { data: lowStock } = await supabase

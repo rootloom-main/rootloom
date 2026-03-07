@@ -117,7 +117,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold">Full Name</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="John Doe" className="focus-visible:ring-moss-olive h-11" {...field} />
+                                    <Input placeholder="Samir Pandey" className="focus-visible:ring-moss-olive h-11" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>

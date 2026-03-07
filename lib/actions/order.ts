@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
+import { processRazorpayRefund } from '@/lib/razorpay';
 
 export async function cancelOrder(orderId: string) {
     const supabase = await createClient() as any;
@@ -17,7 +18,7 @@ export async function cancelOrder(orderId: string) {
     // Fetch order to verify ownership and status
     const { data: order, error: fetchError } = await supabase
         .from('orders')
-        .select('user_id, status')
+        .select('user_id, status, payment_id, payment_status, total, refund_status')
         .eq('id', orderId)
         .single();
 
@@ -68,15 +69,39 @@ export async function cancelOrder(orderId: string) {
         }
     }
 
-    // 2. Update order status to cancelled
+    // 2. Process Razorpay Refund if paid online
+    let refundProcessed = false;
+    if (order.payment_status === 'completed' && order.payment_id && !order.payment_id.startsWith('cod_')) {
+        // Do not refund again if already processed
+        if (order.refund_status !== 'processed') {
+            try {
+                await processRazorpayRefund({
+                    paymentId: order.payment_id,
+                    amount: order.total, // Full refund for cancellation
+                });
+                refundProcessed = true;
+            } catch (e: any) {
+                console.error(`Razorpay Refund Failed for cancellation ${orderId}:`, e.message);
+                return { success: false, message: `Payment gateway failed: ${e.message}` };
+            }
+        }
+    }
+
+    // 3. Update order status to cancelled
+    const updateData: any = { status: 'cancelled', updated_at: new Date().toISOString() };
+    if (refundProcessed) {
+        updateData.refund_status = 'processed';
+        updateData.refund_amount = order.total;
+    }
+
     const { error: updateError } = await supabase
         .from('orders')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', orderId);
 
     if (updateError) {
         console.error('Error cancelling order:', updateError);
-        return { success: false, message: 'Failed to cancel order' };
+        return { success: false, message: 'Cancellation completed but failed to update status' };
     }
 
     revalidatePath('/account/orders');

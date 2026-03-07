@@ -8,6 +8,8 @@ import { X, ShoppingBag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useWishlist } from '@/components/providers/wishlist-provider';
+import { useCart } from '@/components/providers/cart-provider';
+import { toast } from 'sonner';
 
 interface WishlistItemProps {
     item: {
@@ -21,6 +23,11 @@ interface WishlistItemProps {
                 image_url: string;
                 alt_text: string;
             }[];
+            product_variants?: {
+                id: string;
+                price_adjustment: number;
+                stock: number;
+            }[];
         };
     };
 }
@@ -28,17 +35,46 @@ interface WishlistItemProps {
 export function WishlistItem({ item }: WishlistItemProps) {
     const { product } = item;
     const { removeFromWishlist } = useWishlist();
-    const image = product.product_images?.[0]?.image_url || '/placeholder.png'; // Fallback
+    const { addToCart } = useCart();
+
+    const image = product.product_images?.[0]?.image_url || '/placeholder.png';
     const alt = product.product_images?.[0]?.alt_text || product.name;
 
     const router = useRouter();
     const [isRemoving, setIsRemoving] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
 
     const handleRemove = async () => {
         setIsRemoving(true);
-        await removeFromWishlist(product.id);
-        router.refresh();
-        setIsRemoving(false);
+        try {
+            await removeFromWishlist(product.id);
+            toast.success('Removed from wishlist');
+            router.refresh();
+        } catch (error) {
+            toast.error('Failed to remove item');
+        } finally {
+            setIsRemoving(false);
+        }
+    };
+
+    const handleAddToCart = async () => {
+        setIsAdding(true);
+        try {
+            // Find the first available variant
+            const variant = product.product_variants?.find(v => v.stock > 0) || product.product_variants?.[0];
+
+            if (!variant) {
+                toast.error('Product is currently out of stock');
+                return;
+            }
+
+            await addToCart(product.id, variant.id, 1);
+            toast.success('Added to cart');
+        } catch (error) {
+            console.error('Wishlist AddToCart Error:', error);
+        } finally {
+            setIsAdding(false);
+        }
     };
 
     return (
@@ -84,19 +120,30 @@ export function WishlistItem({ item }: WishlistItemProps) {
             </div>
 
             {/* Actions (Mobile & Desktop) */}
-            <div className="w-full sm:w-auto flex sm:flex-col gap-3 mt-4 sm:mt-0 sm:ml-4 border-t sm:border-t-0 p-4 sm:p-0 border-dashed border-stone-200">
-                <Button className="flex-1 sm:w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-full">
-                    <ShoppingBag size={18} className="mr-2" />
-                    Add to Cart
+            <div className="w-full sm:w-auto flex sm:flex-col gap-3 mt-4 sm:mt-0 sm:ml-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-dashed border-stone-200">
+                <Button
+                    onClick={handleAddToCart}
+                    disabled={isAdding}
+                    className="flex-1 sm:w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-full h-11"
+                >
+                    {isAdding ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <>
+                            <ShoppingBag size={18} className="mr-2" />
+                            Add to Cart
+                        </>
+                    )}
                 </Button>
 
                 {/* Remove Button (Mobile) */}
                 <Button
                     variant="outline"
                     onClick={handleRemove}
-                    className="sm:hidden flex-1 border-stone-200 text-slate-500 hover:text-red-500 hover:border-red-200 rounded-full"
+                    disabled={isRemoving}
+                    className="sm:hidden flex-1 border-stone-200 text-slate-500 hover:text-red-500 hover:border-red-200 rounded-full h-11"
                 >
-                    Remove
+                    {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remove'}
                 </Button>
             </div>
         </div>

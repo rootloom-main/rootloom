@@ -67,32 +67,64 @@ export function StickyAddToCart({ product, selectedVariant, isAdding, onAddToCar
                 {/* Action buttons */}
                 <div className="flex items-center gap-2.5 flex-shrink-0">
                     <Button
-                        onClick={onAddToCart}
-                        disabled={isAdding || !selectedVariant || selectedVariant?.stock === 0}
-                        variant="outline"
+                        onClick={(e) => {
+                            if (!selectedVariant) {
+                                e.preventDefault();
+                                const el = document.getElementById('size-selector');
+                                if (el) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    el.classList.add('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse');
+                                    setTimeout(() => el.classList.remove('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse'), 1500);
+                                }
+                            } else {
+                                onAddToCart();
+                            }
+                        }}
+                        disabled={isAdding || (selectedVariant && selectedVariant.stock === 0)}
                         className={cn(
-                            'rounded-xl border-2 font-bold text-sm px-4 h-10 transition-all',
-                            (!selectedVariant || selectedVariant?.stock === 0)
-                                ? 'border-stone-200 text-stone-300'
-                                : 'border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-white'
+                            'rounded-xl font-bold text-[10px] md:text-sm px-4 h-11 transition-all shadow-sm',
+                            (!selectedVariant)
+                                ? 'bg-deep-forest text-white'
+                                : (selectedVariant.stock === 0)
+                                    ? 'bg-stone-100 text-stone-300'
+                                    : 'bg-raw-clay text-white hover:bg-[#7a4e3c]'
                         )}
                     >
-                        <ShoppingCart className="w-4 h-4 mr-1.5" />
-                        <span className="hidden sm:inline">{isAdding ? 'Adding...' : 'Add to Cart'}</span>
-                        <span className="sm:hidden">Cart</span>
+                        <ShoppingCart className="w-3 h-3 md:w-4 md:h-4 mr-1.5" />
+                        <span className="hidden sm:inline">{!selectedVariant ? 'Select Size' : isAdding ? 'Adding...' : 'Add to Cart'}</span>
+                        <span className="sm:hidden">{!selectedVariant ? 'Size' : 'Cart'}</span>
                     </Button>
 
                     <Button
-                        onClick={handleBuyNow}
-                        disabled={isAdding || !selectedVariant || selectedVariant?.stock === 0}
+                        onClick={(e) => {
+                            if (!selectedVariant) {
+                                e.preventDefault();
+                                const el = document.getElementById('size-selector');
+                                if (el) {
+                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    el.classList.add('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse');
+                                    setTimeout(() => el.classList.remove('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse'), 1500);
+                                }
+                            } else {
+                                handleBuyNow();
+                            }
+                        }}
+                        disabled={isAdding || (selectedVariant && selectedVariant.stock === 0)}
                         className={cn(
-                            'rounded-xl font-bold text-sm px-5 h-10 transition-all',
-                            (!selectedVariant || selectedVariant?.stock === 0)
-                                ? 'bg-stone-200 text-stone-400'
-                                : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-stone-900 shadow-sm'
+                            'rounded-xl font-bold text-[10px] md:text-sm px-5 h-11 transition-all shadow-md',
+                            (!selectedVariant)
+                                ? 'bg-stone-50 text-deep-forest border border-deep-forest/20'
+                                : (selectedVariant.stock === 0)
+                                    ? 'bg-stone-200 text-stone-400 shadow-none'
+                                    : 'bg-deep-forest text-white hover:bg-slate-900 shadow-deep-forest/10 hover:shadow-lg hover:shadow-deep-forest/20'
                         )}
                     >
-                        {isAdding ? '...' : '⚡ Buy Now'}
+                        <span
+                            key={selectedVariant?.id || 'empty'}
+                            className={cn('inline-block', selectedVariant ? 'animate-micro-bounce' : '')}
+                        >
+                            {!selectedVariant ? 'Buy Now' : isAdding ? '...' : `⚡ Buy Now`}
+                        </span>
                     </Button>
                 </div>
             </div>

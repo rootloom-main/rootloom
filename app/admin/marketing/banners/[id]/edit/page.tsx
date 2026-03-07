@@ -63,17 +63,18 @@ export default function EditBannerPage() {
         setSaving(true);
 
         try {
-            const { error } = await supabase
-                .from('banners')
-                .update({
-                    title,
-                    link: link || null,
-                    position,
-                    active,
-                })
-                .eq('id', bannerId);
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('link', link);
+            formData.append('position', position);
+            formData.append('active', active.toString());
 
-            if (error) throw error;
+            const { updateBannerAction } = await import('@/app/admin/marketing/banners/banner-actions');
+            const result = await updateBannerAction(bannerId, formData);
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
 
             toast.success('Banner updated successfully');
             router.push('/admin/marketing/banners');

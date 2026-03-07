@@ -1,0 +1,55 @@
+name: Production Quality Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install Dependencies
+        run: npm ci
+      
+      - name: Type Check & Lint
+        run: |
+          npm run typecheck
+          npm run lint
+
+      - name: Build Application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
+          # The real build needs secrets, else the build might fail if it tries to fetch DB at build time
+          # It's recommended to mock DB calls at build time or provide a preview DB connection string
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        
+      - name: Run Playwright E2E Tests
+        run: npx playwright test
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          # We don't usually point it to the active external DB for CI unless we have a dedicated staging DB
+          
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

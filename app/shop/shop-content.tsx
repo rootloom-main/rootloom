@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProductCard } from '@/components/product/product-card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { formatPrice } from '@/lib/utils/format';
 import { Loader2, SlidersHorizontal } from 'lucide-react';
+import { ProductGridSkeleton } from '@/components/product/product-skeleton';
+import { cn } from '@/lib/utils'; // Included cn
 import {
   Sheet,
   SheetContent,
@@ -57,8 +59,11 @@ export function ShopContent({
   const params = useSearchParams();
   const supabase = createClient();
 
+  const [isPending, startTransition] = React.useTransition();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [priceRange, setPriceRange] = useState([0, 20000]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
     (params?.get('category') as string) || 'all'
@@ -118,6 +123,7 @@ export function ShopContent({
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
+      if (isInitialLoad) setIsInitialLoad(false);
     }
   };
 
@@ -128,9 +134,11 @@ export function ShopContent({
     } else {
       current.delete(key);
     }
-    const search = current.toString();
-    const query = search ? `?${search}` : '';
-    router.push(`/shop${query}`);
+    const searchStr = current.toString();
+    const query = searchStr ? `?${searchStr}` : '';
+    startTransition(() => {
+      router.push(`/shop${query}`);
+    });
   };
 
   const handleCategoryChange = (category: string) => {
@@ -147,17 +155,17 @@ export function ShopContent({
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold mb-4 text-deep-forest">Category</h3>
-        <RadioGroup value={selectedCategory} onValueChange={handleCategoryChange}>
+        <RadioGroup value={selectedCategory} onValueChange={handleCategoryChange} disabled={loading}>
           <div className="flex items-center space-x-2 mb-2">
-            <RadioGroupItem value="all" id={`${idPrefix}-all`} />
-            <Label htmlFor={`${idPrefix}-all`} className="cursor-pointer text-slate-bark">
+            <RadioGroupItem value="all" id={`${idPrefix}-all`} disabled={loading} />
+            <Label htmlFor={`${idPrefix}-all`} className={cn("cursor-pointer text-slate-bark", loading && "opacity-50 cursor-not-allowed")}>
               All Products
             </Label>
           </div>
           {categories.map((category) => (
             <div key={category.id} className="flex items-center space-x-2 mb-2">
-              <RadioGroupItem value={category.slug} id={`${idPrefix}-${category.slug}`} />
-              <Label htmlFor={`${idPrefix}-${category.slug}`} className="cursor-pointer">
+              <RadioGroupItem value={category.slug} id={`${idPrefix}-${category.slug}`} disabled={loading} />
+              <Label htmlFor={`${idPrefix}-${category.slug}`} className={cn("cursor-pointer", loading && "opacity-50 cursor-not-allowed")}>
                 {category.name}
               </Label>
             </div>
@@ -167,13 +175,14 @@ export function ShopContent({
 
       <div>
         <h3 className="font-semibold mb-4">Price Range</h3>
-        <div className="space-y-4">
+        <div className={cn("space-y-4", loading && "opacity-50 pointer-events-none")}>
           <Slider
             value={priceRange}
             onValueChange={setPriceRange}
             max={20000}
             step={100}
             className="w-full"
+            disabled={loading}
           />
           <div className="flex justify-between text-sm text-gray-600">
             <span>{formatPrice(priceRange[0])}</span>
@@ -191,6 +200,7 @@ export function ShopContent({
           setSortBy('latest');
           router.push('/shop');
         }}
+        disabled={loading}
       >
         Clear Filters
       </Button>
@@ -211,7 +221,7 @@ export function ShopContent({
             {loading ? 'Loading...' : `${products.length} products found`}
           </p>
           <div className="flex gap-2 items-center">
-            <Select value={sortBy} onValueChange={handleSortChange}>
+            <Select value={sortBy} onValueChange={handleSortChange} disabled={loading}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -241,11 +251,9 @@ export function ShopContent({
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-deep-forest" />
-          </div>
-        ) : products.length === 0 ? (
+        {isInitialLoad && loading ? (
+          <ProductGridSkeleton count={8} />
+        ) : products.length === 0 && !loading ? (
           <div className="text-center py-16">
             <p className="text-slate-bark mb-4">No products found matching your criteria.</p>
             <Button
@@ -260,7 +268,12 @@ export function ShopContent({
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className={cn("grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-300 relative", (!isInitialLoad && (loading || isPending)) ? "opacity-50 pointer-events-none" : "opacity-100")}>
+            {(!isInitialLoad && (loading || isPending)) && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <Loader2 className="h-8 w-8 animate-spin text-deep-forest" />
+              </div>
+            )}
             {products.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

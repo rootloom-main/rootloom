@@ -3,7 +3,6 @@
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
 import { ShieldCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 interface PriceDetailsProps {
     cart: any[];
@@ -11,10 +10,10 @@ interface PriceDetailsProps {
     shipping: number;
     total: number;
     itemCount: number;
+    onCheckout: () => void;
 }
 
-export function PriceDetails({ cart, subtotal, shipping, total, itemCount }: PriceDetailsProps) {
-    const router = useRouter();
+export function PriceDetails({ cart, subtotal, shipping, total, itemCount, onCheckout }: PriceDetailsProps) {
 
     // Calculate savings using base price vs actual price if you had separate fields
     // For now, we'll simulate it or just show the total
@@ -70,7 +69,7 @@ export function PriceDetails({ cart, subtotal, shipping, total, itemCount }: Pri
                 {/* Helper for Desktop */}
                 <Button
                     className="w-full h-12 text-base uppercase font-semibold bg-deep-forest hover:bg-deep-forest/90 hidden lg:flex"
-                    onClick={() => router.push('/checkout')}
+                    onClick={onCheckout}
                 >
                     Place Order
                 </Button>

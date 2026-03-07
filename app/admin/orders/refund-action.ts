@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
+import { processRazorpayRefund } from '@/lib/razorpay';
 
 export async function processRefund(formData: FormData) {
     const supabase = await createClient() as any;
@@ -28,7 +29,31 @@ export async function processRefund(formData: FormData) {
         return { error: 'Forbidden' };
     }
 
-    // 1. Update Order Status
+    // 1. Fetch the Order to get the payment ID
+    const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('payment_id, status')
+        .eq('id', orderId)
+        .single();
+
+    if (orderError || !order) {
+        return { error: 'Order not found' };
+    }
+
+    // 2. Process Razorpay Refund if online payment exists
+    if (order.payment_id && !order.payment_id.startsWith('cod_')) {
+        try {
+            await processRazorpayRefund({
+                paymentId: order.payment_id,
+                amount: parseFloat(amount),
+            });
+        } catch (e: any) {
+            console.error('Razorpay Refund Failed:', e.message);
+            return { error: `Payment gateway failed: ${e.message}` };
+        }
+    }
+
+    // 3. Update Order Status in Database
     const { error: updateError } = await supabase
         .from('orders')
         .update({
@@ -41,7 +66,7 @@ export async function processRefund(formData: FormData) {
         .eq('id', orderId);
 
     if (updateError) {
-        return { error: 'Failed to update order refund status' };
+        return { error: 'Refund completed but failed to update database status' };
     }
 
     // 2. Restock Inventory if requested

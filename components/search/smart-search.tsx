@@ -34,7 +34,18 @@ const TRENDING_SEARCHES = [
     'White Sneakers'
 ];
 
+import { Suspense } from 'react';
+
 export function SmartSearch() {
+    return (
+        <Suspense fallback={<div className="w-full h-12 bg-white/50 rounded-full animate-pulse" />}>
+            <SmartSearchInner />
+        </Suspense>
+    );
+}
+
+function SmartSearchInner() {
+    // ... existing content ...
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();

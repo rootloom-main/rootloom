@@ -33,7 +33,18 @@ const TRENDING_SEARCHES = [
     'White Sneakers'
 ];
 
+import { Suspense } from 'react';
+
 export function SearchOverlay() {
+    return (
+        <Suspense fallback={<Button variant="ghost" size="icon" className="h-8 w-8 text-deep-forest rounded-full md:hidden"><Search className="h-4 w-4" /></Button>}>
+            <SearchOverlayInner />
+        </Suspense>
+    );
+}
+
+function SearchOverlayInner() {
+    // ... existing content ...
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [debouncedQuery] = useDebounce(query, 300);
@@ -149,8 +160,8 @@ export function SearchOverlay() {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-deep-forest hover:bg-stone-paper rounded-full md:hidden">
-                    <Search className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:bg-stone-paper rounded-full md:hidden">
+                    <Search className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[100dvh] w-full p-0 border-none bg-white flex flex-col">

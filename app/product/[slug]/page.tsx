@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient } from '@/lib/utils/auth';
 import { ProductService } from '@/lib/services/productService';
 import { ProductDetails } from './product-details';
 import { Metadata } from 'next';
@@ -12,12 +12,12 @@ interface ProductPageProps {
   params: { slug: string };
 }
 
-export const revalidate = 60; // Cache this route for 60 seconds
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
-  const supabase = await createClient();
+  const supabase = await createSSRClient();
   const { data: product } = await supabase
     .from('products')
     .select('name, description, product_images(image_url)')
@@ -50,7 +50,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Slash } from 'lucide-react';
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const supabase = await createClient();
+  const supabase = await createSSRClient();
 
   const [userResult, product] = await Promise.all([
     supabase.auth.getUser(),

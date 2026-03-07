@@ -15,7 +15,7 @@ export async function AllProductsPreview({ limit = 12 }: { limit?: number }) {
     return (
         <ProductShowcase
             title="Explore Collection"
-            subtitle="Discover More"
+            subtitle="The Full Collection"
             products={products}
             viewAllLink="/shop"
             viewAllText="Browse Full Catalog"

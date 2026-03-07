@@ -12,6 +12,7 @@ import { DownloadInvoiceButton } from '@/components/admin/orders/download-invoic
 import { OrderNotes } from '@/components/admin/orders/order-notes';
 import { RefundOrderButton } from '@/components/admin/orders/refund-order-button';
 import { CancelOrderButton } from '@/app/account/orders/[id]/cancel-order-button';
+import { OrderStatusDropdown } from '@/components/admin/orders/order-status-dropdown';
 
 export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
     const supabase = await createSSRClient();
@@ -58,9 +59,7 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                     <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
                         <span>Placed on {formatDate(order.created_at)}</span>
                         <span>•</span>
-                        <Badge variant={getStatusVariant(order.status)} className="capitalize">
-                            {order.status}
-                        </Badge>
+                        <OrderStatusDropdown orderId={order.id} currentStatus={order.status} />
                     </div>
                 </div>
                 <div className="flex gap-2">

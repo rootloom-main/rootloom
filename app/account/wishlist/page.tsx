@@ -28,6 +28,11 @@ export default async function WishlistPage() {
                     image_url,
                     alt_text,
                     display_order
+                ),
+                product_variants (
+                    id,
+                    price_adjustment,
+                    stock
                 )
             )
         `)

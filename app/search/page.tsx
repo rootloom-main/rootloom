@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient as createClient } from '@/lib/utils/auth';
 import { ProductCard } from '@/components/product/product-card';
 import { Filter, X, ChevronDown, SlidersHorizontal, Search, Home, ChevronRight, ArrowLeft } from 'lucide-react';
 import { redirect } from 'next/navigation';
@@ -263,7 +263,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                     <main className="flex-1">
                         {products.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                     {products.map((product) => (
                                         <ProductCard key={product.id} product={product} highlight={query} />
                                     ))}

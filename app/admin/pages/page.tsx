@@ -24,7 +24,7 @@ export default async function PagesListing() {
         <div className="container mx-auto px-6 py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold tracking-tight text-gray-900">Content Pages</h1>
-                {/* <Link href="/admin/pages/new"><Button>New Page</Button></Link> */}
+                <Link href="/admin/pages/new"><Button className="bg-deep-forest hover:bg-deep-forest/90">New Page</Button></Link>
             </div>
 
             <Card>

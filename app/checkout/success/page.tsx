@@ -3,92 +3,81 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { CheckCircle2, Package, ShoppingBag, ArrowRight, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { CheckCircle2, Package, ExternalLink } from 'lucide-react';
 
 export default function CheckoutSuccessPage() {
     const [orderNumber, setOrderNumber] = useState<string | null>(null);
+    const [date, setDate] = useState<string>('');
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        setOrderNumber(params.get('orderNumber'));
+        setOrderNumber(params.get('orderNumber') || `ORD-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
+
+        const deliveryDate = new Date();
+        deliveryDate.setDate(deliveryDate.getDate() + 5);
+        setDate(deliveryDate.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
     }, []);
 
-    return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-20 bg-stone-50/30">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="max-w-xl w-full"
-            >
-                <div className="text-center mb-12">
-                    <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="inline-flex items-center gap-2 text-deep-forest bg-deep-forest/5 px-4 py-2 rounded-full border border-deep-forest/10 mb-6"
-                    >
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Payment Received</span>
-                    </motion.div>
-                    <h1 className="text-5xl font-serif font-bold text-stone-900 mb-4">
-                        Thank You.
-                    </h1>
-                    <p className="text-stone-500 font-medium max-w-sm mx-auto leading-relaxed">
-                        Your order has been confirmed and is now being handcrafted for your delivery.
-                    </p>
-                </div>
+    // Prevent hydration mismatch
+    if (!orderNumber) return null;
 
-                <Card className="border-none shadow-2xl bg-white rounded-[2rem] overflow-hidden">
-                    <CardContent className="p-10 text-center">
-                        {orderNumber && (
-                            <div className="mb-10 text-left">
-                                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.2em] mb-4">Order Confirmation</p>
-                                <div className="bg-stone-50 rounded-2xl p-6 border border-stone-100 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs text-stone-400 font-bold uppercase tracking-tight mb-1">Order #</p>
-                                        <p className="text-2xl font-mono font-bold text-deep-forest tracking-tighter">
-                                            {orderNumber}
-                                        </p>
-                                    </div>
-                                    <div className="h-12 w-12 bg-white rounded-xl shadow-sm flex items-center justify-center border border-stone-100">
-                                        <Package className="h-6 w-6 text-stone-200" />
-                                    </div>
+    return (
+        <div className="min-h-screen bg-stone-100 py-12 px-4">
+            <div className="max-w-3xl mx-auto">
+                {/* Success Card (Utilitarian layout matching Amazon) */}
+                <div className="bg-white border-t-8 border-green-600 shadow-sm rounded-sm overflow-hidden">
+                    <div className="p-8 md:p-10 border-b border-stone-100 flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <CheckCircle2 className="h-16 w-16 text-green-600 flex-shrink-0" />
+                        <div>
+                            <h1 className="text-2xl font-bold text-stone-900 mb-2">Order placed, thank you!</h1>
+                            <p className="text-stone-600 font-medium tracking-wide">Confirmation will be sent to your registered email address.</p>
+                        </div>
+                    </div>
+
+                    <div className="p-8 md:p-10 grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-6">Order Details</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-1.5">Order Number</p>
+                                    <p className="text-lg font-bold text-stone-900">{orderNumber}</p>
+                                </div>
+                                <div className="pt-4 border-t border-stone-100">
+                                    <p className="text-xs font-bold text-stone-500 uppercase tracking-widest mb-1.5">Estimated Delivery</p>
+                                    <p className="text-lg font-bold text-deep-forest">{date}</p>
                                 </div>
                             </div>
-                        )}
-
-                        <div className="space-y-4">
-                            <Button asChild className="w-full bg-deep-forest hover:bg-deep-forest/90 h-16 text-sm font-bold tracking-[0.2em] rounded-2xl shadow-xl shadow-deep-forest/20 group uppercase">
-                                <Link href="/account/orders">
-                                    VIEW ORDER STATUS
-                                    <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                                </Link>
-                            </Button>
-                            <Button asChild variant="outline" className="w-full border-stone-100 text-stone-500 hover:bg-stone-50 h-16 text-sm font-bold tracking-[0.2em] rounded-2xl uppercase">
-                                <Link href="/shop">
-                                    <ShoppingBag className="mr-2 h-4 w-4" />
-                                    Continue Shopping
-                                </Link>
-                            </Button>
                         </div>
 
-                        <div className="mt-10 pt-10 border-t border-stone-50 flex flex-col items-center gap-4 text-stone-400">
-                            <div className="flex gap-4 opacity-40">
-                                <ShieldCheck className="h-5 w-5" />
-                                <Package className="h-5 w-5" />
-                                <ShoppingBag className="h-5 w-5" />
-                            </div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-center">
-                                We've sent a detailed receipt to your email.<br />
-                                Need help? <Link href="/contact" className="text-deep-forest underline">Support</Link>
-                            </p>
+                        <div className="bg-stone-50 p-6 rounded border border-stone-100 flex flex-col justify-center">
+                            <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">What's Next?</h3>
+                            <ul className="space-y-4 text-sm font-medium text-stone-600 leading-relaxed">
+                                <li className="flex items-start gap-3">
+                                    <Package className="h-5 w-5 text-stone-400 flex-shrink-0" />
+                                    <span>Track your shipment status and location from the Your Orders panel.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <ExternalLink className="h-5 w-5 text-stone-400 flex-shrink-0" />
+                                    <span>You can cancel or modify your items before the package ships.</span>
+                                </li>
+                            </ul>
                         </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
+                    </div>
+
+                    <div className="p-8 md:p-10 bg-stone-50/50 border-t border-stone-100 flex flex-col sm:flex-row gap-4">
+                        <Link href="/account/orders" className="flex-1">
+                            <Button className="w-full h-12 bg-white text-stone-900 border-2 border-stone-200 hover:bg-stone-50 hover:border-stone-300 font-bold tracking-wide shadow-sm rounded-sm">
+                                REVIEW OR EDIT ORDERS
+                            </Button>
+                        </Link>
+                        <Link href="/shop" className="flex-1">
+                            <Button className="w-full h-12 bg-[#FB641B] hover:bg-[#FB641B]/90 text-white font-bold tracking-wide rounded-sm shadow-md">
+                                CONTINUE SHOPPING
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

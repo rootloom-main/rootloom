@@ -20,7 +20,7 @@ export default function CheckoutFailedPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="inline-flex items-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-full border border-red-100 mb-6"
+                        className="inline-flex items-center gap-2 text-raw-clay bg-[#8c5a45]/10 px-4 py-2 rounded-full border border-[#8c5a45]/20 mb-6"
                     >
                         <AlertCircle className="h-4 w-4" />
                         <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Transaction Incomplete</span>
@@ -57,7 +57,7 @@ export default function CheckoutFailedPage() {
                         </div>
 
                         <div className="space-y-4">
-                            <Button asChild className="w-full bg-stone-900 hover:bg-black h-16 text-sm font-bold tracking-[0.2em] rounded-2xl shadow-xl shadow-stone-900/10 group uppercase">
+                            <Button asChild className="w-full bg-deep-forest hover:bg-deep-forest/90 h-16 text-sm font-bold tracking-[0.2em] rounded-2xl shadow-xl shadow-deep-forest/20 group uppercase">
                                 <Link href="/checkout">
                                     <RefreshCw className="mr-2 h-4 w-4 group-hover:rotate-180 transition-transform duration-700" />
                                     Retry Payment

@@ -94,5 +94,20 @@
 
   body {
     @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.5;
   }
+  
+  @media (min-width: 640px) {
+    body {
+       font-size: 16px;
+    }
+  }
+}
+@layer utilities {
+  @keyframes micro-bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.02); }
+  }
+  .animate-micro-bounce { animation: micro-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 }

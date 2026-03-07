@@ -140,10 +140,40 @@ function LoginPageContent() {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (loading || !identifier) return;
+    setLoading(true);
+
+    try {
+      let formattedPhone = identifier.trim().replace(/[\s\-\(\)]/g, '');
+      if (!formattedPhone.startsWith('+')) {
+        formattedPhone = '+91' + formattedPhone;
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) {
+        if (error.message.includes('rate limit')) {
+          throw new Error('Too many requests. Please try again later.');
+        }
+        throw error;
+      }
+
+      toast.success('A new OTP has been sent to your number');
+      setOtp('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resend OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[85vh] w-full flex rounded-2xl overflow-hidden border border-stone-100 shadow-2xl my-8 bg-white max-w-6xl mx-auto">
       {/* Left side - Brand/Image */}
-      <div className="hidden lg:flex w-1/2 bg-stone-950 text-white relative flex-col justify-between p-12 overflow-hidden">
+      <div className="hidden lg:flex w-1/2 bg-deep-forest text-heirloom-white relative flex-col justify-between p-12 overflow-hidden">
         <div className="absolute inset-0 z-0 opacity-20">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff1a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff1a_1px,transparent_1px)] bg-[size:24px_24px]"></div>
           <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary opacity-20 blur-[100px]"></div>
@@ -272,10 +302,7 @@ function LoginPageContent() {
                     <Button
                       variant="ghost"
                       type="button"
-                      onClick={() => {
-                        setStep('identifier');
-                        setOtp('');
-                      }}
+                      onClick={handleResendOtp}
                       className="text-sm text-stone-500 hover:text-stone-900 font-medium"
                     >
                       Wait, resend code

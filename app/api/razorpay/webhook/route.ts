@@ -141,13 +141,14 @@ export async function POST(req: NextRequest) {
             if (couponCode) {
                 try {
                     const { validateCouponLogic } = await import('@/lib/coupon');
-                    // Coupon logic might need 'supabase' client, passing adminSupabase is fine
                     const result = await validateCouponLogic(adminSupabase, couponCode, subtotal);
-                    if (result.success) {
-                        discountAmount = result.discountAmount || 0;
+                    if (result.success && result.discountAmount !== undefined) {
+                        discountAmount = result.discountAmount;
                         if (result.couponId) {
                             await adminSupabase.rpc('increment_coupon_usage', { coupon_id: result.couponId });
                         }
+                    } else {
+                        console.error('Webhook: Invalid coupon detected during async validation', { result });
                     }
                 } catch (e) {
                     console.error('Webhook: Coupon validation failed', e);

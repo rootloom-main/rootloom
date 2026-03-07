@@ -53,13 +53,20 @@ export async function validateCouponLogic(
 
     // 6. Calculate discount
     let discountAmount = 0;
+    const safeValue = Number(coupon.value) || 0;
+
     if (coupon.discount_type === 'flat') {
-        discountAmount = coupon.value;
+        discountAmount = safeValue;
     } else if (coupon.discount_type === 'percentage') {
-        discountAmount = (cartTotal * coupon.value) / 100;
+        discountAmount = (cartTotal * safeValue) / 100;
         if (coupon.max_discount_amount) {
-            discountAmount = Math.min(discountAmount, coupon.max_discount_amount);
+            discountAmount = Math.min(discountAmount, Number(coupon.max_discount_amount) || 0);
         }
+    }
+
+    // Sanitize to prevent NaN resulting in Razorpay SDK crashes
+    if (isNaN(discountAmount) || discountAmount < 0) {
+        discountAmount = 0;
     }
 
     // Ensure discount doesn't exceed total

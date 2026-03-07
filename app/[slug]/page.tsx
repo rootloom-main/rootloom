@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient as createClient } from '@/lib/utils/auth';
 import { notFound } from 'next/navigation';
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {

@@ -105,18 +105,22 @@ export async function POST(req: NextRequest) {
     if (couponCode) {
       try {
         const result = await validateCouponLogic(supabase, couponCode, subtotal);
-        if (result.success) {
-          discountAmount = result.discountAmount || 0;
+        if (result.success && result.discountAmount !== undefined) {
+          discountAmount = result.discountAmount;
           if (result.couponId) {
             await supabase.rpc('increment_coupon_usage', { coupon_id: result.couponId } as any);
           }
+        } else {
+          // Coupon may have expired or been redeemed — do NOT block order since payment is captured
+          console.warn('Verify: Coupon issue (proceeding):', result.message);
         }
-      } catch (e) {
-        console.error('Verify: Coupon validation failed', e);
+      } catch (e: any) {
+        // Log but never block — payment already captured
+        console.error('Verify: Coupon error (proceeding):', e.message);
       }
     }
 
-    const total = Math.max(0, subtotal + shippingCost - discountAmount);
+    const total = Math.round(Math.max(0, subtotal + shippingCost - discountAmount));
 
     // We can compare 'total' with 'clientTotal' or Razorpay order amount if needed.
     // For now, trusting our DB calculation is the secure way.

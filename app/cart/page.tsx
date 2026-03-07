@@ -1,6 +1,7 @@
 'use client';
 
 import { useCart } from '@/components/providers/cart-provider';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { CartItem } from '@/components/cart/cart-item';
@@ -8,10 +9,20 @@ import { PriceDetails } from '@/components/cart/price-details';
 import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { formatPrice } from '@/lib/utils/format';
 
 export default function CartPage() {
   const { cart, cartCount, isLoading: cartLoading } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
+
+  const handleCheckout = () => {
+    if (!user) {
+      router.push('/auth/login?next=/checkout');
+    } else {
+      router.push('/checkout');
+    }
+  };
 
   const subtotal = cart.reduce((total, item) => {
     const price = item.product.base_price + (item.variant.price_adjustment || 0);
@@ -75,6 +86,7 @@ export default function CartPage() {
               shipping={shipping}
               total={total}
               itemCount={cartCount}
+              onCheckout={handleCheckout}
             />
           </div>
         </div>
@@ -83,12 +95,12 @@ export default function CartPage() {
       {/* Mobile Sticky Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-between items-center z-50">
         <div>
-          <p className="text-xs text-slate-500 line-through">₹{total + 500}</p>
-          <p className="text-lg font-bold text-deep-forest">₹{total}</p>
+          <p className="text-xs text-stone-500 font-bold uppercase tracking-widest">Total</p>
+          <p className="text-lg font-bold text-deep-forest">{formatPrice(total)}</p>
         </div>
         <Button
           className="w-1/2 bg-deep-forest hover:bg-deep-forest/90 text-white font-semibold uppercase tracking-wide h-12"
-          onClick={() => router.push('/checkout')}
+          onClick={handleCheckout}
         >
           Place Order
         </Button>

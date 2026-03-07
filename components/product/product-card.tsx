@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { WishlistButton } from '@/components/product/wishlist-button';
 import { QuickViewModal } from '@/components/ui/quick-view-modal';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface ProductCardProps {
   product: {
@@ -31,8 +32,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, highlight }: ProductCardProps) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [lastTap, setLastTap] = useState<number>(0);
+  const [swipeAdded, setSwipeAdded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -72,16 +77,51 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
     setIsQuickViewOpen(true);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const touchEnd = e.changedTouches[0].clientX;
+    const distance = touchStart - touchEnd;
+
+    // Swipe Right (negative distance means moved right)
+    if (distance < -50) {
+      // Trigger Quick View / Add
+      setIsQuickViewOpen(true);
+      setSwipeAdded(true);
+      setTimeout(() => setSwipeAdded(false), 1500);
+    }
+    setTouchStart(null);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    if (now - lastTap < DOUBLE_TAP_DELAY) {
+      e.preventDefault(); // Prevent second click
+      const btn = document.getElementById(`wishlist-btn-${product.id}`);
+      if (btn) btn.click();
+    }
+    setLastTap(now);
+  };
+
   return (
     <>
-      <div className="group relative bg-white border border-stone-200 rounded-lg hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden">
-        <Link href={`/product/${product.slug}`} className="block relative aspect-[4/5] overflow-hidden bg-stone-100">
+      <div
+        className="group relative bg-white border border-stone-200 rounded-lg hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+      >
+        <div onClick={() => router.push(`/product/${product.slug}`)} className="cursor-pointer block relative aspect-[4/5] overflow-hidden bg-stone-100">
           <Image
             src={imageUrl}
             alt={product.name}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
           />
 
           {/* Badges */}
@@ -93,9 +133,9 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
             )}
           </div>
 
-          {/* Wishlist Button */}
+          {/* Wishlist Button (Thumb-zone optimized) */}
           <div className="absolute top-2 right-2 z-10">
-            <div className="bg-white/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm hover:bg-white transition-colors">
+            <div className="bg-white/90 backdrop-blur-md rounded-full p-2.5 shadow-sm hover:shadow-md hover:bg-white active:scale-90 transition-all cursor-pointer">
               <WishlistButton productId={product.id} />
             </div>
           </div>
@@ -116,7 +156,7 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
               </Button>
             </div>
           )}
-        </Link>
+        </div>
 
         <div className="p-4 flex flex-col flex-1 gap-1.5">
           {/* Title */}
@@ -138,13 +178,15 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
 
           {/* Price */}
           <div className="mt-auto flex items-baseline gap-2 flex-wrap">
-            <span className="text-lg font-bold text-slate-900">{formatPrice(product.base_price)}</span>
+            <span className="text-lg font-semibold text-slate-900">{formatPrice(product.base_price)}</span>
             {product.base_price > 1000 && (
               <>
-                <span className="text-xs text-slate-400 line-through">
-                  {formatPrice(product.base_price * 1.2)}
+                <span className="text-sm text-stone-400 line-through">
+                  {formatPrice(product.base_price * 1.3)}
                 </span>
-                <span className="text-xs text-green-600 font-bold">20% off</span>
+                <span className="text-[11px] font-bold text-deep-forest bg-deep-forest/5 px-1.5 py-0.5 rounded-sm tracking-wide uppercase">
+                  (30% OFF)
+                </span>
               </>
             )}
           </div>

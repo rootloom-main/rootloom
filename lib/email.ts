@@ -30,51 +30,77 @@ export const sendOrderConfirmationEmail = async ({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Root&Loom <orders@rootloom.com>', // Update this with your verified domain
+      from: 'Root & Loom <orders@rootloom.com>',
       to: [customerEmail],
       subject: `Order Confirmation #${orderNumber}`,
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Thank you for your order, ${customerName}!</h1>
-          <p>We have received your order <strong>#${orderNumber}</strong> and it is being processed.</p>
-          
-          <h2>Order Summary</h2>
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="border-bottom: 1px solid #ddd; text-align: left;">
-                <th style="padding: 10px 0;">Item</th>
-                <th style="padding: 10px 0;">Qty</th>
-                <th style="padding: 10px 0;">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items
-          .map(
-            (item) => `
-                <tr style="border-bottom: 1px solid #eee;">
-                  <td style="padding: 10px 0;">${item.name}</td>
-                  <td style="padding: 10px 0;">${item.quantity}</td>
-                  <td style="padding: 10px 0;">${item.price}</td>
-                </tr>
-              `
-          )
-          .join('')}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="2" style="padding: 10px 0; font-weight: bold;">Total</td>
-                <td style="padding: 10px 0; font-weight: bold;">${totalAmount}</td>
-              </tr>
-            </tfoot>
-          </table>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 40px; border: 1px solid #eaeaea; }
+    .header { text-align: center; margin-bottom: 40px; }
+    .logo { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #1F2F26; text-decoration: none; }
+    .title { font-size: 20px; font-weight: 300; color: #333333; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
+    .greeting { font-size: 16px; color: #444444; line-height: 1.5; margin-bottom: 30px; text-align: center; }
+    .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    .table th { border-bottom: 2px solid #1F2F26; padding: 12px 0; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #1F2F26; }
+    .table td { padding: 16px 0; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333; }
+    .total-row td { padding-top: 20px; font-size: 16px; font-weight: bold; color: #1F2F26; border-bottom: none; }
+    .btn { display: inline-block; padding: 14px 30px; background-color: #1F2F26; color: #ffffff; text-decoration: none; font-size: 14px; letter-spacing: 1px; font-weight: bold; margin-top: 20px; }
+    .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #999999; line-height: 1.5; }
+    .footer p { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">ROOT & LOOM</a>
+      <div class="title">Order Confirmed</div>
+    </div>
+    
+    <div class="greeting">
+      Thank you for your purchase, ${customerName}.<br>
+      Your order <strong>#${orderNumber}</strong> has been received and is currently being processed.
+    </div>
 
-          <p style="margin-top: 30px;">
-            You can view your order details <a href="${process.env.NEXT_PUBLIC_SITE_URL
-        }/account/orders/${orderNumber}">here</a>.
-          </p>
-          
-          <p>Best regards,<br>Root&Loom Team</p>
-        </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th style="text-align: center;">Qty</th>
+          <th style="text-align: right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(item => `
+        <tr>
+          <td>${item.name}</td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: right;">${item.price}</td>
+        </tr>
+        `).join('')}
+        <tr class="total-row">
+          <td colspan="2" style="text-align: right; padding-right: 20px;">Total</td>
+          <td style="text-align: right;">${totalAmount}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="text-align: center;">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL}/account/orders/${orderNumber}" class="btn">VIEW ORDER STATUS</a>
+    </div>
+
+    <div class="footer">
+      <p>Root & Loom | Sustainable Luxury Fashion</p>
+      <p>If you have any questions, reply to this email or contact support.</p>
+    </div>
+  </div>
+</body>
+</html>
       `,
     });
 
@@ -131,31 +157,64 @@ export const sendAbandonedCartEmail = async ({
       to: [customerEmail],
       subject,
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1>Hi ${customerName},</h1>
-          <p>${headerText}</p>
-          ${promoText}
-          
-          <div style="margin: 20px 0; border: 1px solid #eee; padding: 15px; border-radius: 8px;">
-            ${items.map(item => `
-              <div style="display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #f5f5f5;">
-                ${item.image ? `<img src="${item.image}" style="width: 50px; height: 50px; object-fit: cover; margin-right: 15px; border-radius: 4px;" />` : ''}
-                <div>
-                  <div style="font-weight: bold;">${item.name}</div>
-                  <div style="color: #666;">Qty: ${item.quantity} | ₹${item.price}</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 40px; border: 1px solid #eaeaea; }
+    .header { text-align: center; margin-bottom: 40px; }
+    .logo { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #1F2F26; text-decoration: none; }
+    .greeting { font-size: 16px; color: #444444; line-height: 1.6; margin-bottom: 30px; text-align: center; }
+    .promo { background-color: #1F2F26; color: #ffffff; padding: 15px; text-align: center; font-size: 18px; font-weight: bold; margin: 20px 0; letter-spacing: 2px; border-radius: 4px; }
+    .cart-items { margin: 20px 0; padding: 20px; border: 1px solid #eaeaea; }
+    .item-row { display: flex; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f5f5f5; }
+    .item-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .item-img { width: 60px; height: 60px; object-fit: cover; margin-right: 20px; border-radius: 4px; border: 1px solid #eee; }
+    .item-name { font-weight: bold; font-size: 14px; color: #333; margin-bottom: 5px; }
+    .item-meta { color: #666; font-size: 13px; }
+    .btn { display: inline-block; padding: 16px 32px; background-color: #1F2F26; color: #ffffff; text-decoration: none; font-size: 14px; letter-spacing: 1px; font-weight: bold; margin-top: 30px; }
+    .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #999999; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">ROOT & LOOM</a>
+    </div>
+    
+    <div class="greeting">
+      Hi ${customerName},<br><br>
+      ${headerText}
+    </div>
 
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${cartUrl}" style="background-color: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Return to Cart</a>
+    ${tier === '24hr' ? `<div class="promo">COMEBACK10</div>` : ''}
+
+    <div class="cart-items">
+      ${items.map(item => `
+        <div class="item-row">
+          ${item.image ? `<img src="${item.image}" class="item-img" />` : ''}
+          <div>
+            <div class="item-name">${item.name}</div>
+            <div class="item-meta">Qty: ${item.quantity} | ₹${item.price.toFixed(2)}</div>
           </div>
-          
-          <p style="text-align: center; color: #888; font-size: 12px;">
-            If the button doesn't work, copy this link: ${cartUrl}
-          </p>
         </div>
+      `).join('')}
+    </div>
+
+    <div style="text-align: center;">
+      <a href="${cartUrl}" class="btn">RETURN TO CART</a>
+    </div>
+
+    <div class="footer">
+      <p>If the button doesn't work, copy this link: ${cartUrl}</p>
+      <p style="margin-top: 20px;">Root & Loom | Sustainable Luxury Fashion</p>
+    </div>
+  </div>
+</body>
+</html>
       `
     });
     return { success: true };

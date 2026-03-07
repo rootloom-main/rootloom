@@ -10,6 +10,7 @@ import {
   removeFromCart as removeFromCartAction,
   clearCart as clearCartAction
 } from '@/lib/actions/cart';
+import { MiniCartPreview } from '@/components/layout/mini-cart-preview';
 
 interface CartItem {
   id: string;
@@ -49,6 +50,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
+  const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
   const { user, loading: authLoading } = useAuth();
 
   const fetchCart = async () => {
@@ -85,9 +88,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const result = await addToCartAction(productId, variantId, quantity);
       if (!result.success) throw new Error(result.message);
 
-
       await fetchCart();
-      setIsCartOpen(true);
+      const newCartData = await getCart();
+      const added = (newCartData as any[]).find((i) => i.product_id === productId && i.variant_id === variantId);
+      if (added) setLastAddedItem(added);
+
+      // Open mini preview instead of full sticky cart drawer for a lower-friction flow
+      setIsMiniCartOpen(true);
     } catch (error: any) {
       console.error('Error adding to cart:', error);
       toast.error(error.message || 'Failed to add to cart');
@@ -155,6 +162,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      <MiniCartPreview
+        isOpen={isMiniCartOpen}
+        onClose={() => setIsMiniCartOpen(false)}
+        item={lastAddedItem}
+      />
     </CartContext.Provider>
   );
 }

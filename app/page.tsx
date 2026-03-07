@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase/server';
+import { createSSRClient as createClient } from '@/lib/utils/auth';
 import { HeroSection } from '@/components/home/hero-section';
 import { CategoryGrid } from '@/components/home/category-grid';
 import { FeaturedProducts } from '@/components/home/featured-products';
@@ -11,16 +11,17 @@ import { BrandStory } from '@/components/home/brand-story';
 import { Newsletter } from '@/components/home/newsletter-section';
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { Loader2 } from 'lucide-react';
+import { ProductGridSkeleton } from '@/components/product/product-skeleton';
 
 function SectionLoader() {
   return (
-    <div className="py-20 flex justify-center items-center">
-      <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
+    <div className="py-12">
+      <ProductGridSkeleton count={4} />
     </div>
   );
 }
 
-export const revalidate = 0;
+export const revalidate = 3600; // Cache for 1 hour (Enterprise ISR)
 
 export default async function Home() {
   const supabase = await createClient();
@@ -55,24 +56,24 @@ export default async function Home() {
       {/* 1.5 Top Promo Banner */}
       <PromoBanner banner={topPromo} />
 
-      {/* 2. Featured Products */}
-      <FeaturedProducts products={featuredProducts} />
-
-      {/* 3. Shop by Category */}
+      {/* 2. Shop by Category */}
       <CategoryGrid categories={categories} />
 
-      {/* 4. Brand Story */}
-      <BrandStory />
-
-      {/* 5. New Arrivals */}
+      {/* 3. New Arrivals */}
       <Suspense fallback={<SectionLoader />}>
         <NewArrivals limit={8} />
       </Suspense>
 
-      {/* 6. Best Sellers */}
+      {/* 4. Best Sellers */}
       <Suspense fallback={<SectionLoader />}>
         <BestSellers limit={8} />
       </Suspense>
+
+      {/* 5. Featured Products */}
+      <FeaturedProducts products={featuredProducts} />
+
+      {/* 6. Brand Story */}
+      <BrandStory />
 
       {/* 7. Explore All Products */}
       <Suspense fallback={<SectionLoader />}>

@@ -32,45 +32,38 @@ export function ProductShowcase({
     subtitle,
     products,
     viewAllLink,
-    viewAllText = "View All Collection",
+    viewAllText = "View All",
     className,
     headerClassName
 }: ProductShowcaseProps) {
     return (
-        <section className={cn("py-20", className)}>
+        <section className={cn("py-12 md:py-24", className)}>
             <div className="container mx-auto px-6">
-                <div className={cn("flex flex-col md:flex-row justify-between items-end mb-12 gap-4", headerClassName)}>
-                    <div className="max-w-2xl">
+                <div className={cn("flex justify-between items-end mb-8 md:mb-12 gap-4", headerClassName)}>
+                    <div className="flex-1">
                         {subtitle && (
-                            <span className="text-xs font-medium tracking-widest text-[#8c5a45] uppercase mb-2 block">
+                            <span className="text-[10px] font-bold tracking-[0.3em] text-raw-clay uppercase mb-2 block">
                                 {subtitle}
                             </span>
                         )}
-                        <h2 className="text-3xl md:text-4xl font-serif text-slate-900 mb-4">
+                        <h2 className="text-2xl md:text-4xl font-serif text-slate-900">
                             {title}
                         </h2>
                     </div>
-                    <Button variant="outline" className="border-slate-800 text-slate-800 hover:bg-slate-900 hover:text-white rounded-none px-6 tracking-wide uppercase text-xs h-10 transition-all duration-300" asChild>
-                        <Link href={viewAllLink}>
-                            {viewAllText}
-                        </Link>
-                    </Button>
+                    <Link
+                        href={viewAllLink}
+                        className="text-xs font-bold tracking-widest text-slate-900 uppercase border-b border-slate-900/20 pb-1 hover:border-slate-900 transition-all mb-1 shrink-0"
+                    >
+                        {viewAllText}
+                    </Link>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
                     {products?.map((product) => (
                         <div key={product.id} className="group">
                             <ProductCard product={product} />
                         </div>
                     ))}
-                </div>
-
-                <div className="mt-16 text-center md:hidden">
-                    <Button variant="outline" className="w-full border-slate-800 text-slate-800 hover:bg-slate-900 hover:text-white rounded-none uppercase text-xs h-11" asChild>
-                        <Link href={viewAllLink}>
-                            {viewAllText}
-                        </Link>
-                    </Button>
                 </div>
             </div>
         </section>

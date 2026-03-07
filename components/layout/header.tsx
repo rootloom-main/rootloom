@@ -1,8 +1,8 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ShoppingCart, User, Menu, X, Search, ChevronRight, Heart } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ export function Header() {
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollY = React.useRef(0);
   const [isScrolled, setIsScrolled] = useState(false);
 
   const { cartCount, setIsCartOpen } = useCart();
@@ -47,17 +47,17 @@ export function Header() {
       setIsScrolled(currentScrollY > 10);
       if (currentScrollY < 10) {
         setIsVisible(true);
-      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
         setIsVisible(false);
       } else {
         setIsVisible(true);
       }
-      setLastScrollY(currentScrollY);
+      lastScrollY.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -108,15 +108,15 @@ export function Header() {
             : "bg-transparent border-b border-transparent"
         )}
       >
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 md:h-20 items-center justify-between">
+        <div className="container mx-auto px-1 sm:px-4">
+          <div className="flex h-16 md:h-20 items-center justify-between sm:gap-4">
 
             {/* Left: Mobile Menu & Logo */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-0.5 sm:gap-4 min-w-0">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden text-deep-forest hover:bg-stone-paper rounded-full">
-                    <Menu className="h-6 w-6" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 md:hidden text-deep-forest hover:bg-stone-paper rounded-full">
+                    <Menu className="h-4 w-4 sm:h-6 sm:w-6" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="w-[300px] bg-heirloom-white border-r border-woven-sand">
@@ -184,8 +184,8 @@ export function Header() {
                 </SheetContent>
               </Sheet>
 
-              <Link href="/" className="flex items-center gap-2 group relative z-50">
-                <span className="font-serif text-3xl md:text-4xl font-black tracking-tighter text-deep-forest transition-colors duration-300 group-hover:text-raw-clay">
+              <Link href="/" className="flex items-center gap-1 group relative z-50 min-w-0">
+                <span className="font-serif text-xl sm:text-2xl md:text-4xl font-black tracking-tighter text-deep-forest transition-colors duration-300 group-hover:text-raw-clay whitespace-nowrap">
                   ROOT&LOOM
                 </span>
               </Link>
@@ -217,7 +217,7 @@ export function Header() {
             </nav>
 
             {/* Right: Icons */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-0 flex-shrink-0">
               <div className="hidden lg:block w-72 mr-2">
                 <SmartSearch />
               </div>
@@ -227,8 +227,8 @@ export function Header() {
               </div>
 
               <Link href="/account/wishlist" className="relative group">
-                <Button variant="ghost" size="icon" className="text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors">
-                  <Heart className="h-5 w-5" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors">
+                  <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                   {mounted && wishlistCount > 0 && (
                     <Badge
                       className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-red-500 text-white border-2 border-white animate-in zoom-in"
@@ -242,10 +242,10 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors"
+                className="relative h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors"
                 onClick={() => setIsCartOpen(true)}
               >
-                <ShoppingCart className="h-5 w-5" />
+                <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
                 {mounted && cartCount > 0 && (
                   <Badge
                     className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center bg-raw-clay text-white border-2 border-white animate-in zoom-in"
@@ -258,8 +258,8 @@ export function Header() {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors">
-                      <User className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors">
+                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 p-2 bg-white border border-stone-200 shadow-lg rounded-xl">
@@ -297,11 +297,18 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <Link href="/auth/login" className="hidden sm:block ml-2">
-                  <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
-                    Login
-                  </Button>
-                </Link>
+                <div className="flex items-center">
+                  <Link href="/auth/login" className="md:hidden">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent">
+                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                  </Link>
+                  <Link href="/auth/login" className="hidden md:block ml-2">
+                    <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
+                      Login
+                    </Button>
+                  </Link>
+                </div>
               )}
             </div>
           </div>

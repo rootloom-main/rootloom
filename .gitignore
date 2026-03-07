@@ -36,7 +36,7 @@ logs
 
 # Local Env Files
 .env
-.env*.local
+.env.*
 !.env.example
 
 # Vercel
@@ -59,3 +59,4 @@ next-env.d.ts
 test_path.js
 home_response.txt
 
+.env*.local

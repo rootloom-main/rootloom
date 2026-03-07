@@ -53,17 +53,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     };
 
     useEffect(() => {
-        // onAuthStateChange fires INITIAL_SESSION immediately from the
-        // cached token in localStorage — no network wait needed.
-        // This prevents the race condition where a slow getUser() call
-        // causes the cart/wishlist to think the user is logged out.
+        let isMounted = true;
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
+                if (!isMounted) return;
+
                 const currentUser = session?.user || null;
                 setUser(currentUser);
-                setLoading(false); // Set loading=false as soon as we have the initial session
+                setLoading(false);
 
-                // Run admin check without blocking loading state
                 checkAdminStatus(currentUser);
 
                 if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
@@ -73,6 +72,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         );
 
         return () => {
+            isMounted = false;
             subscription.unsubscribe();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps

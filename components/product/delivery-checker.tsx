@@ -51,21 +51,21 @@ export function DeliveryChecker() {
     };
 
     return (
-        <div className="space-y-4 pt-4 border-t border-stone-100">
-            <div className="flex items-center gap-2 text-sm font-bold text-deep-forest">
+        <div className="space-y-4 pt-6 border-t border-stone-100">
+            <div className="flex items-center gap-2 text-sm font-bold text-deep-forest uppercase tracking-wider">
                 <Truck className="h-4 w-4 text-moss-olive" />
                 Delivery & Returns
             </div>
 
             {!deliveryStatus && (
-                <div className="text-sm text-stone-700 bg-stone-50 rounded-md p-3 border border-stone-100">
-                    <span className="font-semibold text-deep-forest">Standard Delivery:</span> {defaultDeliveryDate}
-                    <p className="text-xs text-stone-500 mt-1">Enter PIN code below to check exact delivery options.</p>
+                <div className="text-sm text-stone-700 bg-moss-olive/5 rounded-xl p-4 border border-moss-olive/10">
+                    <span className="font-bold text-deep-forest">Standard Delivery:</span> {defaultDeliveryDate}
+                    <p className="text-xs text-stone-500 mt-1 font-medium">Enter PIN code below to check exact delivery options.</p>
                 </div>
             )}
 
             <div className="flex gap-2 relative">
-                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none z-10">
                     <MapPin className="h-4 w-4 text-stone-400" />
                 </div>
                 <div className="relative flex-1">
@@ -79,14 +79,13 @@ export function DeliveryChecker() {
                             if (val.length === 0) setDeliveryStatus(null);
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && checkDelivery()}
-                        className="pl-9 font-mono tracking-wide ring-offset-white focus-visible:ring-moss-olive border-stone-200"
+                        className="pl-10 h-11 rounded-xl font-sans tracking-widest ring-offset-white focus-visible:ring-moss-olive border-stone-200 bg-white"
                     />
                 </div>
                 <Button
-                    variant="outline"
                     onClick={checkDelivery}
                     disabled={isChecking || pincode.length !== 6}
-                    className="text-deep-forest hover:text-white hover:bg-deep-forest border-stone-200 transition-colors"
+                    className="h-11 rounded-xl bg-deep-forest text-white hover:bg-slate-900 border-none transition-all px-8 font-bold"
                 >
                     {isChecking ? '...' : 'Check'}
                 </Button>
