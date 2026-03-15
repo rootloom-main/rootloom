@@ -12,7 +12,7 @@ export const revalidate = 0;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
     const supabase = await createClient();
-    const { data: collection } = await (supabase.from('collections') as any)
+    const { data: collection } = await (supabase.from('collections' as unknown as any) as any)
         .select('name, description, seo_metadata')
         .eq('slug', params.slug)
         .single();
@@ -31,7 +31,7 @@ async function CollectionContent({ slug }: { slug: string }) {
 
     // 1. Fetch Collection
     const { data: collection, error } = await (supabase
-        .from('collections') as any)
+        .from('collections' as unknown as any) as any)
         .select('*')
         .eq('slug', slug)
         .eq('is_active', true)
@@ -47,7 +47,7 @@ async function CollectionContent({ slug }: { slug: string }) {
         // Automated Collection Logic
         const hasCategoryRule = col.rules.some((r: any) => r.field === 'category');
         
-        let query = (supabase.from('products') as any)
+        let query = (supabase.from('products' as unknown as any) as any)
             .select(`
                 id,
                 name,
@@ -84,7 +84,7 @@ async function CollectionContent({ slug }: { slug: string }) {
     } else {
         // Manual Collection Logic
         const { data: products } = await (supabase
-            .from('collection_products') as any)
+            .from('collection_products' as unknown as any) as any)
             .select(`
                 products (
                     id,

@@ -48,7 +48,7 @@ export function SectionForm({ initialData }: { initialData?: any }) {
 
     useEffect(() => {
         const fetchCollections = async () => {
-            const { data } = await (supabase.from('collections') as any).select('id, name, slug').eq('is_active', true);
+            const { data } = await (supabase.from('collections' as unknown as any)).select('id, name, slug').eq('is_active', true);
             if (data) setCollections(data);
         };
         fetchCollections();
@@ -72,15 +72,15 @@ export function SectionForm({ initialData }: { initialData?: any }) {
 
         try {
             if (initialData?.id) {
-                const { error } = await supabase
-                    .from('home_sections')
+                const { error } = await (supabase
+                    .from('home_sections' as unknown as any) as any)
                     .update(sectionData)
                     .eq('id', initialData.id);
                 if (error) throw error;
                 toast.success('Section updated');
             } else {
-                const { error } = await supabase
-                    .from('home_sections')
+                const { error } = await (supabase
+                    .from('home_sections' as unknown as any) as any)
                     .insert([sectionData]);
                 if (error) throw error;
                 toast.success('Section created');

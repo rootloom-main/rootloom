@@ -10,12 +10,12 @@ export async function saveCollectionAction(collectionId: string | null, collecti
         let finalId = collectionId;
 
         if (collectionId) {
-            const { error } = await (supabase.from('collections') as any)
+            const { error } = await (supabase.from('collections' as unknown as any))
                 .update(collectionData)
                 .eq('id', collectionId);
             if (error) throw error;
         } else {
-            const { data, error } = await (supabase.from('collections') as any)
+            const { data, error } = await (supabase.from('collections' as unknown as any))
                 .insert([collectionData])
                 .select()
                 .single();
@@ -25,7 +25,7 @@ export async function saveCollectionAction(collectionId: string | null, collecti
 
         // Sync Products (Only for Manual collections)
         if (collectionData.type === 'manual') {
-            await (supabase.from('collection_products') as any).delete().eq('collection_id', finalId);
+            await (supabase.from('collection_products' as unknown as any)).delete().eq('collection_id', finalId);
             
             if (products.length > 0) {
                 const mappings = products.map((p, index) => ({
@@ -33,12 +33,12 @@ export async function saveCollectionAction(collectionId: string | null, collecti
                     product_id: p.id,
                     manual_display_order: index
                 }));
-                const { error: mappingError } = await (supabase.from('collection_products') as any)
+                const { error: mappingError } = await (supabase.from('collection_products' as unknown as any))
                     .insert(mappings);
                 if (mappingError) throw mappingError;
             }
         } else {
-            await (supabase.from('collection_products') as any).delete().eq('collection_id', finalId);
+            await (supabase.from('collection_products' as unknown as any)).delete().eq('collection_id', finalId);
         }
 
         // Revalidate caches
@@ -56,7 +56,7 @@ export async function saveCollectionAction(collectionId: string | null, collecti
 export async function deleteCollectionAction(id: string) {
     const supabase = await createAdminClient();
     try {
-        const { error } = await (supabase.from('collections') as any).delete().eq('id', id);
+        const { error } = await (supabase.from('collections' as unknown as any)).delete().eq('id', id);
         if (error) throw error;
         
         revalidatePath('/admin/marketing/collections');
@@ -69,7 +69,7 @@ export async function deleteCollectionAction(id: string) {
 export async function toggleCollectionStatusAction(id: string, active: boolean) {
     const supabase = await createAdminClient();
     try {
-        const { error } = await (supabase.from('collections') as any)
+        const { error } = await (supabase.from('collections' as unknown as any))
             .update({ is_active: active })
             .eq('id', id);
         if (error) throw error;

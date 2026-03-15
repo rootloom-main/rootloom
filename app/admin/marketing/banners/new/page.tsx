@@ -42,7 +42,7 @@ export default function NewBannerPage() {
 
     useEffect(() => {
         const fetchCollections = async () => {
-            const { data } = await (supabase.from('collections') as any).select('id, name').eq('is_active', true);
+            const { data } = await (supabase.from('collections' as any)).select('id, name').eq('is_active', true);
             if (data) setCollections(data);
         };
         fetchCollections();

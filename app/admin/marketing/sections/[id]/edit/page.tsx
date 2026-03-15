@@ -15,8 +15,8 @@ export default function EditSectionPage() {
 
     useEffect(() => {
         const fetchSection = async () => {
-            const { data, error } = await supabase
-                .from('home_sections')
+            const { data, error } = await (supabase
+                .from('home_sections' as unknown as any) as any)
                 .select('*')
                 .eq('id', params?.id)
                 .single();

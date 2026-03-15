@@ -43,7 +43,7 @@ export default function EditBannerPage() {
     useEffect(() => {
         const fetchData = async () => {
             // 1. Fetch Collections
-            const { data: cols } = await (supabase.from('collections') as any).select('id, name').eq('is_active', true);
+            const { data: cols } = await (supabase.from('collections' as any)).select('id, name').eq('is_active', true);
             if (cols) setCollections(cols);
 
             // 2. Fetch Banner

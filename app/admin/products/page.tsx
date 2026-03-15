@@ -39,7 +39,7 @@ export default async function AdminProductsPage() {
         .is('deleted_at', null)
         .order('created_at', { ascending: false }) as { data: any[] | null; error: any };
 
-    const { data: collections } = await (supabase.from('collections') as any).select('id, name').eq('is_active', true);
+    const { data: collections } = await (supabase.from('collections' as unknown as any)).select('id, name').eq('is_active', true);
 
     if (error) {
         console.error('Error fetching products:', error);

@@ -18,7 +18,7 @@ export default async function NewProductPage() {
     if (profile?.role !== 'admin') redirect('/');
 
     const { data: categories } = await supabase.from('categories').select('*');
-    const { data: collections } = await (supabase.from('collections') as any).select('id, name').eq('is_active', true);
+    const { data: collections } = await (supabase.from('collections' as unknown as any)).select('id, name').eq('is_active', true);
 
     return (
         <div className="container mx-auto px-4 py-8">

@@ -17,10 +17,10 @@ export default function EditCollectionPage() {
     useEffect(() => {
         const fetchCollectionData = async () => {
             // 1. Fetch Collection
-            const { data: colData, error: colError } = await supabase
-                .from('collections')
+            const { data: colData, error: colError } = await (supabase
+                .from('collections' as unknown as any))
                 .select('*')
-                .eq('id', params?.id)
+                .eq('id', params?.id as string)
                 .single();
 
             if (colError || !colData) {
@@ -29,8 +29,8 @@ export default function EditCollectionPage() {
             }
 
             // 2. Fetch Assigned Products
-            const { data: mappingData } = await supabase
-                .from('collection_products')
+            const { data: mappingData } = await (supabase
+                .from('collection_products' as unknown as any))
                 .select(`
                     product_id,
                     products (
@@ -41,7 +41,7 @@ export default function EditCollectionPage() {
                         product_images(image_url)
                     )
                 `)
-                .eq('collection_id', params?.id)
+                .eq('collection_id', params?.id as string)
                 .order('display_order', { ascending: true });
 
             const assignedProducts = mappingData?.map((m: any) => m.products).filter(Boolean) || [];

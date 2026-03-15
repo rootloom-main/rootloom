@@ -25,8 +25,8 @@ export default function HomeSectionsPage() {
     const supabase = createClient();
 
     const fetchSections = async () => {
-        const { data, error } = await supabase
-            .from('home_sections')
+        const { data, error } = await (supabase
+            .from('home_sections' as unknown as any) as any)
             .select('*')
             .order('display_order', { ascending: true });
 
@@ -43,8 +43,8 @@ export default function HomeSectionsPage() {
     }, []);
 
     const toggleActive = async (id: string, current: boolean) => {
-        const { error } = await supabase
-            .from('home_sections')
+        const { error } = await (supabase
+            .from('home_sections' as unknown as any) as any)
             .update({ active: !current })
             .eq('id', id);
 
@@ -58,8 +58,8 @@ export default function HomeSectionsPage() {
     const deleteSection = async (id: string) => {
         if (!confirm('Are you sure? This will remove the section from homepage.')) return;
 
-        const { error } = await supabase
-            .from('home_sections')
+        const { error } = await (supabase
+            .from('home_sections' as unknown as any) as any)
             .delete()
             .eq('id', id);
 
@@ -81,7 +81,7 @@ export default function HomeSectionsPage() {
         const item1 = newSections[index];
         const item2 = newSections[targetIndex];
 
-        const { error } = await supabase.rpc('swap_home_sections_order', {
+        const { error } = await (supabase.rpc as any)('swap_home_sections_order', {
             id1: item1.id,
             id2: item2.id
         });
@@ -89,8 +89,8 @@ export default function HomeSectionsPage() {
         if (error) {
              // Fallback: manual update if RPC fails
              const tempOrder = item1.display_order;
-             await supabase.from('home_sections').update({ display_order: item2.display_order }).eq('id', item1.id);
-             await supabase.from('home_sections').update({ display_order: tempOrder }).eq('id', item2.id);
+             await (supabase.from('home_sections' as unknown as any) as any).update({ display_order: item2.display_order }).eq('id', item1.id);
+             await (supabase.from('home_sections' as unknown as any) as any).update({ display_order: tempOrder }).eq('id', item2.id);
         }
         
         fetchSections();

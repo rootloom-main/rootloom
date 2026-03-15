@@ -26,7 +26,7 @@ export default function CollectionsPage() {
     const supabase = createClient();
 
     const fetchCollections = async () => {
-        const { data, error } = await (supabase.from('collections') as any)
+        const { data, error } = await (supabase.from('collections' as unknown as any) as any)
             .select('*')
             .order('created_at', { ascending: false });
 

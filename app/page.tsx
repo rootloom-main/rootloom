@@ -9,10 +9,10 @@ export default async function Home() {
 
     // Fetch dynamic sections and initial data in parallel
     const [sectionsRes, categories, featuredProducts, activeBanners] = await Promise.all([
-        supabase.from('home_sections').select('*').eq('active', true).order('display_order', { ascending: true }),
+        (supabase.from('home_sections' as unknown as any) as any).select('*').eq('active', true).order('display_order', { ascending: true }),
         ProductService.getCategories(),
         ProductService.getFeaturedProducts(8),
-        supabase.from('banners').select('*, collections(slug)').eq('active', true).order('display_order', { ascending: false }).then(res => res.data || []),
+        (supabase.from('banners' as unknown as any) as any).select('*, collections(slug)').eq('active', true).order('display_order', { ascending: false }).then((res: any) => res.data || []),
     ]);
 
     const sections = sectionsRes.data || [];

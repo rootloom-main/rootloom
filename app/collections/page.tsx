@@ -10,7 +10,7 @@ export const revalidate = 0;
 export default async function CollectionsIndexPage() {
     const supabase = await createClient();
     
-    const { data: collections } = await (supabase.from('collections') as any)
+    const { data: collections } = await (supabase.from('collections' as unknown as any) as any)
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
