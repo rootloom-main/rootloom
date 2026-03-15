@@ -1,5 +1,6 @@
 import { ProductService } from '@/lib/services/productService';
 import { HomeSectionRenderer } from '@/components/home/home-section-renderer';
+import { HeroSection } from '@/components/home/hero-section';
 import { createClient } from '@/lib/supabase/server';
 
 export const revalidate = 0; // Disable cache for real-time layout updates
@@ -12,7 +13,7 @@ export default async function Home() {
         (supabase.from('home_sections' as unknown as any) as any).select('id, type, title, subtitle, active, display_order, config').eq('active', true).order('display_order', { ascending: true }),
         ProductService.getCategories(),
         ProductService.getFeaturedProducts(8),
-        (supabase.from('banners' as unknown as any) as any).select('id, title, description, image_url, link, position, badge, cta, theme, collections(slug)').eq('active', true).order('display_order', { ascending: false }).then((res: any) => res.data || []),
+        (supabase.from('banners' as unknown as any) as any).select('id, title, description, image_url, link, position, metadata, collections(slug)').eq('active', true).order('display_order', { ascending: false }).then((res: any) => res.data || []),
     ]);
 
     const sections = sectionsRes.data || [];
@@ -30,10 +31,13 @@ export default async function Home() {
         bottomPromo
     };
 
+    // Check if home_sections has a HERO entry — if not, render hero directly
+    const hasHeroSection = sections.some((s: any) => s.type === 'HERO');
+
     return (
         <div>
+            {!hasHeroSection && <HeroSection heroBanners={heroBanners} />}
             <HomeSectionRenderer sections={sections} data={data} />
         </div>
     );
 }
-

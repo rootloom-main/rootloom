@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -19,8 +19,12 @@ import {
 export function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const supabase = createClient();
 
+    // Stable Supabase client — created once, never re-created on re-render.
+    const supabaseRef = useRef(createClient());
+    const supabase = supabaseRef.current;
+
+    const [isPending, startTransition] = useTransition();
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
 
@@ -42,7 +46,7 @@ export function LoginForm() {
         };
     }, [timeLeft]);
 
-    // Auto-submit OTP
+    // Auto-submit OTP when all 6 digits are filled
     useEffect(() => {
         if (otp.length === 6) {
             handleVerifyOtp();
@@ -61,14 +65,6 @@ export function LoginForm() {
                 },
             });
 
-            if (error) {
-                // Check if the error is due to user not found (Supabase specific)
-                // Note: specific error message depends on Supabase/Auth version, usually 'Signups not allowed for this instance' 
-                // or generic error if shouldCreateUser is false. 
-                // We will catch it in the catch block generally, or throw specific if needed.
-                throw error;
-            }
-
             if (error) throw error;
 
             setOtpSent(true);
@@ -76,7 +72,11 @@ export function LoginForm() {
             toast.success('OTP sent to your email.');
         } catch (error: any) {
             console.error(error);
-            if (error.message.includes('Signups not allowed') || error.message.includes('User not found') || error.status === 400) {
+            if (
+                error.message.includes('Signups not allowed') ||
+                error.message.includes('User not found') ||
+                error.status === 400
+            ) {
                 toast.error('Account not found. Redirecting to register...');
                 setTimeout(() => router.push('/auth/signup'), 1500);
                 return;
@@ -106,17 +106,28 @@ export function LoginForm() {
 
             if (result.error) throw result.error;
 
+            // SUCCESS: Supabase has set the session cookie.
+            // The SupabaseAuthProvider's onAuthStateChange listener will fire SIGNED_IN,
+            // call router.refresh() to sync server components, and update the user state.
+            // We only need to navigate — no manual router.refresh() needed here.
             toast.success('Logged in successfully!');
-            router.refresh();
+
             const next = searchParams?.get('next') || '/';
-            router.push(next);
+
+            // Use startTransition + router.replace so React flushes pending state
+            // updates (from the auth provider) before committing the navigation.
+            startTransition(() => {
+                router.replace(next);
+            });
         } catch (error: any) {
-            toast.error(error.message || 'Invalid code');
+            toast.error(error.message || 'Invalid code. Please try again.');
             setOtp('');
         } finally {
             setLoading(false);
         }
     }
+
+    const isSubmitting = loading || isPending;
 
     return (
         <Card className="w-full max-w-md shadow-lg border-stone-200">
@@ -144,8 +155,8 @@ export function LoginForm() {
                                 required
                             />
                         </div>
-                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={loading || !email}>
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Get OTP'}
+                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={isSubmitting || !email}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Get OTP'}
                         </Button>
                     </form>
                 ) : (
@@ -166,8 +177,8 @@ export function LoginForm() {
                             </InputOTP>
                         </div>
 
-                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={loading || otp.length < 6}>
-                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify & Login'}
+                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={isSubmitting || otp.length < 6}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify & Login'}
                         </Button>
 
                         <div className="flex flex-col items-center gap-2 text-sm">
@@ -181,7 +192,7 @@ export function LoginForm() {
                                     type="button"
                                     onClick={handleSendEmailOtp}
                                     className="text-slate-900 p-0 h-auto"
-                                    disabled={loading}
+                                    disabled={isSubmitting}
                                 >
                                     Resend Code
                                 </Button>
@@ -201,6 +212,6 @@ export function LoginForm() {
                     </form>
                 )}
             </CardContent>
-        </Card >
+        </Card>
     );
 }

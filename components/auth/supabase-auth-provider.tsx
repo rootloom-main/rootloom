@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Module-level singleton to prevent multiple lock acquisitions.
+// Module-level singleton to prevent multiple GoTrue lock acquisitions.
 const supabase = createClient();
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
@@ -27,6 +27,13 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+
+    // Stable ref to router — prevents the auth subscription from being torn down
+    // and re-created every time the router object identity changes (happens on navigation).
+    const routerRef = useRef(router);
+    useEffect(() => {
+        routerRef.current = router;
+    }, [router]);
 
     const checkAdminStatus = async (currentUser: User | null) => {
         if (!currentUser) {
@@ -62,16 +69,15 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
                 if (isMounted) {
                     const currentUser = session?.user || null;
                     setUser(currentUser);
+                    setLoading(false); // Unblock UI immediately
                     if (currentUser) {
-                        await checkAdminStatus(currentUser);
+                        // Run admin check in background — does not block UI
+                        checkAdminStatus(currentUser);
                     }
                 }
             } catch (err) {
                 console.error('Error fetching session:', err);
-            } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (isMounted) setLoading(false);
             }
         };
 
@@ -82,18 +88,27 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
                 if (!isMounted) return;
 
                 const currentUser = session?.user || null;
+
+                // Update user state immediately so UI reacts at once
                 setUser(currentUser);
-                
+                setLoading(false);
+
                 if (currentUser) {
-                    await checkAdminStatus(currentUser);
+                    // Run admin check in background
+                    checkAdminStatus(currentUser);
                 } else {
                     setIsAdmin(false);
                 }
 
-                setLoading(false);
-
-                if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-                    router.refresh();
+                // Refresh server components for SIGNED_IN, SIGNED_OUT, and TOKEN_REFRESHED
+                // so server-side session (cookies) stays in sync with client state.
+                if (
+                    event === 'SIGNED_IN' ||
+                    event === 'SIGNED_OUT' ||
+                    event === 'TOKEN_REFRESHED'
+                ) {
+                    // Use the stable ref so this callback never becomes stale
+                    routerRef.current.refresh();
                 }
             }
         );
@@ -102,8 +117,10 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
             isMounted = false;
             subscription.unsubscribe();
         };
+        // Empty dep array: we intentionally run this once.
+        // routerRef is a ref — its .current is always up-to-date without being a dep.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [router]);
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, isAdmin, loading }}>

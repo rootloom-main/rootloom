@@ -67,15 +67,15 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
         return {
             id: banner.id,
             theme: theme,
-            bgColor: config.bgColor,
-            textColor: config.textColor,
+            bgColor: metadata.bgColor || config.bgColor,
+            textColor: metadata.textColor || config.textColor,
             badge: metadata.badge || 'DROP 01 // LIMITED',
             title: banner.title,
             description: banner.description || '',
             image: banner.image_url,
             imageAlt: banner.title,
             cta: metadata.cta || 'GET THE DRIP',
-            ctaColor: config.ctaColor,
+            ctaColor: metadata.ctaColor || config.ctaColor,
             link: banner.collections?.slug 
                 ? `/collections/${banner.collections.slug}` 
                 : (banner.link || '/shop')
@@ -100,6 +100,56 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
             setCurrent(api.selectedScrollSnap());
         });
     }, [api]);
+
+    // Fallback static hero when no banners are configured in the database
+    if (displaySlides.length === 0) {
+        return (
+            <section className="relative w-full overflow-hidden bg-[#1e2f23] min-h-[85vh] flex items-center">
+                <div className="container mx-auto px-4 relative z-20 py-20">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        <div className="flex flex-col justify-center items-start">
+                            <div className="inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-[0.2em] border border-current text-[#f9f5ed] uppercase opacity-80 backdrop-blur-sm rounded-full">
+                                NEW COLLECTION
+                            </div>
+                            <h2 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl text-[#f9f5ed]">
+                                Root &amp; Loom
+                            </h2>
+                            <p className="text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90 text-[#f9f5ed]">
+                                Inspired by nature. Crafted for the modern world. Explore our latest sustainable fashion collection.
+                            </p>
+                            <div className="flex flex-wrap gap-4 mb-12">
+                                <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl transition-all hover:scale-105 hover:shadow-2xl bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]" asChild>
+                                    <Link href="/shop">
+                                        Shop Now
+                                        <ArrowRight className="ml-2 h-5 w-5" />
+                                    </Link>
+                                </Button>
+                                <Button size="lg" variant="outline" className="h-14 px-8 text-lg rounded-full border-2 hover:scale-105 transition-all bg-transparent backdrop-blur-sm text-[#f9f5ed] hidden sm:inline-flex" asChild>
+                                    <Link href="/shop">View Collection</Link>
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-6 text-xs md:text-sm font-medium opacity-80 border-t border-current/20 pt-6 w-full text-[#f9f5ed]">
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-current" />Free Shipping</div>
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-current" />7-Day Easy Returns</div>
+                                <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-current" />Premium Quality</div>
+                            </div>
+                        </div>
+                        <div className="relative w-full h-[50vh] lg:h-[70vh]">
+                            <Image
+                                src="/hero.png"
+                                alt="Root & Loom Collection"
+                                fill
+                                className="object-cover object-top lg:object-center shadow-2xl lg:shadow-none"
+                                priority
+                                sizes="(max-width: 1024px) 100vw, 60vw"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
 
     return (
         <section className="relative w-full overflow-hidden bg-background">
