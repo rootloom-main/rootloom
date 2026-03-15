@@ -29,13 +29,6 @@ export function getProductPrice(product: MinimalProduct, variant?: MinimalVarian
         return base + (Number(variant.price_adjustment) || 0);
     }
 
-    // Fallback: Use the first available variant's price
-    if (product.product_variants && product.product_variants.length > 0) {
-        // Try to find first in-stock variant
-        const firstAvailable = product.product_variants.find(v => (v.stock || 0) > 0) || product.product_variants[0];
-        return base + (Number(firstAvailable?.price_adjustment) || 0);
-    }
-
     return base;
 }
 

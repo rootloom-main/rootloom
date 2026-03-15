@@ -33,13 +33,13 @@ class InMemoryRateLimiter {
     }
 }
 
-// Memory fallback: 5 reqs per minute
-const memoryLimiter = new InMemoryRateLimiter(5, 60 * 1000);
+// Memory fallback: 1000 reqs per minute for testing/unblocking
+const memoryLimiter = new InMemoryRateLimiter(1000, 60 * 1000);
 
-// Upstash limiter: 5 reqs per minute Window
+// Upstash limiter: 1000 reqs per minute Window
 const upstashLimiter = redis ? new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(5, "1 m"),
+    limiter: Ratelimit.slidingWindow(1000, "1 m"),
     analytics: true,
 }) : null;
 

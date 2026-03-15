@@ -12,7 +12,7 @@ export async function signInWithIdentifier(identifier: string) {
 
     const { success } = await checkRateLimit(ip);
     if (!success) {
-        return { error: 'Too many requests. Please wait a minute before trying again.' };
+        return { error: 'Too many requests. Please wait a minute.' };
     }
 
     const supabase = await createClient();

@@ -114,6 +114,9 @@ export function LoginForm() {
 
             const next = searchParams?.get('next') || '/';
 
+            // Ensure server components are in sync before/during navigation
+            router.refresh();
+
             // Use startTransition + router.replace so React flushes pending state
             // updates (from the auth provider) before committing the navigation.
             startTransition(() => {

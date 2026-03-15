@@ -12,6 +12,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { createClient } from '@/lib/supabase/client';
 
 function LoginPageContent() {
   const router = useRouter();
@@ -21,7 +22,7 @@ function LoginPageContent() {
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(0);
-  const [remember, setRemember] = useState(false);
+  const supabase = createClient();
 
   // Timer logic for resend
   useEffect(() => {
@@ -47,11 +48,8 @@ function LoginPageContent() {
       setTimer(60);
       toast.success(`Code sent to ${identifier}`);
     } catch (error: any) {
-      if (error.message.includes('rate limit')) {
-        toast.error('Too many requests. Please wait a minute.');
-      } else {
-        toast.error(error.message || 'Failed to send verification code');
-      }
+      const msg = error.message || 'Failed to send verification code';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -64,26 +62,36 @@ function LoginPageContent() {
     setLoading(true);
     try {
       const type = identifier.includes('@') ? 'email' : 'sms';
-      const result = await verifyOtpEx(otp, type, identifier);
+      const contactValue = identifier.includes('@') ? identifier : (identifier.startsWith('+') ? identifier : `+91${identifier}`);
+      
+      const { data: { session }, error: verifyError } = await supabase.auth.verifyOtp({
+        email: type === 'email' ? contactValue : undefined,
+        phone: type === 'sms' ? contactValue : undefined,
+        token: otp,
+        type: type
+      } as any);
 
-      if (result.error) throw new Error(result.error);
+      if (verifyError) throw verifyError;
 
-      if (remember) {
-        // Set a long-lived cookie to mark this device as trusted.
-        // In a real app, you might use this to bypass OTP for a period.
-        document.cookie = `rl_trusted_device=true; max-age=${60 * 60 * 24 * 30}; path=/; SameSite=Lax`;
-      }
+      // Check if profile exists (to determine if it's a new user)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session?.user?.id || '')
+        .single();
 
       const next = searchParams?.get('next') || '/';
 
-      if (result.isNewUser) {
+      if (!profile) {
         toast.success('Verification successful!');
-        // Pass the next param to onboarding so it can redirect correctly after completion
         router.push(`/auth/onboarding?next=${encodeURIComponent(next)}`);
       } else {
         toast.success('Welcome back!');
         router.push(next);
       }
+      
+      // router.refresh() is called by the AuthProvider's listener
+      // but we do it here as well for safety with server components
       router.refresh();
     } catch (error: any) {
       toast.error(error.message || 'Invalid or expired code');
@@ -146,19 +154,6 @@ function LoginPageContent() {
                     required
                     autoFocus
                   />
-
-                  <div className="flex items-center space-x-2 px-1">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                      className="h-4 w-4 rounded border-stone-300 text-primary focus:ring-primary"
-                    />
-                    <label htmlFor="remember" className="text-sm text-stone-500 cursor-pointer">
-                      Trust this device for 30 days
-                    </label>
-                  </div>
                 </div>
 
                 <div className="space-y-3">

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice, calculateMRP, calculateDiscountPercentage } from '@/lib/utils/pricing';
 import { Star, ShoppingCart, ArrowRight, Check, Info } from 'lucide-react';
 import { WishlistButton } from '@/components/product/wishlist-button';
 import { useCart } from '@/components/providers/cart-provider';
@@ -55,7 +56,9 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
         (v) => v.size === selectedSize && v.color === selectedColor
     );
 
-    const finalPrice = selectedVariant ? product.base_price + selectedVariant.price_adjustment : product.base_price;
+    const finalPrice = getProductPrice(product, selectedVariant);
+    const mrp = calculateMRP(finalPrice);
+    const discount = calculateDiscountPercentage(finalPrice, mrp);
 
     const handleAddToCart = async () => {
         if (!selectedSize || !selectedColor) {
@@ -137,10 +140,15 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
                                 <span className="text-3xl font-bold text-deep-forest tracking-tight">
                                     {formatPrice(finalPrice)}
                                 </span>
-                                {product.base_price > 1000 && (
-                                    <span className="text-sm text-stone-300 line-through decoration-stone-300">
-                                        {formatPrice(finalPrice * 1.25)}
-                                    </span>
+                                {discount > 0 && (
+                                    <>
+                                        <span className="text-sm text-stone-300 line-through decoration-stone-300">
+                                            {formatPrice(mrp)}
+                                        </span>
+                                        <span className="text-[11px] font-bold text-deep-forest bg-deep-forest/5 px-1.5 py-0.5 rounded-sm tracking-wide uppercase">
+                                            ({discount}% OFF)
+                                        </span>
+                                    </>
                                 )}
                             </div>
 
