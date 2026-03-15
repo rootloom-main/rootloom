@@ -34,6 +34,7 @@ const sidebarGroups = [
         label: "Management",
         items: [
             { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+            { name: 'Messages', href: '/admin/messages', icon: FileText },
             { name: 'Products', href: '/admin/products', icon: ShoppingBag },
             { name: 'Orders', href: '/admin/orders', icon: Package },
             { name: 'Returns', href: '/admin/returns', icon: RefreshCcw },
