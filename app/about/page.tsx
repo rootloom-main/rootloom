@@ -35,10 +35,10 @@ export default function AboutPage() {
                 
                 <div className="relative z-10 container mx-auto px-4 text-center mt-20">
                     <div className="inline-block bg-deep-forest text-white px-4 py-1.5 rounded-full font-bold text-xs md:text-sm uppercase tracking-widest mb-6 border-2 border-stone-200 shadow-[4px_4px_0px_#1A231D] transform -rotate-2">
-                        Established 2024
+                        Established 2026
                     </div>
-                    <div className="text-6xl md:text-8xl lg:text-[10rem] font-black uppercase tracking-tighter text-deep-forest leading-none mb-6">
-                        WE ARE <br className="hidden md:block"/> THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-deep-forest to-raw-clay">VIBE</span>
+                    <div className="text-5xl md:text-8xl lg:text-[10rem] font-black uppercase tracking-tighter text-deep-forest leading-none mb-6">
+                        WE ARE <br className="hidden md:block"/> THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-deep-forest to-raw-clay whitespace-nowrap">VIBE</span>
                     </div>
                     <h2 className="text-lg md:text-3xl font-bold text-stone-800 max-w-3xl mx-auto uppercase tracking-wide leading-relaxed">
                         Redefining streetwear for the next generation. Pure drip, zero compromises, 100% sustainable.
