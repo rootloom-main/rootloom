@@ -48,6 +48,8 @@ interface Product {
   }>;
 }
 
+import { getFilteredProducts } from '@/lib/actions/product';
+
 export function ShopContent({
   categories,
   searchParams,
@@ -57,7 +59,6 @@ export function ShopContent({
 }) {
   const router = useRouter();
   const params = useSearchParams();
-  const supabase = createClient();
 
   const [isPending, startTransition] = React.useTransition();
 
@@ -84,43 +85,22 @@ export function ShopContent({
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('products')
-        .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)');
+      const result = await getFilteredProducts({
+        categorySlug: selectedCategory,
+        search,
+        minPrice: priceRange[0],
+        maxPrice: priceRange[1],
+        sortBy,
+        limit: 50
+      });
 
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      if (result.success) {
+        setProducts(result.products as Product[]);
+      } else {
+        console.error('Failed to fetch filtered products:', result.error);
       }
-
-      if (selectedCategory && selectedCategory !== 'all') {
-        const category = categories.find((c) => c.slug === selectedCategory);
-        if (category) {
-          query = query.eq('category_id', category.id);
-        }
-      }
-
-      query = query.gte('base_price', priceRange[0]).lte('base_price', priceRange[1]);
-
-      switch (sortBy) {
-        case 'price-asc':
-          query = query.order('base_price', { ascending: true });
-          break;
-        case 'price-desc':
-          query = query.order('base_price', { ascending: false });
-          break;
-        case 'name':
-          query = query.order('name', { ascending: true });
-          break;
-        default:
-          query = query.order('created_at', { ascending: false });
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setProducts((data as Product[]) || []);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error in fetchProducts:', error);
     } finally {
       setLoading(false);
       if (isInitialLoad) setIsInitialLoad(false);
@@ -274,8 +254,8 @@ export function ShopContent({
                 <Loader2 className="h-8 w-8 animate-spin text-deep-forest" />
               </div>
             )}
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+            {products.map((product, index) => (
+              <ProductCard key={product.id} product={product} priority={index < 8} />
             ))}
           </div>
         )}

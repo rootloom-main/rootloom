@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createClient } from '@/lib/supabase/server';
 import { processOrderCreation } from '@/lib/order-processing';
-import { validateCouponLogic } from '@/lib/coupon';
+import { sendPaymentRecoveryNotification } from '@/lib/whatsapp';
 import * as Sentry from '@sentry/nextjs';
+import { formatPrice } from '@/lib/utils/format';
 
 export const runtime = 'nodejs';
 
@@ -11,30 +11,24 @@ export async function POST(req: NextRequest) {
     const body = await req.text();
     const signature = req.headers.get('x-razorpay-signature');
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    const secret = webhookSecret || keySecret;
 
     if (!signature) {
         console.error('Webhook Error: Missing x-razorpay-signature header');
         return NextResponse.json({ message: 'Missing signature' }, { status: 400 });
     }
 
-    if (!secret) {
-        console.error('Webhook Error: RAZORPAY_WEBHOOK_SECRET and RAZORPAY_KEY_SECRET are both missing');
-        return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
+    if (!webhookSecret) {
+        console.error('Webhook Error: RAZORPAY_WEBHOOK_SECRET is missing');
+        return NextResponse.json({ message: 'Server configuration error: Webhook Secret missing' }, { status: 500 });
     }
 
     const expectedSignature = crypto
-        .createHmac('sha256', secret)
+        .createHmac('sha256', webhookSecret)
         .update(body)
         .digest('hex');
 
     if (expectedSignature !== signature) {
-        console.error('Webhook Error: Invalid signature', {
-            received: signature,
-            expectedLength: expectedSignature.length,
-            usingWebhookSecret: !!webhookSecret
-        });
+        console.error('Webhook Error: Invalid signature');
         return NextResponse.json({ message: 'Invalid signature' }, { status: 400 });
     }
 
@@ -49,31 +43,37 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ received: true });
         }
 
-        const notes = payment.notes;
-        const userId = notes.user_id;
-        const addressId = notes.address_id;
-        const couponCode = notes.coupon_code || null;
-        const paymentId = payment.id;
-        const amountPaid = payment.amount / 100; // Convert to main currency unit
-
-        if (!userId || !addressId) {
-            console.error('Webhook Error: Missing user_id or address_id in notes', { notes });
-            return NextResponse.json({ message: 'Missing metadata' }, { status: 200 });
-        }
-
+        const notes = payment.notes || {};
+        
+        // 1. Fetch Payment Record (Critical for recovery)
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-        if (!serviceRoleKey || serviceRoleKey === 'your_supabase_service_role_key') {
-            console.error('Webhook Error: SUPABASE_SERVICE_ROLE_KEY is missing or invalid');
+        if (!serviceRoleKey || !supabaseUrl) {
+            console.error('Webhook Error: Admin credentials missing');
             return NextResponse.json({ message: 'Admin configuration error' }, { status: 500 });
         }
 
         const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
-        const adminSupabase = createSupabaseClient(
-            supabaseUrl!,
-            serviceRoleKey
-        );
+        const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
+
+        const { data: paymentRecord } = await adminSupabase
+            .from('payments')
+            .select('*')
+            .eq('razorpay_order_id', payment.order_id)
+            .single();
+
+        const userId = notes.user_id || paymentRecord?.user_id;
+        const addressId = notes.address_id || paymentRecord?.address_id;
+        const couponCode = notes.coupon_code || paymentRecord?.coupon_code || null;
+        
+        const paymentId = payment.id;
+        const amountPaid = payment.amount / 100;
+
+        if (!userId || !addressId) {
+            console.error('Webhook Error: Missing user_id or address_id even in recovery record', { notes, paymentRecord });
+            return NextResponse.json({ message: 'Missing metadata' }, { status: 200 }); // Return 200 to RP
+        }
 
         // Check Idempotency
         const { data: existingOrder } = await adminSupabase
@@ -83,57 +83,58 @@ export async function POST(req: NextRequest) {
             .single();
 
         if (existingOrder) {
-            console.log(`Webhook: Order already exists for payment ${paymentId}`);
+            console.log(`Webhook: Order already exists for payment ${paymentId} (Normal deduplication)`);
             return NextResponse.json({ received: true });
         }
 
         // Process Order
         try {
-            // 1. Fetch User Profile for Email/Name
+            // 2. Fetch User Profile
             const { data: userProfile } = await adminSupabase
-                .from('profiles') // Assuming profiles/users table
-                .select('full_name, email') // Verify column names
+                .from('profiles')
+                .select('full_name, email')
                 .eq('id', userId)
                 .single();
 
-            // Also get email from auth if possible, but adminSupabase can't access auth.users easily without specific permission?
-            // Razorpay payment entity has email/contact usually.
             const userEmail = payment.email || userProfile?.email || 'customer@example.com';
             const userName = userProfile?.full_name || 'Customer';
 
-            // 2. Fetch Cart Logic
-            // We need to fetch cart items for this user.
-            const { data: cartItemsDB } = await adminSupabase
+            // 3. Fetch Cart Items (Try active cart first, then use snapshot)
+            let cartItems = [];
+            const { data: activeCartItems } = await adminSupabase
                 .from('cart_items')
                 .select(`
-          quantity,
-          product_id,
-          variant_id,
-          product:products(name, base_price),
-          variant:product_variants(price_adjustment)
-        `)
+                    quantity,
+                    product_id,
+                    variant_id,
+                    product:products(name, base_price),
+                    variant:product_variants(price_adjustment)
+                `)
                 .eq('user_id', userId);
 
-            if (!cartItemsDB || cartItemsDB.length === 0) {
-                console.error('Webhook: Cart empty for paid order', { paymentId });
-                return NextResponse.json({ message: 'Cart empty' }, { status: 200 });
+            if (activeCartItems && activeCartItems.length > 0) {
+                console.log(`Webhook: Processing order using ACTIVE CART for user ${userId}`);
+                cartItems = activeCartItems.map((item: any) => {
+                    const product = Array.isArray(item.product) ? item.product[0] : item.product;
+                    const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
+                    const price = (product?.base_price || 0) + (variant?.price_adjustment || 0);
+                    return {
+                        product_id: item.product_id,
+                        variant_id: item.variant_id,
+                        quantity: item.quantity,
+                        name: product?.name || 'Item',
+                        price: price
+                    };
+                });
+            } else if (paymentRecord?.cart_snapshot) {
+                console.log(`Webhook: RECOVERY MODE - Active cart empty, using SNAPSHOT for user ${userId}`);
+                cartItems = paymentRecord.cart_snapshot;
+            } else {
+                console.error('Webhook: CRITICAL ERROR - No active cart and no snapshot found', { paymentId });
+                return NextResponse.json({ message: 'Cart recovery failed' }, { status: 200 });
             }
 
-            // Format Cart Items
-            const cartItems = cartItemsDB.map((item: any) => {
-                const product = Array.isArray(item.product) ? item.product[0] : item.product;
-                const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
-                const price = product.base_price + (variant?.price_adjustment || 0);
-                return {
-                    product_id: item.product_id,
-                    variant_id: item.variant_id,
-                    quantity: item.quantity,
-                    name: product.name,
-                    price: price
-                };
-            });
-
-            // 3. Recalculate Totals
+            // 4. Recalculate Totals
             const subtotal = cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
             const shippingCost = subtotal > 999 ? 0 : 50;
 
@@ -147,26 +148,17 @@ export async function POST(req: NextRequest) {
                         if (result.couponId) {
                             await adminSupabase.rpc('increment_coupon_usage', { coupon_id: result.couponId });
                         }
-                    } else {
-                        console.error('Webhook: Invalid coupon detected during async validation', { result });
                     }
                 } catch (e) {
                     console.error('Webhook: Coupon validation failed', e);
                 }
             }
 
-            const expectedTotal = Math.max(0, subtotal + shippingCost - discountAmount);
+            const expectedTotal = Math.round(Math.max(0, subtotal + shippingCost - discountAmount));
 
-            // Verify Amount (Tolerance of 1 rupee for rounding?)
-            if (Math.abs(expectedTotal - amountPaid) > 1) {
-                console.error('Webhook: Amount mismatch', { expected: expectedTotal, paid: amountPaid });
-                Sentry.captureMessage('Razorpay Webhook Amount Mismatch', {
-                    extra: { paymentId, expectedTotal, amountPaid, userId }
-                });
-
-                // Return 200 to acknowledge receipt and prevent Razorpay from infinitely retrying, 
-                // but DO NOT process the order to prevent fraud.
-                return NextResponse.json({ success: false, message: 'Amount mismatch' }, { status: 200 });
+            // Verify Amount
+            if (expectedTotal !== amountPaid) {
+                console.warn('Webhook: Amount mismatch (proceeding with amount_paid)', { expected: expectedTotal, paid: amountPaid });
             }
 
             await processOrderCreation({
@@ -184,36 +176,27 @@ export async function POST(req: NextRequest) {
                 userName
             });
 
-            // Enterprise Phase 1: Atomically Commit Stock
-            const stockItems = cartItems.map((item: any) => ({
-                variant_id: item.variant_id,
-                quantity: item.quantity
-            }));
-            await adminSupabase.rpc('commit_stock_batch', { items: stockItems });
-
-            // 4. Clear Cart
+            // 5. Cleanup
             await adminSupabase.from('cart_items').delete().eq('user_id', userId);
 
-            return NextResponse.json({ success: true });
+            await adminSupabase
+                .from('payments')
+                .update({ status: 'success', updated_at: new Date().toISOString() })
+                .eq('razorpay_order_id', payment.order_id);
 
-        } catch (err) {
-            console.error('Webhook: Processing failed', err);
-            Sentry.captureException(err, {
-                extra: {
-                    paymentId,
-                    userId,
-                    event: event.event
-                }
-            });
-            // Return 200 OK to prevent Razorpay from entering an infinite retry loop 
-            // for errors that require manual intervention or code fixes anyway.
-            return NextResponse.json({ success: false, message: 'Processing failed, error logged' }, { status: 200 });
+            return NextResponse.json({ success: true, recovered: !activeCartItems?.length });
+
+        } catch (err: any) {
+            console.error('Webhook: Order processing failed', err);
+            Sentry.captureException(err, { extra: { paymentId, userId } });
+            return NextResponse.json({ success: false, message: 'Processing failed' }, { status: 200 });
         }
     }
 
     if (event.event === 'payment.failed') {
         const payment = event.payload.payment.entity;
-        const userId = payment.notes?.user_id;
+        const notes = payment.notes || {};
+        const userId = notes.user_id;
 
         if (userId) {
             const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -222,18 +205,33 @@ export async function POST(req: NextRequest) {
                 const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
                 const adminSupabase = createSupabaseClient(supabaseUrl, serviceRoleKey);
 
-                const { data: cartItemsDB } = await adminSupabase
-                    .from('cart_items')
-                    .select('variant_id, quantity')
-                    .eq('user_id', userId);
+                // Update Payments Table Status
+                await adminSupabase
+                    .from('payments')
+                    .update({ status: 'failed', updated_at: new Date().toISOString() })
+                    .eq('razorpay_order_id', payment.order_id);
 
-                if (cartItemsDB && cartItemsDB.length > 0) {
-                    const stockItems = cartItemsDB.map((item: any) => ({
-                        variant_id: item.variant_id,
-                        quantity: item.quantity
-                    }));
-                    await adminSupabase.rpc('release_stock_batch', { items: stockItems });
-                    console.log(`Webhook: Released stock for failed payment associated with user ${userId}`);
+                // NOTE: We do NOT release stock here because we no longer "reserve" it in create-order.
+                // Releasing it now would cause stock inflating bugs.
+
+                // Send WhatsApp Recovery Notification
+                try {
+                    const { data: userProfile } = await adminSupabase
+                        .from('profiles')
+                        .select('full_name, phone')
+                        .eq('id', userId)
+                        .single();
+
+                    const customerPhone = payment.contact || userProfile?.phone;
+                    const customerName = userProfile?.full_name || 'Valued Customer';
+                    const amountFormatted = formatPrice(payment.amount / 100);
+
+                    if (customerPhone) {
+                        await sendPaymentRecoveryNotification(customerPhone, customerName, amountFormatted);
+                        console.log(`Webhook: Sent WhatsApp recovery message to ${customerPhone}`);
+                    }
+                } catch (waErr) {
+                    console.error('Webhook: Failed to send recovery WhatsApp', waErr);
                 }
             }
         }

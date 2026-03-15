@@ -24,6 +24,8 @@ export async function deleteProduct(productId: string) {
     }
 
     revalidatePath('/admin/products');
+    revalidatePath('/shop');
+    revalidatePath('/');
 
     // Invalidate Search Cache
     if (redis) {
@@ -33,7 +35,6 @@ export async function deleteProduct(productId: string) {
     return { success: true, message: 'Product archived successfully' };
 }
 
-import { generateEmbedding } from '@/lib/ai/embedding';
 
 export async function createProduct(data: any) {
     const { isAdmin } = await import('@/lib/utils/auth');
@@ -43,9 +44,6 @@ export async function createProduct(data: any) {
 
     const supabase = await createClient();
 
-    // Generate Embedding
-    const embeddingText = `${data.name} ${data.description || ''} ${data.category_slug || ''}`;
-    const embedding = await generateEmbedding(embeddingText);
 
     // Insert Product
     const { data: newProduct, error } = await (supabase
@@ -58,7 +56,7 @@ export async function createProduct(data: any) {
             base_price: data.base_price,
             featured: data.featured,
             status: data.status,
-            embedding: embedding as any // Cast for vector type
+            metadata: data.metadata || {},
         })
         .select()
         .single();
@@ -83,6 +81,8 @@ export async function createProduct(data: any) {
     }
 
     revalidatePath('/admin/products');
+    revalidatePath('/shop');
+    revalidatePath('/');
 
     // Invalidate Search Cache
     if (redis) {
@@ -100,9 +100,6 @@ export async function updateProduct(productId: string, data: any) {
 
     const supabase = await createClient();
 
-    // Generate Embedding
-    const embeddingText = `${data.name} ${data.description || ''} ${data.category_slug || ''}`;
-    const embedding = await generateEmbedding(embeddingText);
 
     // Update Product
     const { error } = await (supabase
@@ -115,7 +112,7 @@ export async function updateProduct(productId: string, data: any) {
             base_price: data.base_price,
             featured: data.featured,
             status: data.status,
-            embedding: embedding as any
+            metadata: data.metadata || {},
         })
         .eq('id', productId);
 
@@ -141,7 +138,9 @@ export async function updateProduct(productId: string, data: any) {
     }
 
     revalidatePath('/admin/products');
-    revalidatePath(`/products/${data.slug}`);
+    revalidatePath(`/product/${data.slug}`);
+    revalidatePath('/shop');
+    revalidatePath('/');
 
     // Invalidate Search Cache
     if (redis) {
@@ -149,4 +148,23 @@ export async function updateProduct(productId: string, data: any) {
     }
 
     return { success: true, message: 'Product updated', productId };
+}
+
+import { ProductService } from '@/lib/services/productService';
+
+export async function getFilteredProducts(params: {
+    categorySlug?: string;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sortBy?: string;
+    limit?: number;
+}) {
+    try {
+        const products = await ProductService.getProducts(params);
+        return { success: true, products };
+    } catch (error) {
+        console.error('Action: getFilteredProducts failed:', error);
+        return { success: false, products: [], error: 'Failed to fetch products' };
+    }
 }

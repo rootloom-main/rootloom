@@ -23,7 +23,7 @@ class InMemoryRateLimiter {
             return { success: true, limit: this.limit, remaining: this.limit - 1 };
         }
 
-        if (token.count >= this.limit) {
+        if (token && token.count >= this.limit) {
             return { success: false, limit: this.limit, remaining: 0 };
         }
 

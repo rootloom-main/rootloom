@@ -17,7 +17,7 @@ export async function validateCouponLogic(
     const { data: coupon, error } = await supabase
         .from('coupons')
         .select('*')
-        .eq('code', code)
+        .ilike('code', code)
         .single();
 
     if (error || !coupon) {

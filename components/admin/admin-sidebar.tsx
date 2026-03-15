@@ -18,6 +18,8 @@ import {
     Tag,
     FileText,
     ChevronDown,
+    RefreshCcw,
+    Layers,
     Menu // Assuming hamburger for mobile later, but keeping simple for now
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,6 +36,7 @@ const sidebarGroups = [
             { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
             { name: 'Products', href: '/admin/products', icon: ShoppingBag },
             { name: 'Orders', href: '/admin/orders', icon: Package },
+            { name: 'Returns', href: '/admin/returns', icon: RefreshCcw },
             { name: 'Inventory', href: '/admin/inventory', icon: Archive },
             { name: 'Customers', href: '/admin/customers', icon: Users },
         ]
@@ -41,7 +44,9 @@ const sidebarGroups = [
     {
         label: "Marketing & Content",
         items: [
-            { name: 'Marketing', href: '/admin/marketing/banners', icon: Megaphone },
+            { name: 'Campaigns', href: '/admin/marketing/campaigns', icon: Megaphone },
+            { name: 'Collections', href: '/admin/marketing/collections', icon: Layers },
+            { name: 'Banners', href: '/admin/marketing/banners', icon: Archive },
             { name: 'Coupons', href: '/admin/marketing/coupons', icon: Tag },
             { name: 'Pages', href: '/admin/pages', icon: FileText },
             { name: 'Reviews', href: '/admin/reviews', icon: Star },

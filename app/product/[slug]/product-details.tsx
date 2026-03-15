@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/components/providers/cart-provider';
 import { usePostHog } from 'posthog-js/react';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice, calculateMRP, calculateDiscountPercentage } from '@/lib/utils/pricing';
 import {
   Minus, Plus, ShoppingCart, ChevronLeft, Truck, ShieldCheck,
   RotateCcw, Banknote, BadgeCheck, Award, Globe, Star, Flame,
@@ -52,6 +53,14 @@ interface Product {
   } | null;
   product_images: ProductImage[];
   product_variants: ProductVariant[];
+  metadata?: {
+    fabric?: string;
+    material?: string;
+    genz_tagline?: string;
+    shipping_info?: string;
+    size_guide_html?: string;
+    perks?: { label: string; desc: string }[];
+  };
 }
 
 const COLOR_MAP: Record<string, string> = {
@@ -167,22 +176,36 @@ export function ProductDetails({
     (v) => v.size === selectedSize && v.color === selectedColor
   );
 
-  const finalPrice = selectedVariant ? product.base_price + selectedVariant.price_adjustment : product.base_price;
-  const mrp = Math.round(finalPrice * 1.25);
-  const discount = Math.round(((mrp - finalPrice) / mrp) * 100);
+  const finalPrice = getProductPrice(product, selectedVariant);
+  const mrp = calculateMRP(finalPrice);
+  const discount = calculateDiscountPercentage(finalPrice, mrp);
 
   const handleAddToCart = async () => {
     if (!selectedSize || !selectedColor) { toast.error('Please select size and color'); return; }
     if (!selectedVariant) { toast.error('Selected variant not available'); return; }
     if (selectedVariant.stock < quantity) { toast.error('Not enough stock available'); return; }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { toast.error('Please login to add items to cart'); router.push('/auth/login'); return; }
-
     setIsAdding(true);
     try {
       if (posthog) posthog.capture('added_to_cart', { product_id: product.id, product_name: product.name, variant_id: selectedVariant.id, size: selectedSize, color: selectedColor, price: finalPrice, quantity });
-      await addToCart(product.id, selectedVariant.id, quantity);
+
+      await addToCart({
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+        productData: {
+          name: product.name,
+          slug: product.slug,
+          base_price: product.base_price,
+          product_images: product.product_images
+        },
+        variantData: {
+          size: selectedSize,
+          color: selectedColor,
+          price_adjustment: selectedVariant.price_adjustment,
+          stock: selectedVariant.stock
+        }
+      });
     } finally {
       setIsAdding(false);
     }
@@ -230,6 +253,15 @@ export function ProductDetails({
               <h1 className="text-3xl lg:text-4xl font-bold text-deep-forest font-serif leading-tight tracking-tight">
                 {product.name}
               </h1>
+
+              {/* Gen-Z Dynamic Tagline */}
+              {product.metadata?.genz_tagline && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] px-2.5 py-1 bg-fuchsia-600 text-white rounded-sm shadow-[3px_3px_0px_#000] rotate-[-1deg]">
+                    {product.metadata.genz_tagline}
+                  </span>
+                </div>
+              )}
 
               {/* Rating row */}
               <div className="flex items-center gap-3">
@@ -531,20 +563,24 @@ export function ProductDetails({
                     {product.description || 'A beautifully crafted piece from Root & Loom\'s collection, designed with the finest natural materials and careful attention to detail. Each item reflects our commitment to sustainable fashion and timeless style.'}
                   </p>
                   <div className="grid sm:grid-cols-2 gap-4 mt-6">
-                    {[
-                      { icon: Package, label: 'Premium Packaging', desc: 'Arrives in eco-friendly packaging' },
-                      { icon: Award, label: 'Quality Assured', desc: 'Every piece hand-inspected' },
-                      { icon: Globe, label: 'Sustainable', desc: 'Eco-conscious production' },
+                    {(product.metadata?.perks || [
+                      { label: 'Premium Packaging', desc: 'Arrives in eco-friendly packaging' },
+                      { label: 'Quality Assured', desc: 'Every piece hand-inspected' },
+                      { label: 'Sustainable', desc: 'Eco-conscious production' },
                       { icon: BadgeCheck, label: 'Verified Brand', desc: 'Authentic Root & Loom product' },
-                    ].map(({ icon: Icon, label, desc }) => (
-                      <div key={label} className="flex items-start gap-3 bg-stone-50 rounded-xl p-4">
-                        <Icon className="h-5 w-5 text-moss-olive flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-bold text-stone-800">{label}</p>
-                          <p className="text-xs text-stone-500 mt-0.5">{desc}</p>
+                    ]).map((perk, i) => {
+                      const icons = [Package, Award, Globe, BadgeCheck];
+                      const Icon = icons[i % icons.length];
+                      return (
+                        <div key={i} className="flex items-start gap-3 bg-stone-50 rounded-xl p-4">
+                          <Icon className="h-5 w-5 text-moss-olive flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-stone-800">{perk.label}</p>
+                            <p className="text-xs text-stone-500 mt-0.5">{perk.desc}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -554,14 +590,13 @@ export function ProductDetails({
                   <h3 className="font-serif font-bold text-xl text-deep-forest">Fabric & Material Details</h3>
                   <div className="overflow-hidden rounded-xl border border-stone-100">
                     {[
-                      ['Material', '100% Organic Linen'],
+                      ['Material', product.metadata?.material || 'Premium Sustainable Blend'],
+                      ['Fabric', product.metadata?.fabric || 'Ethically Sourced Fabric'],
                       ['Fit', 'Regular Fit'],
-                      ['Pattern', 'Solid / Textured Weave'],
+                      ['Pattern', 'Modern / Designer Weave'],
                       ['Wash Care', 'Machine Wash Cold, Gentle Cycle'],
                       ['Origin', 'Made in India 🇮🇳'],
                       ['Sustainable Dyes', 'Eco-friendly, non-toxic'],
-                      ['Transparency', 'Non-transparent'],
-                      ['Stretch', 'Low stretch'],
                     ].map(([key, val], i) => (
                       <div key={key} className={cn('grid grid-cols-2 gap-4 px-5 py-3.5 text-sm', i % 2 === 0 ? 'bg-stone-50/80' : 'bg-white')}>
                         <span className="font-semibold text-stone-600">{key}</span>
@@ -575,54 +610,68 @@ export function ProductDetails({
               {activeTab === 'Size Guide' && (
                 <div className="max-w-2xl space-y-4">
                   <h3 className="font-serif font-bold text-xl text-deep-forest">Size Guide</h3>
-                  <p className="text-sm text-stone-500">All measurements in centimeters (cm). For the best fit, measure yourself and compare with the chart.</p>
-                  <div className="overflow-hidden rounded-xl border border-stone-100">
-                    <div className="grid grid-cols-5 bg-stone-50 border-b border-stone-100 text-deep-forest text-[11px] font-bold uppercase tracking-wider">
-                      {['Size', 'Chest', 'Waist', 'Hip', 'Length'].map(h => (
-                        <div key={h} className="px-4 py-3.5 text-center">{h}</div>
-                      ))}
+                  {product.metadata?.size_guide_html ? (
+                    <div className="text-stone-600 leading-relaxed whitespace-pre-line bg-stone-50 p-6 rounded-2xl border border-stone-100">
+                      {product.metadata.size_guide_html}
                     </div>
-                    {[
-                      ['XS', '84', '68', '90', '64'],
-                      ['S', '88', '72', '94', '65'],
-                      ['M', '92', '76', '98', '66'],
-                      ['L', '96', '80', '102', '67'],
-                      ['XL', '100', '84', '106', '68'],
-                      ['XXL', '104', '88', '110', '69'],
-                    ].map(([size, ...rest], i) => (
-                      <div key={size} className={cn('grid grid-cols-5 text-sm', i % 2 === 0 ? 'bg-stone-50' : 'bg-white')}>
-                        <div className="px-4 py-3 text-center font-bold text-deep-forest">{size}</div>
-                        {rest.map((v, j) => (
-                          <div key={j} className="px-4 py-3 text-center text-stone-600">{v}</div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-stone-500">All measurements in centimeters (cm). For the best fit, measure yourself and compare with the chart.</p>
+                      <div className="overflow-hidden rounded-xl border border-stone-100">
+                        <div className="grid grid-cols-5 bg-stone-50 border-b border-stone-100 text-deep-forest text-[11px] font-bold uppercase tracking-wider">
+                          {['Size', 'Chest', 'Waist', 'Hip', 'Length'].map(h => (
+                            <div key={h} className="px-4 py-3.5 text-center">{h}</div>
+                          ))}
+                        </div>
+                        {[
+                          ['XS', '84', '68', '90', '64'],
+                          ['S', '88', '72', '94', '65'],
+                          ['M', '92', '76', '98', '66'],
+                          ['L', '96', '80', '102', '67'],
+                          ['XL', '100', '84', '106', '68'],
+                          ['XXL', '104', '88', '110', '69'],
+                        ].map(([size, ...rest], i) => (
+                          <div key={size} className={cn('grid grid-cols-5 text-sm', i % 2 === 0 ? 'bg-stone-50' : 'bg-white')}>
+                            <div className="px-4 py-3 text-center font-bold text-deep-forest">{size}</div>
+                            {rest.map((v, j) => (
+                              <div key={j} className="px-4 py-3 text-center text-stone-600">{v}</div>
+                            ))}
+                          </div>
                         ))}
                       </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-stone-400 flex items-center gap-1">
-                    <Info className="w-3.5 h-3.5" /> Sizes may vary slightly. When in doubt, size up.
-                  </p>
+                      <p className="text-xs text-stone-400 flex items-center gap-1">
+                        <Info className="w-3.5 h-3.5" /> Sizes may vary slightly. When in doubt, size up.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
               {activeTab === 'Shipping & Returns' && (
                 <div className="max-w-3xl space-y-6">
                   <h3 className="font-serif font-bold text-xl text-deep-forest">Shipping & Returns Policy</h3>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {[
-                      { icon: Truck, title: 'Free Shipping', color: 'text-blue-500 bg-blue-50 border-blue-100', body: 'Free delivery on all orders above ₹999. Standard shipping (5-7 business days) for orders below ₹999.' },
-                      { icon: RotateCcw, title: '7-Day Easy Returns', color: 'text-purple-500 bg-purple-50 border-purple-100', body: 'Not happy? Return within 7 days of delivery for a full refund. Item must be unused, in original packaging.' },
-                      { icon: ShieldCheck, title: 'Secure Payments', color: 'text-green-500 bg-green-50 border-green-100', body: 'All payments processed through 256-bit encrypted, PCI-DSS compliant payment gateways.' },
-                      { icon: Banknote, title: 'Cash on Delivery', color: 'text-orange-500 bg-orange-50 border-orange-100', body: 'COD available at most pincodes across India. A nominal COD fee of ₹40 may apply.' },
-                    ].map(({ icon: Icon, title, color, body }) => (
-                      <div key={title} className={cn('rounded-xl border p-5 space-y-2', color.split(' ').slice(1).join(' '))}>
-                        <div className={cn('flex items-center gap-2', color.split(' ')[0])}>
-                          <Icon className="h-5 w-5" />
-                          <h4 className="font-bold text-stone-800 text-sm">{title}</h4>
+                  {product.metadata?.shipping_info ? (
+                    <div className="text-stone-600 leading-relaxed whitespace-pre-line bg-stone-50 p-6 rounded-2xl border border-stone-100">
+                      {product.metadata.shipping_info}
+                    </div>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {[
+                        { icon: Truck, title: 'Free Shipping', color: 'text-blue-500 bg-blue-50 border-blue-100', body: 'Free delivery on all orders above ₹999. Standard shipping (5-7 business days) for orders below ₹999.' },
+                        { icon: RotateCcw, title: '7-Day Easy Returns', color: 'text-purple-500 bg-purple-50 border-purple-100', body: 'Not happy? Return within 7 days of delivery for a full refund. Item must be unused, in original packaging.' },
+                        { icon: ShieldCheck, title: 'Secure Payments', color: 'text-green-500 bg-green-50 border-green-100', body: 'All payments processed through 256-bit encrypted, PCI-DSS compliant payment gateways.' },
+                        { icon: Banknote, title: 'Cash on Delivery', color: 'text-orange-500 bg-orange-50 border-orange-100', body: 'COD available at most pincodes across India. A nominal COD fee of ₹40 may apply.' },
+                      ].map(({ icon: Icon, title, color, body }) => (
+                        <div key={title} className={cn('rounded-xl border p-5 space-y-2', color.split(' ').slice(1).join(' '))}>
+                          <div className={cn('flex items-center gap-2', color.split(' ')[0])}>
+                            <Icon className="h-5 w-5" />
+                            <h4 className="font-bold text-stone-800 text-sm">{title}</h4>
+                          </div>
+                          <p className="text-xs text-stone-600 leading-relaxed">{body}</p>
                         </div>
-                        <p className="text-xs text-stone-600 leading-relaxed">{body}</p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

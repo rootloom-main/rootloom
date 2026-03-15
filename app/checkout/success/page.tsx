@@ -8,8 +8,10 @@ import { CheckCircle2, Package, ExternalLink } from 'lucide-react';
 export default function CheckoutSuccessPage() {
     const [orderNumber, setOrderNumber] = useState<string | null>(null);
     const [date, setDate] = useState<string>('');
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        setIsMounted(true);
         const params = new URLSearchParams(window.location.search);
         setOrderNumber(params.get('orderNumber') || `ORD-${Math.random().toString(36).substring(2, 10).toUpperCase()}`);
 
@@ -19,7 +21,7 @@ export default function CheckoutSuccessPage() {
     }, []);
 
     // Prevent hydration mismatch
-    if (!orderNumber) return null;
+    if (!isMounted || !orderNumber) return null;
 
     return (
         <div className="min-h-screen bg-stone-100 py-12 px-4">

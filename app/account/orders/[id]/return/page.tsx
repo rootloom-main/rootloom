@@ -15,6 +15,7 @@ import {
 import { formatDate, formatPrice } from '@/lib/utils/format';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
+import { ReturnForm } from '@/components/account/return-form';
 
 export default async function ReturnRequestPage({
     params,
@@ -62,88 +63,31 @@ export default async function ReturnRequestPage({
     const isEligible = daysSinceOrder <= 30 && order.status === 'delivered';
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <div className="container mx-auto px-4 py-8 max-w-2xl font-sans">
             <Link
                 href={`/account/orders/${id}`}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-6"
+                className="inline-flex items-center text-sm font-medium text-stone-500 hover:text-deep-forest mb-6 transition-colors"
             >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back to Order
             </Link>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Request a Return</CardTitle>
+            <Card className="border-stone-200 shadow-xl rounded-2xl overflow-hidden">
+                <CardHeader className="bg-stone-50 border-b border-stone-100">
+                    <CardTitle className="font-serif text-2xl text-deep-forest">Request a Return</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                     {!isEligible ? (
-                        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md">
-                            <p className="font-medium">Not eligible for return.</p>
-                            <p className="text-sm mt-1">
+                        <div className="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-xl space-y-2">
+                            <p className="font-bold">Not eligible for return.</p>
+                            <p className="text-sm opacity-90">
                                 {order.status !== 'delivered'
-                                    ? 'Order has not been delivered yet.'
-                                    : `Return window closed (${daysSinceOrder} days since order). Returns valid for 30 days.`}
+                                    ? 'Order has not been delivered yet. Returns can only be requested after delivery.'
+                                    : `Return window closed (${daysSinceOrder} days since delivery). Returns are only valid within 30 days of delivery.`}
                             </p>
                         </div>
                     ) : (
-                        <form action="/api/user/returns" method="POST" className="space-y-6">
-                            <input type="hidden" name="orderId" value={order.id} />
-
-                            <div className="space-y-4">
-                                <Label>Select Item(s) to Return</Label>
-                                {order.order_items.map((item: any) => (
-                                    <div key={item.id} className="flex items-start gap-3 p-3 border rounded-md">
-                                        <input
-                                            type="radio"
-                                            name="orderItemId"
-                                            value={item.id}
-                                            id={`item-${item.id}`}
-                                            required
-                                            className="mt-1"
-                                        />
-                                        <label htmlFor={`item-${item.id}`} className="flex-1 cursor-pointer">
-                                            <div className="flex justify-between">
-                                                <span className="font-medium">{item.product?.name}</span>
-                                                <span>{formatPrice(item.price)}</span>
-                                            </div>
-                                            <p className="text-sm text-gray-500">
-                                                Size: {item.variant?.size}, Color: {item.variant?.color} • Qty: {item.quantity}
-                                            </p>
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="reason">Reason for Return</Label>
-                                <Select name="reason" required>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a reason" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="wrong_size">Wrong Size</SelectItem>
-                                        <SelectItem value="damaged">Damaged / Defective</SelectItem>
-                                        <SelectItem value="not_as_described">Not as Described</SelectItem>
-                                        <SelectItem value="changed_mind">Changed Mind</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="comments">Additional Comments (Optional)</Label>
-                                <Textarea
-                                    name="comments"
-                                    id="comments"
-                                    placeholder="Please provide more details..."
-                                    rows={3}
-                                />
-                            </div>
-
-                            <Button type="submit" className="w-full">
-                                Submit Return Request
-                            </Button>
-                        </form>
+                        <ReturnForm order={order} />
                     )}
                 </CardContent>
             </Card>

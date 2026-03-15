@@ -28,12 +28,18 @@ export default async function AdminProductsPage() {
         redirect('/');
     }
 
-    // Fetch Products
+    // Fetch Products with Categories and Collection links
     const { data: products, error } = await supabase
         .from('products')
-        .select('*, categories(name)')
+        .select(`
+            *,
+            categories(name),
+            collection_products(collection_id)
+        `)
         .is('deleted_at', null)
         .order('created_at', { ascending: false }) as { data: any[] | null; error: any };
+
+    const { data: collections } = await (supabase.from('collections') as any).select('id, name').eq('is_active', true);
 
     if (error) {
         console.error('Error fetching products:', error);
@@ -54,7 +60,10 @@ export default async function AdminProductsPage() {
                 </Link>
             </div>
 
-            <AdminProductsTable products={products || []} />
+            <AdminProductsTable 
+                products={products || []} 
+                collections={collections || []} 
+            />
         </div>
     );
 }

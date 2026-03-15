@@ -8,8 +8,9 @@ import { useWishlist } from '@/components/providers/wishlist-provider';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { SmartSearch } from '@/components/search/smart-search';
-import { SearchOverlay } from '@/components/search/search-overlay';
+const SearchOverlay = dynamic(() => import('@/components/search/search-overlay').then(mod => mod.SearchOverlay));
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -20,7 +21,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
-import { CartSheet } from '@/components/layout/cart-sheet';
+const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mod => mod.CartSheet), {
+  ssr: false
+});
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 export function Header() {
@@ -68,6 +71,7 @@ export function Header() {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Shop', href: '/shop' },
+    { name: 'Collections', href: '/collections' },
     { name: 'Men', href: '/shop?category=men' },
     { name: 'Women', href: '/shop?category=women' },
     { name: 'Kids', href: '/shop?category=kids' },
@@ -95,8 +99,8 @@ export function Header() {
   return (
     <>
       {/* Top Announcement Bar */}
-      <div className="bg-deep-forest text-heirloom-white py-1.5 px-4 text-center text-xs font-medium tracking-wide">
-        Free Shipping on all orders over ₹999 | 30-Day Easy Returns
+      <div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase">
+        ⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡
       </div>
 
       <header
@@ -153,7 +157,7 @@ export function Header() {
                   <div className="mt-8 pt-6 border-t border-woven-sand/50 space-y-4">
                     {!user ? (
                       <div className="flex flex-col gap-3">
-                        <Link href="/auth/login">
+                        <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`}>
                           <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
                             Login
                           </Button>
@@ -282,6 +286,9 @@ export function Header() {
                       <Link href="/account" className="w-full">My Account</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                      <Link href="/collections" className="w-full">Explore Collections</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
                       <Link href="/account/wishlist" className="w-full">My Wishlist</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
@@ -298,12 +305,12 @@ export function Header() {
                 </DropdownMenu>
               ) : (
                 <div className="flex items-center">
-                  <Link href="/auth/login" className="md:hidden">
+                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden">
                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent">
                       <User className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </Link>
-                  <Link href="/auth/login" className="hidden md:block ml-2">
+                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="hidden md:block ml-2">
                     <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
                       Login
                     </Button>

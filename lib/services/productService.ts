@@ -26,12 +26,63 @@ export const ProductService = {
         return data || [];
     },
 
-    async getProducts(params?: { categorySlug?: string; search?: string; limit?: number }) {
-        const cacheKey = `products:search:${JSON.stringify(params || {})}`;
+    async getProducts(params?: {
+        categorySlug?: string;
+        search?: string;
+        limit?: number;
+        minPrice?: number;
+        maxPrice?: number;
+        sortBy?: string;
+    }) {
+        const cacheKey = `products:filtered:${JSON.stringify(params || {})}`;
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
         const supabase = await createClient();
+        
+        // Handle Fuzzy Search via RPC if query present
+        if (params?.search) {
+            // First, find matching IDs using the typo-tolerant RPC
+            const { data: searchResults, error: searchError } = await supabase.rpc('search_products', {
+                query_text: params.search,
+                filter_category_id: params?.categorySlug && params.categorySlug !== 'all' ? (await supabase.from('categories').select('id').eq('slug', params.categorySlug).single()).data?.id : null,
+                min_price: params?.minPrice,
+                max_price: params?.maxPrice,
+                sort_by: params?.sortBy === 'latest' ? 'newest' : (params?.sortBy === 'price-asc' ? 'price_asc' : (params?.sortBy === 'price-desc' ? 'price_desc' : 'relevance')),
+                limit_count: params?.limit || 50,
+                offset_count: 0
+            } as any);
+
+            if (searchError) {
+                console.error('Search RPC Error:', searchError);
+            } else if (searchResults && searchResults.length > 0) {
+                const ids = searchResults.map((r: any) => r.id);
+                // Fetch full product details for these matching IDs
+                const { data: fullProducts, error: fullError } = await supabase
+                    .from('products')
+                    .select(`
+                        *,
+                        category:categories(name, slug),
+                        product_images(image_url, alt_text, display_order),
+                        product_variants(id, size, color, stock, price_adjustment)
+                    `)
+                    .in('id', ids);
+                
+                if (fullError) return [];
+                
+                // Re-sort to match RPC relevance order
+                const sorted = ids.map(id => fullProducts.find(p => p.id === id)).filter(Boolean);
+                
+                if (sorted.length > 0) {
+                    await setCache(cacheKey, sorted, 900);
+                    return sorted;
+                }
+            }
+            
+            // If no results from RPC, fall back to ilike or return empty (RPC is better)
+            if (!searchResults || searchResults.length === 0) return [];
+        }
+
         let query = supabase.from('products').select(`
       *,
       category:categories(name, slug),
@@ -39,13 +90,26 @@ export const ProductService = {
       product_variants(id, size, color, stock, price_adjustment)
     `);
 
-        if (params?.categorySlug) {
-            const { data: cat } = await supabase.from('categories').select('id').eq('slug', params.categorySlug).single();
-            if (cat) query = query.eq('category_id', cat.id);
+        if (params?.minPrice !== undefined) {
+            query = query.gte('base_price', params.minPrice);
         }
 
-        if (params?.search) {
-            query = query.ilike('name', `%${params.search}%`);
+        if (params?.maxPrice !== undefined) {
+            query = query.lte('base_price', params.maxPrice);
+        }
+
+        switch (params?.sortBy) {
+            case 'price-asc':
+                query = query.order('base_price', { ascending: true });
+                break;
+            case 'price-desc':
+                query = query.order('base_price', { ascending: false });
+                break;
+            case 'name':
+                query = query.order('name', { ascending: true });
+                break;
+            default:
+                query = query.order('created_at', { ascending: false });
         }
 
         if (params?.limit) {
@@ -89,5 +153,84 @@ export const ProductService = {
             await setCache(cacheKey, data, 1800);
         }
         return data;
+    },
+
+    async getNewArrivals(limit: number = 8, categorySlug?: string) {
+        const cacheKey = `products:new-arrivals:${limit}:${categorySlug || 'all'}`;
+        const cached = await getCache<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const supabase = await createClient();
+        let query = supabase
+            .from('products')
+            .select(`
+                id, name, slug, base_price, 
+                product_images(image_url, alt_text), 
+                product_variants(id, size, color, stock, price_adjustment),
+                category:categories!inner(slug)
+            `);
+        
+        if (categorySlug) {
+            query = query.eq('category.slug', categorySlug);
+        }
+
+        const { data, error } = await query
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Failed to fetch new arrivals:', error);
+            return [];
+        }
+        if (data) await setCache(cacheKey, data, 900); // 15 mins
+        return data || [];
+    },
+
+    async getBestSellers(limit: number = 8, categorySlug?: string) {
+        const cacheKey = `products:best-sellers:${limit}:${categorySlug || 'all'}`;
+        const cached = await getCache<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const supabase = await createClient();
+        let query = supabase
+            .from('products')
+            .select(`
+                id, name, slug, base_price, 
+                product_images(image_url, alt_text), 
+                product_variants(id, size, color, stock, price_adjustment),
+                category:categories!inner(slug)
+            `);
+
+        if (categorySlug) {
+            query = query.eq('category.slug', categorySlug);
+        }
+
+        const { data, error } = await query
+            .order('sales_count', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Failed to fetch best sellers:', error);
+            return [];
+        }
+        if (data) await setCache(cacheKey, data, 900); // 15 mins
+        return data || [];
+    },
+
+    async getFeaturedProducts(limit: number = 8) {
+        const cacheKey = `products:featured:${limit}`;
+        const cached = await getCache<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from('products')
+            .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
+            .eq('featured', true)
+            .limit(limit);
+
+        if (error) return [];
+        if (data) await setCache(cacheKey, data, 900); // 15 mins
+        return data || [];
     }
 };

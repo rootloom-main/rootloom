@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { createSSRClient } from '@/lib/utils/auth';
 import { processOrderCreation } from '@/lib/order-processing';
 import { validateCouponLogic } from '@/lib/coupon';
+import { sendOrderConfirmationWhatsApp } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
 
@@ -15,6 +16,20 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    let userPhone = user?.user_metadata?.phone;
+
+    // If not in metadata, fetch from profiles
+    if (!userPhone) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+      if (profile?.phone) {
+        userPhone = profile.phone;
+      }
     }
 
     const {
@@ -125,7 +140,7 @@ export async function POST(req: NextRequest) {
     // We can compare 'total' with 'clientTotal' or Razorpay order amount if needed.
     // For now, trusting our DB calculation is the secure way.
 
-    const order = await processOrderCreation({
+    const { order, backgroundTasks } = await processOrderCreation({
       supabase,
       userId: user.id,
       paymentId: razorpay_payment_id,
@@ -140,25 +155,34 @@ export async function POST(req: NextRequest) {
       userName: user.user_metadata.full_name || 'Customer'
     });
 
-    // Atomically deduct stock AFTER confirmed payment — this is the safe point
-    // to commit stock changes since we know the payment is real.
-    const stockItems = cartItems.map((item: any) => ({
-      variant_id: item.variant_id,
-      quantity: item.quantity
-    }));
-
-    const { error: stockError } = await supabase.rpc('reserve_stock_batch', {
-      items: stockItems
-    });
-
-    if (stockError) {
-      // Log the error but don't fail the order — payment is already captured.
-      // In a production scenario, this should trigger a manual review alert.
-      console.error('Stock deduction failed after payment:', stockError);
-    }
+    // NOTE: stock deduction is handled ATOMICALLY inside processOrderCreation (rpc create_complete_order)
+    // Removed redundant reserve_stock_batch call to prevent double deduction.
 
     // Clear Cart
     await supabase.from('cart_items').delete().eq('user_id', user.id);
+
+    // Update Payments Table Status
+    await supabase
+      .from('payments')
+      .update({ status: 'success', updated_at: new Date().toISOString() })
+      .eq('razorpay_order_id', razorpay_order_id);
+
+    // Parallelize final tasks
+    const notifications = [];
+    if (userPhone) {
+      notifications.push(
+        sendOrderConfirmationWhatsApp(
+          userPhone,
+          user.user_metadata.full_name || 'Customer',
+          order.order_number,
+          total.toFixed(2),
+          false // isCOD = false (Prepaid)
+        )
+      );
+    }
+    
+    // Await all notifications and background tasks before responding
+    await Promise.allSettled([...notifications, backgroundTasks]);
 
     return NextResponse.json({
       success: true,

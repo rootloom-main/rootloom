@@ -9,6 +9,7 @@ import { WishlistProvider } from '@/components/providers/wishlist-provider';
 import QueryProvider from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { Suspense } from 'react';
+import { ScrollLockFixer } from '@/components/utils/scroll-lock-fixer';
 
 
 const inter = Inter({

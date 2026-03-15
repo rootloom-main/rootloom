@@ -5,23 +5,23 @@ import { Truck, RefreshCw, Shield, Star } from 'lucide-react';
 const features = [
     {
         icon: Truck,
-        title: 'Free Shipping',
-        description: 'On orders above ₹999',
+        title: 'Fast Shipping',
+        description: 'Orders over ₹999',
     },
     {
         icon: RefreshCw,
-        title: 'Easy Returns',
-        description: '30-day return policy',
+        title: 'No-Stress Returns',
+        description: '30-Day Window',
     },
     {
         icon: Shield,
-        title: 'Secure Payment',
-        description: '100% secure transactions',
+        title: 'Secure Check',
+        description: '100% Encrypted',
     },
     {
         icon: Star,
-        title: 'Premium Quality',
-        description: 'Curated collections',
+        title: 'Drip Guaranteed',
+        description: 'Curated 4 U',
     },
 ];
 

@@ -39,7 +39,7 @@ const AVATAR_COLORS = [
     'bg-stone-600 text-white',
 ];
 
-export function Reviews({ productId, reviews, user }: ReviewsProps) {
+export default function Reviews({ productId, reviews, user }: ReviewsProps) {
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);

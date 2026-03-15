@@ -6,7 +6,7 @@ interface RelatedProductsProps {
     products: any[];
 }
 
-export function RelatedProducts({ products }: RelatedProductsProps) {
+export default function RelatedProducts({ products }: RelatedProductsProps) {
     if (!products || products.length === 0) return null;
 
     return (

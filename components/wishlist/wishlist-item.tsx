@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useWishlist } from '@/components/providers/wishlist-provider';
 import { useCart } from '@/components/providers/cart-provider';
+import { getProductPrice, calculateMRP } from '@/lib/utils/pricing';
 import { toast } from 'sonner';
 
 interface WishlistItemProps {
@@ -44,6 +45,9 @@ export function WishlistItem({ item }: WishlistItemProps) {
     const [isRemoving, setIsRemoving] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
 
+    const displayPrice = getProductPrice(product);
+    const mrp = calculateMRP(displayPrice);
+
     const handleRemove = async () => {
         setIsRemoving(true);
         try {
@@ -68,7 +72,23 @@ export function WishlistItem({ item }: WishlistItemProps) {
                 return;
             }
 
-            await addToCart(product.id, variant.id, 1);
+            await addToCart({
+                productId: product.id,
+                variantId: variant.id,
+                quantity: 1,
+                productData: {
+                    name: product.name,
+                    slug: product.slug,
+                    base_price: product.base_price,
+                    product_images: product.product_images
+                },
+                variantData: {
+                    size: (variant as any).size || '',
+                    color: (variant as any).color || '',
+                    price_adjustment: variant.price_adjustment,
+                    stock: variant.stock
+                }
+            });
             toast.success('Added to cart');
         } catch (error) {
             console.error('Wishlist AddToCart Error:', error);
@@ -111,7 +131,10 @@ export function WishlistItem({ item }: WishlistItemProps) {
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                     <span className="text-lg font-semibold text-deep-forest">
-                        ₹{product.base_price.toLocaleString('en-IN')}
+                        ₹{displayPrice.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-sm text-stone-400 line-through">
+                        ₹{mrp.toLocaleString('en-IN')}
                     </span>
                     <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                         In Stock

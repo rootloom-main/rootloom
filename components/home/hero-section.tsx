@@ -15,103 +15,72 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// Brand Palette based on globals.css
-// Deep Forest: #1e2f23 (text-deep-forest)
-// Heirloom White: #f9f5ed (bg-heirloom-white)
-// Raw Clay: #8c5a45 (text-raw-clay)
-// Stone Paper: #f2efe9
-// Woven Sand: #dcd6cb
-
-const slides = [
-    {
-        id: 1,
-        theme: 'new-arrivals',
-        bgColor: 'bg-[#1e2f23]', // Deep Forest
-        textColor: 'text-[#f9f5ed]', // Heirloom White
-        badge: 'NEW COLLECTION',
-        title: 'The Forest Edition',
-        description: 'Inspired by nature. Crafted for the modern man. Experience the deep tones of our latest arrival.',
-        image: 'https://images.pexels.com/photos/2897531/pexels-photo-2897531.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2', // Moody/Green vibes
-        imageAlt: 'Man in forest green outfit',
-        cta: 'Discover Now',
-        ctaColor: 'bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]', // White btn on dark bg
-        link: '/shop'
+const THEME_CONFIGS: Record<string, any> = {
+    'streetwear': {
+        bgColor: 'bg-black',
+        textColor: 'text-white',
+        ctaColor: 'bg-[#ff00ff] text-white hover:bg-[#d400d4] shadow-[0_0_20px_rgba(255,0,255,0.5)]'
     },
-    {
-        id: 2,
-        theme: 'earth',
-        bgColor: 'bg-[#dcd6cb]', // Woven Sand
-        textColor: 'text-[#1e2f23]', // Deep Forest
-        badge: 'EARTH & FIBER',
-        title: 'Purely Organic',
-        description: 'Breathe easy in our ethically sourced linen collection. Soft on your skin, kind to the planet.',
-        image: 'https://images.unsplash.com/photo-1470058869958-2a77ade41c02?auto=format&fit=crop&w=1280&q=80',
-        imageAlt: 'Man in organic linen in nature',
-        cta: 'Shop Earth Edit',
-        ctaColor: 'bg-[#1e2f23] text-[#f9f5ed] hover:bg-[#2a4030]',
-        link: '/shop'
+    'cyber': {
+        bgColor: 'bg-[#0a0a0a]',
+        textColor: 'text-white',
+        ctaColor: 'bg-[#00ffff] text-black hover:bg-[#00d4d4] shadow-[0_0_20px_rgba(0,255,255,0.5)]'
     },
-    {
-        id: 3,
-        theme: 'artisan',
-        bgColor: 'bg-[#8c5a45]', // Raw Clay
-        textColor: 'text-[#f9f5ed]', // Heirloom White
-        badge: 'ARTISAN LEGACY',
-        title: 'Handwoven Heritage',
-        description: 'Every thread tells a story. Discover handcrafted masterpieces by master weavers of India.',
-        image: 'https://images.unsplash.com/photo-1606744837616-56c9a5c6a6eb?auto=format&fit=crop&w=1280&q=80',
-        imageAlt: 'Artisan weaving on handloom',
-        cta: 'Meet the Makers',
-        ctaColor: 'bg-[#f9f5ed] text-[#8c5a45] hover:bg-[#dcd6cb]',
-        link: '/shop'
+    'neon': {
+        bgColor: 'bg-[#1a0033]',
+        textColor: 'text-[#f0f0f0]',
+        ctaColor: 'bg-[#39ff14] text-black hover:bg-[#32e612] shadow-[0_0_20px_rgba(57,255,20,0.5)]'
     },
-    {
-        id: 4,
-        theme: 'indigo',
-        bgColor: 'bg-[#1e2f23]', // Deep Forest
-        textColor: 'text-[#f9f5ed]', // Heirloom White
-        badge: 'INDIGO TALES',
-        title: 'The Blue Gold',
-        description: 'Immerse yourself in the depth of natural indigo. Hand-dyed luxury for the discerning soul.',
-        image: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?auto=format&fit=crop&w=1280&q=80',
-        imageAlt: 'Natural indigo dyed fabric',
-        cta: 'Explore Indigo',
-        ctaColor: 'bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]',
-        link: '/shop'
+    'minimal-urban': {
+        bgColor: 'bg-white',
+        textColor: 'text-black',
+        ctaColor: 'bg-black text-white hover:bg-stone-800'
     },
-    {
-        id: 5,
-        theme: 'sustainable',
-        bgColor: 'bg-[#f2efe9]', // Stone Paper
-        textColor: 'text-[#1e2f23]', // Deep Forest
-        badge: 'CONSCIOUSLY CRAFTED',
-        title: 'Sustainable Future',
-        description: 'Fashion that respects nature. 100% biodegradable materials for a zero-waste lifestyle.',
-        image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&w=1280&q=80',
-        imageAlt: 'Sustainable fashion concept',
-        cta: 'Our Impact',
-        ctaColor: 'bg-[#1e2f23] text-[#f9f5ed] hover:bg-[#2a4030]',
-        link: '/shop'
+    'electric': {
+        bgColor: 'bg-[#0012ff]',
+        textColor: 'text-white',
+        ctaColor: 'bg-[#ffff00] text-black hover:bg-[#e6e600] shadow-[0_0_20px_rgba(255,255,0,0.5)]'
+    },
+    'sunset': {
+        bgColor: 'bg-gradient-to-br from-[#ff4e50] to-[#f9d423]',
+        textColor: 'text-white',
+        ctaColor: 'bg-black text-white hover:bg-stone-900'
+    },
+    'graffiti': {
+        bgColor: 'bg-[#2a2a2a]',
+        textColor: 'text-[#39ff14]',
+        ctaColor: 'bg-[#ff00ff] text-white hover:bg-[#d400d4] shadow-[0_0_20px_rgba(255,0,255,0.5)]'
+    },
+    'default': {
+        bgColor: 'bg-black',
+        textColor: 'text-white',
+        ctaColor: 'bg-white text-black hover:bg-stone-200'
     }
-];
+};
 
 export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
-    const displaySlides = heroBanners.length > 0
-        ? heroBanners.map((banner, index) => ({
+    const displaySlides = heroBanners.map((banner, index) => {
+        const metadata = banner.metadata || {};
+        const theme = metadata.theme || 'default';
+        const config = THEME_CONFIGS[theme] || THEME_CONFIGS['default'];
+
+        return {
             id: banner.id,
-            theme: 'default',
-            bgColor: index % 2 === 0 ? 'bg-deep-forest' : 'bg-heirloom-white',
-            textColor: index % 2 === 0 ? 'text-heirloom-white' : 'text-deep-forest',
-            badge: 'PROMO',
+            theme: theme,
+            bgColor: config.bgColor,
+            textColor: config.textColor,
+            badge: metadata.badge || 'DROP 01 // LIMITED',
             title: banner.title,
-            description: '',
+            description: banner.description || '',
             image: banner.image_url,
             imageAlt: banner.title,
-            cta: 'Discover',
-            ctaColor: index % 2 === 0 ? 'bg-heirloom-white text-deep-forest hover:bg-stone-paper' : 'bg-deep-forest text-heirloom-white hover:bg-deep-forest/90',
-            link: banner.link || '/shop'
-        }))
-        : slides;
+            cta: metadata.cta || 'GET THE DRIP',
+            ctaColor: config.ctaColor,
+            link: banner.collections?.slug 
+                ? `/collections/${banner.collections.slug}` 
+                : (banner.link || '/shop')
+        };
+    });
 
     const plugin = React.useRef(
         Autoplay({ delay: 5000, stopOnInteraction: false }) as any
@@ -145,18 +114,18 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                 }}
             >
                 <CarouselContent className="-ml-0">
-                    {displaySlides.map((slide) => (
+                    {displaySlides.map((slide, index) => (
                         <CarouselItem key={slide.id} className="pl-0 basis-full">
                             <div className={cn("relative w-full min-h-[85vh] flex items-center overflow-hidden transition-colors duration-1000", slide.bgColor)}>
                                 <div className="container mx-auto px-4 h-full relative z-20">
-                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full items-center py-20 lg:py-0">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12 h-full items-center py-20 lg:py-0">
 
                                         {/* Left Content (Text) */}
-                                        <div className="col-span-1 lg:col-span-5 flex flex-col justify-center items-start pl-4 lg:pl-0 order-2 lg:order-1 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 fill-mode-both">
+                                        <div className="flex flex-col justify-center items-start pl-4 lg:pl-0 order-2 lg:order-1 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100 fill-mode-both z-30">
                                             <div className={cn("inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-[0.2em] border border-current uppercase opacity-80 backdrop-blur-sm rounded-full", slide.textColor)}>
                                                 {slide.badge}
                                             </div>
-                                            <h2 className={cn("text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-serif font-medium mb-6 leading-[0.9] tracking-tight", slide.textColor)}>
+                                            <h2 className={cn("text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl", slide.textColor)}>
                                                 {slide.title}
                                             </h2>
                                             <p className={cn("text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90", slide.textColor)}>
@@ -195,7 +164,7 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                                         </div>
 
                                         {/* Right Content (Image) */}
-                                        <div className="col-span-1 lg:col-span-7 relative w-full h-[50vh] lg:h-full order-1 lg:order-2 lg:ml-[-10%]">
+                                        <div className="relative w-full h-[50vh] lg:h-[70vh] order-1 lg:order-2">
                                             {/* Gradient Overlay for integration */}
                                             <div className={cn("absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-transparent via-transparent to-transparent z-10 pointer-events-none")} />
 
@@ -204,7 +173,7 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                                                 alt={slide.imageAlt}
                                                 fill
                                                 className="object-cover object-top lg:object-center shadow-2xl lg:shadow-none"
-                                                priority={slide.id === 1}
+                                                priority={index === 0}
                                                 sizes="(max-width: 1024px) 100vw, 60vw"
                                             />
                                         </div>

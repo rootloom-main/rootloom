@@ -162,6 +162,30 @@ export async function POST(req: NextRequest) {
       request.end();
     });
 
+    // 6. DB Logging: Save Pending Payment with Snapshot
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        user_id: user.id,
+        razorpay_order_id: razorpayData.id,
+        amount: total,
+        currency: razorpayData.currency || 'INR',
+        status: 'pending',
+        cart_snapshot: cartItemsDB.map((item: any) => ({
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          price: (item.product.base_price || 0) + (item.variant.price_adjustment || 0)
+        })),
+        address_id: addressId,
+        coupon_code: couponCode || null
+      });
+
+    if (paymentError) {
+        console.error('Failed to log payment initiation:', paymentError);
+        // We don't block the user since the RP order is created, but this is an issue for recovery.
+    }
+
     return NextResponse.json({
       success: true,
       order: {
@@ -172,10 +196,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('CREATE ORDER ERROR:', error);
-    return NextResponse.json(
-      { success: false, message: error.message || 'Failed to create order' },
-      { status: 500 }
-    );
+    console.error('SERVER API Error:', error);
+    return NextResponse.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
   }
 }

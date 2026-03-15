@@ -4,33 +4,33 @@ import { Resend } from 'resend';
 const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-// Admin email (in a real app, this might come from a settings table or env var)
-const ADMIN_EMAIL = 'pamdeysamir@gmail.com'; // Using the user's email from conversation history
+// Admin email (moving to env var for production readiness)
+const ADMIN_EMAIL = process.env.ADMIN_ALERT_EMAIL || 'pamdeysamir@gmail.com';
 
 interface InventoryAlertProps {
-    productName: string;
-    variant: string; // e.g. "Size: M, Color: Red"
-    remainingStock: number;
-    productId: string;
+  productName: string;
+  variant: string; // e.g. "Size: M, Color: Red"
+  remainingStock: number;
+  productId: string;
 }
 
 export const sendInventoryAlertEmail = async ({
-    productName,
-    variant,
-    remainingStock,
-    productId,
+  productName,
+  variant,
+  remainingStock,
+  productId,
 }: InventoryAlertProps) => {
-    if (!resend) {
-        console.warn('RESEND_API_KEY is not set. Skipping inventory alert.');
-        return;
-    }
+  if (!resend) {
+    console.warn('RESEND_API_KEY is not set. Skipping inventory alert.');
+    return;
+  }
 
-    try {
-        const { data, error } = await resend.emails.send({
-            from: 'Root&Loom Alerts <alerts@rootloom.com>',
-            to: [ADMIN_EMAIL],
-            subject: `⚠️ Low Stock Alert: ${productName}`,
-            html: `
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Root&Loom Alerts <alerts@rootloom.in>',
+      to: [ADMIN_EMAIL],
+      subject: `⚠️ Low Stock Alert: ${productName}`,
+      html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <h2 style="color: #d9534f;">Low Inventory Warning</h2>
           <p>The following item has dropped below the low stock threshold (5 units):</p>
@@ -55,16 +55,16 @@ export const sendInventoryAlertEmail = async ({
           </div>
         </div>
       `,
-        });
+    });
 
-        if (error) {
-            console.error('Inventory alert email error:', error);
-            return { success: false, error };
-        }
-
-        return { success: true, data };
-    } catch (error) {
-        console.error('Error sending inventory alert:', error);
-        return { success: false, error };
+    if (error) {
+      console.error('Inventory alert email error:', error);
+      return { success: false, error };
     }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending inventory alert:', error);
+    return { success: false, error };
+  }
 };

@@ -16,28 +16,28 @@ export function BrandStory() {
                         <div className="absolute inset-4 border border-slate-200 z-10 rounded-sm translate-x-4 translate-y-4" />
                         <div className="relative h-full w-full overflow-hidden rounded-sm bg-stone-200 shadow-xl">
                             <Image
-                                src="https://images.pexels.com/photos/5935754/pexels-photo-5935754.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-                                alt="Artisan crafting fabric"
+                                src="https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&q=80&w=1260"
+                                alt="Modern Streetwear"
                                 fill
-                                className="object-cover hover:scale-105 transition-transform duration-1000"
+                                className="object-cover hover:scale-110 transition-transform duration-1000 grayscale hover:grayscale-0"
                             />
                         </div>
                     </FadeIn>
 
                     {/* Text Side */}
                     <FadeIn direction="left" className="order-1 lg:order-2">
-                        <span className="text-xs font-bold tracking-[0.2em] text-raw-clay uppercase mb-3 block">Our Heritage</span>
-                        <h2 className="text-4xl md:text-5xl font-serif text-deep-forest mb-6 leading-tight">
-                            Weaving Stories <br /> Into Every Thread
+                        <span className="text-xs font-bold tracking-[0.2em] text-[#ff00ff] uppercase mb-3 block">Streetwear Essentials</span>
+                        <h2 className="text-4xl md:text-5xl font-black text-black mb-6 leading-tight uppercase italic">
+                            Style That Speaks <br /> Louder Than Words
                         </h2>
-                        <div className="h-1 w-20 bg-raw-clay mb-8" />
+                        <div className="h-2 w-24 bg-black mb-8" />
 
-                        <div className="space-y-6 text-slate-600 font-light leading-relaxed text-lg">
+                        <div className="space-y-6 text-stone-700 font-medium leading-relaxed text-lg">
                             <p>
-                                At Root&Loom, we believe that true luxury lies in the details. Born from a passion for authentic craftsmanship, we bridge the gap between traditional artistry and modern aesthetics.
+                                Welcome to Root&Loom—where urban energy meets premium drip. We're not just a brand; we're a movement for those who define their own rules and set the trends others follow.
                             </p>
                             <p>
-                                Every piece in our collection is a testament to the skill of master artisans who have perfected their craft over generations. We source only the finest organic fibers, ensuring that your style statement is also a conscious choice for the planet.
+                                Our collections are crafted for the bold, the expressive, and the unapologetic. From oversized silhouettes to experimental textures, we bring you the ultimate vibe for your everyday hustle. Join the clique and let your fit do the talking.
                             </p>
                         </div>
 

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils/format';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { CustomerControls } from './_components/customer-controls';
 
 export default async function AdminCustomersPage() {
     const supabase = await createSSRClient();
@@ -47,9 +48,12 @@ export default async function AdminCustomersPage() {
 
     return (
         <div className="container mx-auto px-6 py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Customers</h1>
-                <p className="text-gray-500">View registered users and their activity.</p>
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Customers</h1>
+                    <p className="text-gray-500">View registered users and their activity.</p>
+                </div>
+                <CustomerControls />
             </div>
 
             <div className="rounded-md border bg-white">

@@ -3,10 +3,21 @@ import { createSSRClient } from '@/lib/utils/auth';
 import { ProductService } from '@/lib/services/productService';
 import { ProductDetails } from './product-details';
 import { Metadata } from 'next';
-import { Reviews } from '@/components/product/reviews';
 import { ProductSchema, BreadcrumbSchema } from '@/components/seo/structured-data';
 import { getRelatedProducts } from '@/lib/data/recommendations';
-import { RelatedProducts } from '@/components/product/related-products';
+import NextDynamic from 'next/dynamic';
+
+const Reviews = NextDynamic(() => import('@/components/product/reviews'), {
+  loading: () => <div className="h-40 animate-pulse bg-stone-100 rounded-xl" />
+});
+
+const RelatedProducts = NextDynamic(() => import('@/components/product/related-products'), {
+  loading: () => <div className="h-80 animate-pulse bg-stone-100 rounded-xl" />
+});
+
+const RecentlyViewed = NextDynamic(() => import('@/components/product/recently-viewed'), {
+  ssr: false
+});
 
 interface ProductPageProps {
   params: { slug: string };
@@ -45,7 +56,7 @@ export async function generateMetadata({
   };
 }
 
-import { RecentlyViewed } from '@/components/product/recently-viewed';
+
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Slash } from 'lucide-react';
 

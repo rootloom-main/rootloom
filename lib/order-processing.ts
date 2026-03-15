@@ -59,57 +59,55 @@ export async function processOrderCreation({
         // ... other fields if needed for return, but ID and Number are main ones used
     };
 
-    // Stock updates are handled inside RPC now.
-    // Inventory Alert Email Logic needs to be separate or inside RPC (RPC can't send email).
-    // We can check stock *after* RPC if we want to send alerts.
-    // For now, let's keep it simple and skip the alert email in this transaction block, 
-    // or re-implement outside.
+    // 3. Prepare non-critical tasks to run in parallel
+    const backgroundTasks = (async () => {
+        try {
+            // Inventory Alerts
+            const inventoryPromises = cartItems.map(async (item: any) => {
+                const { data: variant } = await supabase
+                    .from('product_variants')
+                    .select('stock, size, color, product:products(id, name)')
+                    .eq('id', item.variant_id)
+                    .single() as { data: any | null };
 
-    // Re-implementing Stock Alert separate checking (optional but good)
-    // We can query the variants *after* to see if they are low.
-    for (const item of cartItems) {
-        const { data: variant } = await supabase
-            .from('product_variants')
-            .select('stock, size, color, product:products(id, name)')
-            .eq('id', item.variant_id)
-            .single() as { data: any | null };
+                if (variant && variant.stock < 5) {
+                    try {
+                        const { sendInventoryAlertEmail } = await import('@/lib/email-alerts');
+                        const productData: any = Array.isArray(variant.product) ? variant.product[0] : variant.product;
 
-        if (variant && variant.stock < 5) {
-            try {
-                // ... email logic ...
-                const { sendInventoryAlertEmail } = await import('@/lib/email-alerts');
-                const productData: any = Array.isArray(variant.product) ? variant.product[0] : variant.product;
+                        await sendInventoryAlertEmail({
+                            productName: productData?.name || 'Unknown',
+                            variant: `Size: ${variant.size}, Color: ${variant.color}`,
+                            remainingStock: variant.stock,
+                            productId: productData?.id
+                        });
+                    } catch (e) {
+                        console.error('Failed to send inventory alert', e);
+                    }
+                }
+            });
 
-                await sendInventoryAlertEmail({
-                    productName: productData?.name || 'Unknown',
-                    variant: `Size: ${variant.size}, Color: ${variant.color}`,
-                    remainingStock: variant.stock,
-                    productId: productData?.id
-                });
-            } catch (e) {
-                console.error('Failed to send inventory alert', e);
-            }
+            // Order Confirmation Email
+            const emailItems = cartItems.map((item: any) => ({
+                name: item.name || 'Product',
+                quantity: item.quantity,
+                price: (item.price * item.quantity).toFixed(2),
+            }));
+
+            const emailPromise = sendOrderConfirmationEmail({
+                orderNumber: order.order_number,
+                customerName: userName,
+                customerEmail: userEmail,
+                totalAmount: amount.toFixed(2),
+                items: emailItems,
+            });
+
+            // Wait for all non-critical tasks to settle (parallelized)
+            await Promise.allSettled([...inventoryPromises, emailPromise]);
+        } catch (err) {
+            console.error('Background order tasks failed:', err);
         }
-    }
+    })();
 
-    // 4. Send Confirmation Email
-    try {
-        const emailItems = cartItems.map((item: any) => ({
-            name: item.name || 'Product', // Require name in cartItems
-            quantity: item.quantity,
-            price: (item.price * item.quantity).toFixed(2),
-        }));
-
-        await sendOrderConfirmationEmail({
-            orderNumber: order.order_number,
-            customerName: userName,
-            customerEmail: userEmail,
-            totalAmount: amount.toFixed(2),
-            items: emailItems,
-        });
-    } catch (e) {
-        console.error('Failed to send confirmation email', e);
-    }
-
-    return order;
+    return { order, backgroundTasks };
 }

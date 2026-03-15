@@ -15,24 +15,26 @@ export async function middleware(request: NextRequest) {
   if (requiresRateLimit) {
     const { success } = await checkRateLimit(ip);
     if (!success) {
-      return new NextResponse('Too Many Requests', { status: 429 });
+      return NextResponse.json({ message: 'Too Many Requests' }, { status: 429 });
     }
   }
 
-  // Create a strict CSP
+  // 1. Create a strict CSP
+  const isDev = process.env.NODE_ENV === 'development';
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com https://js.stripe.com https://v2.posthog.com;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://api.razorpay.com https://v2.posthog.com https://us-assets.i.posthog.com blob:;
+    worker-src 'self' blob:;
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https: https://razorpay.com *.razorpay.com;
+    img-src 'self' blob: data: https: https://razorpay.com;
     font-src 'self' data:;
     object-src 'none';
     base-uri 'self';
     form-action 'self' https://checkout.razorpay.com https://api.razorpay.com;
     frame-src 'self' https://checkout.razorpay.com https://api.razorpay.com;
-    connect-src 'self' wss: https: https://api.razorpay.com https://lumberjack-cx.razorpay.com;
-    upgrade-insecure-requests;
-`
+    connect-src 'self' wss: https: https://api.razorpay.com https://us.i.posthog.com blob:;
+    ${isDev ? '' : 'upgrade-insecure-requests;'}
+  `;
   // Replace newline characters and spaces
   const contentSecurityPolicyHeaderValue = cspHeader
     .replace(/\s{2,}/g, ' ')
@@ -117,6 +119,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

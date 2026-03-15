@@ -192,10 +192,10 @@ export const InvoicePDF = ({ order }: InvoiceProps) => {
 
                 {/* Company Info */}
                 <View style={styles.companyInfo}>
-                    <Text style={styles.companyName}>Root & Loom Inc.</Text>
-                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>123 Artisan Valley, Design District</Text>
-                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>New Delhi, India 110001</Text>
-                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>GSTIN: 07AABCU9603R1Z2 | support@rootloom.com</Text>
+                    <Text style={styles.companyName}>Root & Loom</Text>
+                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Shri Ram Folding Works, Shed 19, Narol</Text>
+                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>Ahmedabad, Gujarat 382405</Text>
+                    <Text style={{ fontSize: 10, color: '#666', marginTop: 2 }}>GSTIN: 07AABCU9603R1Z2 | root@rootloom.in</Text>
                 </View>
 
                 {/* Bill To / Ship To */}
@@ -277,7 +277,7 @@ export const InvoicePDF = ({ order }: InvoiceProps) => {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={{ fontWeight: 'bold', color: '#1c352d', marginBottom: 4 }}>Thank you for your purchase.</Text>
-                    <Text>If you have any questions about this invoice, please contact support@rootloom.com</Text>
+                    <Text>If you have any questions about this invoice, please contact root@rootloom.in</Text>
                     <Text style={{ marginTop: 10, fontSize: 8 }}>This is a computer generated invoice and does not require a physical signature.</Text>
                 </View>
             </Page>

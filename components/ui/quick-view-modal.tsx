@@ -70,7 +70,23 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
 
         setIsAdding(true);
         try {
-            await addToCart(product.id, selectedVariant.id, 1);
+            await addToCart({
+                productId: product.id,
+                variantId: selectedVariant.id,
+                quantity: 1,
+                productData: {
+                    name: product.name,
+                    slug: product.slug,
+                    base_price: product.base_price,
+                    product_images: product.product_images
+                },
+                variantData: {
+                    size: selectedSize,
+                    color: selectedColor,
+                    price_adjustment: selectedVariant.price_adjustment,
+                    stock: selectedVariant.stock
+                }
+            });
             onOpenChange(false);
         } catch (error) {
             toast.error('Failed to add to cart');

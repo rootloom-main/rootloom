@@ -13,7 +13,7 @@ interface Product {
     image_url: string;
 }
 
-export function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
+export default function RecentlyViewed({ currentProductId }: { currentProductId: string }) {
     const [recentProducts, setRecentProducts] = useState<Product[]>([]);
 
     useEffect(() => {

@@ -31,7 +31,9 @@ import {
     TrendingUp,
     TrendingDown,
     Activity,
-    Package
+    Package,
+    ShoppingBag,
+    Megaphone
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -117,6 +119,16 @@ export default async function AdminAnalyticsPage() {
     const { count: totalCustomers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
+
+    // 6. Fetch Abandoned Cart Count
+    // For simplicity, we count unique user IDs in cart_items table
+    const { data: abandonedData } = await (supabase.from('cart_items') as any).select('user_id');
+    const abandonedCartCount = new Set(abandonedData?.map((item: any) => item.user_id)).size;
+
+    // 7. Fetch active campaigns
+    const { count: activeCampaigns } = await (supabase.from('marketing_campaigns') as any)
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['processing', 'scheduled']);
 
     // Calculate Metrics
     const totalRevenue = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
@@ -256,6 +268,54 @@ export default async function AdminAnalyticsPage() {
                                 </CardContent>
                             </Card>
                         ))}
+                    </div>
+                </div>
+
+                {/* Marketing Metrics Section */}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-8 bg-amber-500 rounded-full" />
+                        <h2 className="text-xl font-bold text-deep-forest uppercase tracking-tighter">Marketing & Conversion</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <Card className="border-stone-100 shadow-sm rounded-xl bg-amber-50/10 border-l-4 border-l-amber-500">
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-amber-100 rounded-xl text-amber-700">
+                                        <ShoppingBag className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest">Abandoned Bags</p>
+                                        <p className="text-2xl font-bold text-deep-forest">{abandonedCartCount}</p>
+                                    </div>
+                                </div>
+                                <Link 
+                                    href="/admin/marketing/campaigns/new?audience=abandoned_cart" 
+                                    className="mt-4 flex items-center justify-between text-xs font-bold text-amber-700 hover:text-amber-800"
+                                >
+                                    Recover Now <ArrowRight className="w-3 h-3" />
+                                </Link>
+                            </CardContent>
+                        </Card>
+                        <Card className="border-stone-100 shadow-sm rounded-xl bg-indigo-50/10 border-l-4 border-l-indigo-500">
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-indigo-100 rounded-xl text-indigo-700">
+                                        <Megaphone className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-stone-500 uppercase tracking-widest">Active Campaigns</p>
+                                        <p className="text-2xl font-bold text-deep-forest">{activeCampaigns || 0}</p>
+                                    </div>
+                                </div>
+                                <Link 
+                                    href="/admin/marketing/campaigns" 
+                                    className="mt-4 flex items-center justify-between text-xs font-bold text-indigo-700 hover:text-indigo-800"
+                                >
+                                    Manage Broadcasts <ArrowRight className="w-3 h-3" />
+                                </Link>
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
 

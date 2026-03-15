@@ -41,13 +41,13 @@ export function FeaturedProducts({ products }: FeaturedProductsProps) {
                 </FadeIn>
 
                 <FadeInStagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-                    {products?.map((product) => (
+                    {products?.map((product, index) => (
                         <motion.div
                             key={product.id}
                             variants={fadeInItemVariants}
                             className="group"
                         >
-                            <ProductCard product={product} />
+                            <ProductCard product={product} priority={index < 4} />
                         </motion.div>
                     ))}
                 </FadeInStagger>

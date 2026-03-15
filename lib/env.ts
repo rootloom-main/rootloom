@@ -24,6 +24,11 @@ const envSchema = z.object({
     // Redis (Upstash)
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+
+    // Twilio (WhatsApp)
+    TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
+    TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
+    TWILIO_WHATSAPP_NUMBER: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -10,6 +10,7 @@ import { ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice } from '@/lib/utils/pricing';
 
 export default function CartPage() {
   const { cart, cartCount, isLoading: cartLoading } = useCart();
@@ -25,7 +26,7 @@ export default function CartPage() {
   };
 
   const subtotal = cart.reduce((total, item) => {
-    const price = item.product.base_price + (item.variant.price_adjustment || 0);
+    const price = getProductPrice(item.product, item.variant);
     return total + price * item.quantity;
   }, 0);
 

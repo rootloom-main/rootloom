@@ -1,24 +1,28 @@
-import { createClient } from '@/lib/supabase/server';
+import { ProductService } from '@/lib/services/productService';
 import { ProductShowcase } from './product-showcase';
 
-export async function NewArrivals({ limit = 8 }: { limit?: number }) {
-    const supabase = await createClient();
-
-    const { data: products } = await supabase
-        .from('products')
-        .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
-        .order('created_at', { ascending: false })
-        .limit(limit);
+export async function NewArrivals({ 
+    limit = 8, 
+    category,
+    title = "Fresh Drops",
+    subtitle = "New Arrivals"
+}: { 
+    limit?: number;
+    category?: string;
+    title?: string;
+    subtitle?: string;
+}) {
+    const products = await ProductService.getNewArrivals(limit, category);
 
     if (!products || products.length === 0) return null;
 
     return (
         <ProductShowcase
-            title="New Arrivals"
-            subtitle="Fresh Drops"
+            title={title}
+            subtitle={subtitle}
             products={products}
-            viewAllLink="/shop?sort=newest"
-            className="bg-white"
+            viewAllLink={category ? `/shop?category=${category}` : "/shop?sort=newest"}
+            className="bg-stone-50"
         />
     );
 }

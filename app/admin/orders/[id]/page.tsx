@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatDate, formatPrice } from '@/lib/utils/format';
 import { Package, Truck, CreditCard, User, ExternalLink } from 'lucide-react';
 import GenerateLabelButton from './generate-label-button';
+import ShipOrderButton from './ship-order-button';
 import Link from 'next/link';
 import { DownloadInvoiceButton } from '@/components/admin/orders/download-invoice-button';
 import { OrderNotes } from '@/components/admin/orders/order-notes';
@@ -70,8 +71,8 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                         currentRefundStatus={order.refund_status}
                     />
                     <DownloadInvoiceButton order={order} />
-                    {/* GENERATE LABEL BUTTON */}
-                    <GenerateLabelButton
+                    {/* SHIP ORDER BUTTON */}
+                    <ShipOrderButton
                         orderId={order.id}
                         disabled={!!order.tracking_number || order.status === 'cancelled' || order.status === 'delivered'}
                     />
@@ -189,15 +190,36 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
-                                <CreditCard className="h-4 w-4" /> Payment Status
+                                <CreditCard className="h-4 w-4" /> Payment Details
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <Badge variant={order.payment_status === 'completed' ? 'default' : 'destructive'} className="capitalize mb-2">
-                                {order.payment_status}
-                            </Badge>
+                        <CardContent className="space-y-4">
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Status</p>
+                                <Badge variant={order.payment_status === 'completed' ? 'default' : 'destructive'} className="capitalize">
+                                    {order.payment_status}
+                                </Badge>
+                            </div>
+                            
+                            {order.refund_status && order.refund_status !== 'none' && (
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-md">
+                                    <p className="text-xs text-red-600 uppercase font-semibold mb-1">Refund Information</p>
+                                    <div className="flex justify-between items-center">
+                                        <Badge variant="outline" className="text-red-700 border-red-200 bg-white capitalize">
+                                            {order.refund_status}
+                                        </Badge>
+                                        {(order.refund_amount || 0) > 0 && (
+                                            <span className="font-bold text-red-700">{formatPrice(order.refund_amount)}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {order.payment_id && (
-                                <p className="text-xs text-gray-400 break-all">ID: {order.payment_id}</p>
+                                <div className="pt-2 border-t">
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Transaction ID</p>
+                                    <p className="text-xs text-gray-400 break-all font-mono">{order.payment_id}</p>
+                                </div>
                             )}
                         </CardContent>
                     </Card>

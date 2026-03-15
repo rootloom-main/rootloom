@@ -105,7 +105,7 @@ export async function addToCart(productId: string, variantId: string, quantity: 
             return { success: false, message: 'Failed to add to cart' };
         }
 
-        revalidatePath('/cart'); // Optional, if we have a cart page
+        revalidatePath('/', 'layout');
         return { success: true, message: 'Added to cart' };
     }
 }
@@ -159,6 +159,7 @@ export async function updateCartItem(itemId: string, quantity: number) {
         return { success: false, message: 'Failed to update cart' };
     }
 
+    revalidatePath('/', 'layout');
     return { success: true, message: 'Cart updated' };
 }
 
@@ -179,6 +180,7 @@ export async function removeFromCart(itemId: string) {
         return { success: false, message: 'Failed to remove from cart' };
     }
 
+    revalidatePath('/', 'layout');
     return { success: true, message: 'Removed from cart' };
 }
 
@@ -198,5 +200,17 @@ export async function clearCart() {
         return { success: false, message: 'Failed to clear cart' };
     }
 
+    revalidatePath('/', 'layout');
     return { success: true, message: 'Cart cleared' };
+}
+export async function mergeCart(guestItems: Array<{ productId: string; variantId: string; quantity: number }>) {
+    const user = await getCurrentUser();
+    if (!user) return { success: false, message: 'Unauthorized' };
+
+    for (const item of guestItems) {
+        await addToCart(item.productId, item.variantId, item.quantity);
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true, message: 'Cart merged successfully' };
 }

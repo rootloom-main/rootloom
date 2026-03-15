@@ -13,20 +13,35 @@ import { Search } from 'lucide-react';
 import { ProductActions } from '@/app/admin/products/product-actions';
 import { formatPrice } from '@/lib/utils/format';
 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+
 interface AdminProductsTableProps {
     products: any[];
+    collections: any[];
 }
 
-export function AdminProductsTable({ products = [] }: AdminProductsTableProps) {
+export function AdminProductsTable({ products = [], collections = [] }: AdminProductsTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCollection, setSelectedCollection] = useState('all');
 
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
-            if (!searchQuery) return true;
-            return product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            const matchesSearch = !searchQuery || 
+                product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (product.slug && product.slug.toLowerCase().includes(searchQuery.toLowerCase()));
+            
+            const matchesCollection = selectedCollection === 'all' || 
+                product.collection_products?.some((cp: any) => cp.collection_id === selectedCollection);
+            
+            return matchesSearch && matchesCollection;
         });
-    }, [products, searchQuery]);
+    }, [products, searchQuery, selectedCollection]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -39,15 +54,29 @@ export function AdminProductsTable({ products = [] }: AdminProductsTableProps) {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="relative w-full sm:w-80">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
                     <Input
-                        placeholder="Search products by name or slug..."
+                        placeholder="Search products..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9 bg-white border-stone-200"
                     />
+                </div>
+                
+                <div className="w-full sm:w-64">
+                    <Select value={selectedCollection} onValueChange={setSelectedCollection}>
+                        <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Filter by Collection" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Collections</SelectItem>
+                            {collections.map((col) => (
+                                <SelectItem key={col.id} value={col.id}>{col.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 

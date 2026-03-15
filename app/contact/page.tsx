@@ -27,7 +27,7 @@ export default function ContactPage() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-stone-900">Email</h3>
-                                <p className="text-stone-600">support@rootloom.com</p>
+                                <p className="text-stone-600">root@rootloom.in</p>
                                 <p className="text-sm text-stone-400">Expect a response within 24 hours.</p>
                             </div>
                         </div>
@@ -37,21 +37,21 @@ export default function ContactPage() {
                                 <Phone className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-stone-900">Phone</h3>
-                                <p className="text-stone-600">+91 98765 43210</p>
-                                <p className="text-sm text-stone-400">Mon-Fri from 9am to 6pm IST.</p>
+                                <h3 className="font-bold text-stone-900">Phone & WhatsApp</h3>
+                                <p className="text-stone-600">+91 99135 55532</p>
+                                <p className="text-sm text-stone-400">Available Mon-Sat from 10am to 7pm IST.</p>
                             </div>
                         </div>
 
                         <div className="flex items-start gap-4">
                             <div className="p-3 bg-stone-100 rounded-full text-deep-forest">
-                                <MapPin className="w-5 h-5" />
+                                <MapPin className="w-5 h-5 flex-shrink-0" />
                             </div>
                             <div>
-                                <h3 className="font-bold text-stone-900">Studio (No Storefront)</h3>
-                                <p className="text-stone-600">123 Artisan Lane, Craft District</p>
-                                <p className="text-stone-600">New Delhi, DL 110001</p>
-                                <p className="text-stone-600">India</p>
+                                <h3 className="font-bold text-stone-900">Address</h3>
+                                <p className="text-stone-600">Shri Ram Folding Works, Shri Ram Industries park-3</p>
+                                <p className="text-stone-600">Shed 19, Near Vaishalinagar, OPP Cozy Hotel Shahwadi</p>
+                                <p className="text-stone-600">Narol, Ahmedabad 382405</p>
                             </div>
                         </div>
                     </div>

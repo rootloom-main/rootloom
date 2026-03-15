@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSSRClient } from '@/lib/utils/auth';
 import { sendOrderConfirmationEmail } from '@/lib/email';
 import { validateCouponLogic } from '@/lib/coupon';
+import { sendOrderConfirmationWhatsApp } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,20 @@ export async function POST(req: NextRequest) {
         const {
             data: { user },
         } = await supabase.auth.getUser();
+
+        let userPhone = user?.user_metadata?.phone;
+
+        // If not in metadata, fetch from profiles
+        if (user && !userPhone) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('phone')
+                .eq('id', user.id)
+                .single();
+            if (profile?.phone) {
+                userPhone = profile.phone;
+            }
+        }
 
         if (!user) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -129,60 +144,77 @@ export async function POST(req: NextRequest) {
             throw itemsError;
         }
 
-        // Background Task: Low Stock Alerts
-        Promise.all(cartItems.map(async (item: any) => {
-            const { data: variant } = await supabase
-                .from('product_variants')
-                .select('stock, size, color, product:products(id, name)')
-                .eq('id', item.variant_id)
-                .single() as { data: any | null };
+        // 4. Clear Cart in Database (Mandatory)
+        await supabase.from('cart_items').delete().eq('user_id', user.id);
 
-            if (variant && variant.stock < 5) {
-                try {
-                    const { sendInventoryAlertEmail } = await import('@/lib/email-alerts');
-                    const productData: any = Array.isArray(variant.product) ? variant.product[0] : variant.product;
-                    await sendInventoryAlertEmail({
-                        productName: productData?.name || 'Unknown Product',
-                        variant: `Size: ${variant.size}, Color: ${variant.color}`,
-                        remainingStock: variant.stock,
-                        productId: productData?.id
-                    });
-                } catch (e) {
-                    console.error('Low stock email failed', e);
+        // Group Background Tasks (Non-blocking)
+        const backgroundTasks = async () => {
+            try {
+                // 1. Low Stock Alerts
+                for (const item of cartItems) {
+                    const { data: variant } = await supabase
+                        .from('product_variants')
+                        .select('stock, size, color, product:products(id, name)')
+                        .eq('id', item.variant_id)
+                        .single() as { data: any | null };
+
+                    if (variant && variant.stock < 5) {
+                        try {
+                            const { sendInventoryAlertEmail } = await import('@/lib/email-alerts');
+                            const productData: any = Array.isArray(variant.product) ? variant.product[0] : variant.product;
+                            await sendInventoryAlertEmail({
+                                productName: productData?.name || 'Unknown Product',
+                                variant: `Size: ${variant.size}, Color: ${variant.color}`,
+                                remainingStock: variant.stock,
+                                productId: productData?.id
+                            });
+                        } catch (e) {
+                            console.error('Failed to send inventory alert', e);
+                        }
+                    }
                 }
+
+                // 2. Order Confirmation Email
+                const productIds = cartItems.map((item: any) => item.product_id);
+                const { data: products } = await supabase
+                    .from('products')
+                    .select('id, name')
+                    .in('id', productIds) as { data: any[] | null };
+
+                const emailItems = cartItems.map((item: any) => {
+                    const product = products?.find((p) => p.id === item.product_id);
+                    return {
+                        name: product?.name || 'Create',
+                        quantity: item.quantity,
+                        price: (item.price * item.quantity).toFixed(2),
+                    };
+                });
+
+                await sendOrderConfirmationEmail({
+                    orderNumber: order.order_number,
+                    customerName: user.user_metadata.full_name || 'Customer',
+                    customerEmail: user.email || '',
+                    totalAmount: total.toFixed(2),
+                    items: emailItems,
+                });
+
+                // 3. Send WhatsApp Confirmation
+                if (userPhone) {
+                    await sendOrderConfirmationWhatsApp(
+                        userPhone,
+                        user.user_metadata.full_name || 'Customer',
+                        order.order_number,
+                        total.toFixed(2),
+                        true // isCOD
+                    ).catch(e => console.error('Failed to send COD WhatsApp:', e));
+                }
+            } catch (err) {
+                console.error('COD Background Tasks Error:', err);
             }
-        })).catch(console.error);
+        };
 
-
-        // Send Confirmation Email
-        try {
-            // Fetch product details for email names
-            const productIds = cartItems.map((item: any) => item.product_id);
-            const { data: products } = await supabase
-                .from('products')
-                .select('id, name')
-                .in('id', productIds) as { data: any[] | null };
-
-            const emailItems = cartItems.map((item: any) => {
-                const product = products?.find((p) => p.id === item.product_id);
-                return {
-                    name: product?.name || 'Create',
-                    quantity: item.quantity,
-                    price: (item.price * item.quantity).toFixed(2), // Format as needed
-                };
-            });
-
-            await sendOrderConfirmationEmail({
-                orderNumber: order.order_number,
-                customerName: user.user_metadata.full_name || 'Customer',
-                customerEmail: user.email || '',
-                totalAmount: total.toFixed(2),
-                items: emailItems,
-            });
-        } catch (emailError) {
-            // Don't fail the request if email fails, just log it
-            console.error('Failed to send confirmation email:', emailError);
-        }
+        // Await background tasks (Email, WhatsApp) to guarantee delivery in serverless context
+        await backgroundTasks();
 
         return NextResponse.json({
             success: true,

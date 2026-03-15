@@ -17,14 +17,11 @@ export function BannerActions({ bannerId, active }: BannerActionsProps) {
     const supabase = createClient();
 
     const handleToggle = async () => {
-        const { error } = await supabase
-            .from('banners')
-            .update({ active: !active })
-            .eq('id', bannerId);
+        const { toggleBannerAction } = await import('@/app/admin/marketing/banners/banner-actions');
+        const result = await toggleBannerAction(bannerId, active);
 
-        if (error) {
-            toast.error('Failed to update banner status');
-            console.error(error);
+        if (!result.success) {
+            toast.error(result.error || 'Failed to update banner status');
             return;
         }
         toast.success(active ? 'Banner deactivated' : 'Banner activated');
@@ -34,14 +31,11 @@ export function BannerActions({ bannerId, active }: BannerActionsProps) {
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this banner?')) return;
 
-        const { error } = await supabase
-            .from('banners')
-            .delete()
-            .eq('id', bannerId);
+        const { deleteBannerAction } = await import('@/app/admin/marketing/banners/banner-actions');
+        const result = await deleteBannerAction(bannerId);
 
-        if (error) {
-            toast.error('Failed to delete banner');
-            console.error(error);
+        if (!result.success) {
+            toast.error(result.error || 'Failed to delete banner');
             return;
         }
         toast.success('Banner deleted');

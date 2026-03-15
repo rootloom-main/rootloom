@@ -7,6 +7,9 @@ interface PromoBannerProps {
         title: string;
         image_url: string;
         link?: string | null;
+        collections?: {
+            slug: string;
+        } | null;
     };
 }
 
@@ -20,20 +23,31 @@ export function PromoBanner({ banner }: PromoBannerProps) {
                 alt={banner.title}
                 fill
                 className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
-                sizes="(max-width: 1200px) 100vw, 1200vw"
+                sizes="(max-width: 1200px) 100vw, 1200px"
             />
-            {/* Subtle Overlay to make it distinct */}
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-500 flex items-center justify-center">
-                <h3 className="text-white text-2xl md:text-4xl font-serif font-bold tracking-wider drop-shadow-md opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500">{banner.title}</h3>
+            {/* Elegant Overlay */}
+            <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-all duration-500 flex flex-col items-center justify-center p-6 text-center">
+                <h3 className="text-white text-3xl md:text-5xl font-serif font-bold tracking-tight drop-shadow-lg mb-2 transform transition-all duration-500 group-hover:scale-105">
+                    {banner.title}
+                </h3>
+                {(banner as any).description && (
+                    <p className="text-heirloom-white/90 text-sm md:text-lg max-w-xl font-light opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-700 delay-100">
+                        {(banner as any).description}
+                    </p>
+                )}
             </div>
         </div>
     );
 
+    const bannerLink = banner.collections?.slug 
+        ? `/collections/${banner.collections.slug}` 
+        : banner.link;
+
     return (
         <section className="w-full my-8 md:my-16">
             <div className="container mx-auto px-4">
-                {banner.link ? (
-                    <Link href={banner.link} className="block rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500">
+                {bannerLink ? (
+                    <Link href={bannerLink} className="block rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-500">
                         {content}
                     </Link>
                 ) : (

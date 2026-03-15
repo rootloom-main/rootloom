@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice } from '@/lib/utils/pricing';
 import { useCart } from '@/components/providers/cart-provider'; // Adjust import if needed
 import { toast } from 'sonner';
 
@@ -15,7 +16,7 @@ interface CartItemProps {
 export function CartItem({ item }: CartItemProps) {
     const { updateCartItem, removeFromCart } = useCart();
 
-    const price = item.product.base_price + (item.variant.price_adjustment || 0);
+    const price = getProductPrice(item.product, item.variant);
     const imageUrl =
         item.product.product_images?.[0]?.image_url ||
         'https://images.pexels.com/photos/1656684/pexels-photo-1656684.jpeg?auto=compress&cs=tinysrgb&w=400';

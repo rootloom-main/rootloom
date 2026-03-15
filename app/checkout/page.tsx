@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/components/providers/cart-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice } from '@/lib/utils/pricing';
 import { toast } from 'sonner';
 import { Loader2, Check, Plus, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
@@ -39,9 +40,11 @@ type CheckoutStep = 'address' | 'summary' | 'payment';
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { cart, cartCount, clearCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const posthog = usePostHog();
+  const rzpInstance = useRef<any>(null);
 
   const [loading, setLoading] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -51,6 +54,8 @@ export default function CheckoutPage() {
     address: false,
     summary: false,
   });
+
+  const paymentHasFailed = useRef(false);
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
@@ -77,7 +82,7 @@ export default function CheckoutPage() {
 
   // Totals
   const subtotal = useMemo(() => cart.reduce((total, item) => {
-    const price = item.product.base_price + (item.variant.price_adjustment || 0);
+    const price = getProductPrice(item.product, item.variant);
     return total + price * item.quantity;
   }, 0), [cart]);
 
@@ -98,12 +103,24 @@ export default function CheckoutPage() {
     script.onload = () => setScriptLoaded(true);
     document.body.appendChild(script);
 
+    // Handle retry deep-linking
+    const isRetry = searchParams?.get('retry') === 'true';
+    if (isRetry && !authLoading && user && cartCount > 0) {
+      setCompletedSteps({ address: true, summary: true });
+      setCheckoutStep('payment');
+    }
+
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
+      if (rzpInstance.current) {
+        try {
+          rzpInstance.current.close();
+        } catch (e) {}
+      }
     };
-  }, []);
+  }, [searchParams, authLoading, user, cartCount]);
 
   // Load saved address
   useEffect(() => {
@@ -260,6 +277,7 @@ export default function CheckoutPage() {
   const processPayment = async () => {
     setLoading(true);
     setIsProcessingPayment(true);
+    paymentHasFailed.current = false;
     try {
       if (paymentMethod === 'cod') {
         await handleCOD();
@@ -280,20 +298,16 @@ export default function CheckoutPage() {
       const orderData = await response.json();
       if (!orderData.success) throw new Error(orderData.message || 'Failed to create order');
 
-      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-      if (!rzpKey) throw new Error('Payment gateway error');
-
-      let paymentSubmitted = false;
-
+      // PHASE 3: Open Razorpay Direct (Integrated in Overlay)
       const options = {
-        key: rzpKey,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: 'Root&Loom',
         description: 'Sustainable Luxury Fashion',
         order_id: orderData.order.id,
         handler: async function (response: any) {
-          paymentSubmitted = true;
+          setIsProcessingPayment(true);
           try {
             const verifyResponse = await fetch('/api/razorpay/verify-payment', {
               method: 'POST',
@@ -302,16 +316,8 @@ export default function CheckoutPage() {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                cartItems: cart.map((item) => ({
-                  product_id: item.product_id,
-                  variant_id: item.variant_id,
-                  quantity: item.quantity,
-                  price: item.product.base_price + (item.variant.price_adjustment || 0),
-                })),
                 address_id: address.id,
-                subtotal, shipping_cost: shipping, total,
                 couponCode: appliedCoupon?.code,
-                discountAmount: discount
               }),
             });
 
@@ -320,58 +326,48 @@ export default function CheckoutPage() {
               await clearCart();
               router.push(`/checkout/success?orderNumber=${verifyData.orderNumber}`);
             } else {
-              toast.error(verifyData.message || 'Payment verification failed. Contact support.');
+              toast.error(verifyData.message || 'Verification failed');
               setIsProcessingPayment(false);
               setLoading(false);
             }
           } catch (error) {
-            console.error('Verify payment error:', error);
-            router.push('/account/orders');
+            console.error('Verification Error:', error);
+            setIsProcessingPayment(false);
+            setLoading(false);
+            router.push('/checkout/failed?reason=network_error');
           }
         },
         modal: {
           ondismiss: () => {
-            if (!paymentSubmitted) {
-              setIsProcessingPayment(false);
-              setLoading(false);
-            }
+             setIsProcessingPayment(false);
+             setLoading(false);
+             router.push('/checkout/failed?reason=cancelled');
           },
+          escape: false,
+          backdropclose: false
         },
         prefill: {
           name: address.full_name,
           email: user?.email || '',
           contact: address.phone,
         },
-        theme: {
-          color: '#1F2F26',
-        },
+        theme: { color: '#1F2F26' },
+        retry: { enabled: false }
       };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.on('payment.failed', () => {
-        paymentSubmitted = false;
-        setIsProcessingPayment(false);
-        setLoading(false);
-        try {
-          if (razorpay) razorpay.close();
-        } catch (e) {
-          console.warn('Razorpay instance already closed', e);
-        }
-
-        // Aggressive DOM teardown to prevent Next.js client-routing ghosts
-        try {
-          const razorpayContainer = document.querySelector('.razorpay-container');
-          if (razorpayContainer) {
-            razorpayContainer.remove();
-          }
-        } catch (err) {
-          console.warn('Could not manually remove Razorpay DOM element', err);
-        }
-
-        router.push('/checkout/failed');
+      const rzp = new window.Razorpay(options);
+      rzpInstance.current = rzp;
+      
+      rzp.on('payment.failed', function (response: any) {
+          setIsProcessingPayment(false);
+          setLoading(false);
+          router.replace(`/checkout/failed?reason=${response.error.code}`);
       });
-      razorpay.open();
+
+      rzp.open();
+
     } catch (error: any) {
+      console.error('Payment Error:', error);
       toast.error(error.message || 'Payment error');
       setIsProcessingPayment(false);
       setLoading(false);
@@ -379,6 +375,8 @@ export default function CheckoutPage() {
   };
 
   const handleCOD = async () => {
+    setIsProcessingPayment(true);
+    setLoading(true);
     try {
       const response = await fetch('/api/checkout/cod', {
         method: 'POST',
@@ -388,7 +386,7 @@ export default function CheckoutPage() {
             product_id: item.product_id,
             variant_id: item.variant_id,
             quantity: item.quantity,
-            price: item.product.base_price + (item.variant.price_adjustment || 0),
+            price: getProductPrice(item.product, item.variant),
           })),
           address_id: address.id,
           subtotal, shipping_cost: shipping, total,
@@ -741,10 +739,38 @@ export default function CheckoutPage() {
       </div>
 
       {isProcessingPayment && (
-        <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center p-4 bg-white/80 backdrop-blur-sm">
-          <Loader2 className="h-12 w-12 text-deep-forest animate-spin mb-4" />
-          <h3 className="text-xl font-serif font-bold text-stone-900 mb-2">Processing Payment</h3>
-          <p className="text-stone-500 text-sm font-medium">Please do not refresh this page.</p>
+        <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white p-6">
+          <div className="absolute top-0 left-0 w-full h-1 bg-stone-100">
+            <div className="h-full bg-deep-forest animate-shimmer w-1/3" />
+          </div>
+          
+          <div className="flex flex-col items-center max-w-sm w-full">
+            <div className="mb-12">
+              <h1 className="text-3xl font-serif tracking-[0.2em] text-deep-forest font-bold">ROOT<span className="text-stone-300">&</span>LOOM</h1>
+            </div>
+
+            <div className="relative mb-10">
+              <Loader2 className="h-16 w-16 text-deep-forest animate-spin stroke-[1.5px]" />
+              <ShieldCheck className="absolute inset-0 m-auto h-6 w-6 text-deep-forest" />
+            </div>
+
+            <div className="text-center space-y-4">
+              <h2 className="text-xl font-serif font-bold text-stone-900">Processing Payment</h2>
+              <p className="text-stone-500 text-sm leading-relaxed font-medium">
+                Please do not refresh this page. We are connecting you to our secure payment gateway.
+              </p>
+            </div>
+          </div>
+
+          <style jsx>{`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(300%); }
+            }
+            .animate-shimmer {
+              animation: shimmer 2s infinite linear;
+            }
+          `}</style>
         </div>
       )}
 

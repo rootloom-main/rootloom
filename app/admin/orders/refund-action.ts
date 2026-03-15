@@ -1,12 +1,12 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
-import { processRazorpayRefund } from '@/lib/razorpay';
 
 export async function processRefund(formData: FormData) {
     const supabase = await createClient() as any;
+    const adminSupabase = await createAdminClient() as any;
     const orderId = formData.get('orderId') as string;
     const amount = formData.get('amount') as string;
     const restock = formData.get('restock') === 'true';
@@ -30,7 +30,7 @@ export async function processRefund(formData: FormData) {
     }
 
     // 1. Fetch the Order to get the payment ID
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await adminSupabase
         .from('orders')
         .select('payment_id, status')
         .eq('id', orderId)
@@ -40,28 +40,13 @@ export async function processRefund(formData: FormData) {
         return { error: 'Order not found' };
     }
 
-    // 2. Process Razorpay Refund if online payment exists
-    if (order.payment_id && !order.payment_id.startsWith('cod_')) {
-        try {
-            await processRazorpayRefund({
-                paymentId: order.payment_id,
-                amount: parseFloat(amount),
-            });
-        } catch (e: any) {
-            console.error('Razorpay Refund Failed:', e.message);
-            return { error: `Payment gateway failed: ${e.message}` };
-        }
-    }
-
-    // 3. Update Order Status in Database
-    const { error: updateError } = await supabase
+    // 2. Update Order Status in Database (Manual Refund)
+    const { error: updateError } = await adminSupabase
         .from('orders')
         .update({
             refund_status: 'processed',
             refund_amount: parseFloat(amount),
-            // Optionally set status to 'cancelled' if full refund?
-            // Let's keep status as is, or maybe 'returned'?
-            // user requirement: "Return & refund processing"
+            updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
 
@@ -72,7 +57,7 @@ export async function processRefund(formData: FormData) {
     // 2. Restock Inventory if requested
     if (restock) {
         // Fetch order items
-        const { data: orderItems } = await supabase
+        const { data: orderItems } = await adminSupabase
             .from('order_items')
             .select('variant_id, quantity')
             .eq('order_id', orderId);
@@ -80,10 +65,8 @@ export async function processRefund(formData: FormData) {
         if (orderItems) {
             for (const item of orderItems) {
                 // Increment stock
-                // Note: This is not atomic without a stored procedure, but sufficient for now.
-                // Ideally use rpc increment_stock
                 if (item.variant_id) {
-                    const { error: stockError } = await supabase.rpc('increment_stock', {
+                    const { error: stockError } = await adminSupabase.rpc('increment_stock', {
                         variant_id: item.variant_id,
                         qty: item.quantity
                     });

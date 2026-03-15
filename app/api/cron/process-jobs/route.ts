@@ -5,8 +5,10 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {
-        // Vercel Cron jobs send a secret header, we should verify it
-        // For now, assuming standard setup. Production should verify process.env.CRON_SECRET
+    const authHeader = request.headers.get('authorization');
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
         // Process one job per invocation. 
         // In a real scenario, you might want to process a batch or loop until time runs out.

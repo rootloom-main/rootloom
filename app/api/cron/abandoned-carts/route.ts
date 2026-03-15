@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendAbandonedCartEmail } from '@/lib/email';
 import { redis } from '@/lib/redis';
+import { sendPaymentRecoveryNotification } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
 
@@ -73,7 +74,7 @@ export async function GET(req: Request) {
                 // Fetch user email via Admin query or Profiles if email is stored
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('full_name, id')
+                    .select('full_name, id, phone')
                     .eq('id', userId)
                     .single();
 
@@ -135,6 +136,16 @@ export async function GET(req: Request) {
                         });
                         if (redis) await redis.set(sent1Key, 'true', { ex: 3 * 24 * 60 * 60 });
                         emailsSent++;
+
+                        // Also send WhatsApp for 1h reminder if phone is available
+                        if (profile?.phone) {
+                            const cartTotal = cartData.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
+                            await sendPaymentRecoveryNotification(
+                                profile.phone,
+                                profile.full_name || 'Customer',
+                                cartTotal
+                            );
+                        }
                     }
                 }
             }

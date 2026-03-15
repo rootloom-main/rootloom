@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
 
         // Send email using Resend
         const { data, error } = await resend.emails.send({
-            from: 'Root&Loom <noreply@rootandloom.com>',
-            to: ['support@rootandloom.com'],
+            from: 'Root&Loom <noreply@rootloom.in>',
+            to: ['root@rootloom.in'],
             replyTo: email,
             subject: `Contact Form: ${subject}`,
             html: `

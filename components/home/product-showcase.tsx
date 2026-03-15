@@ -42,11 +42,11 @@ export function ProductShowcase({
                 <div className={cn("flex justify-between items-end mb-8 md:mb-12 gap-4", headerClassName)}>
                     <div className="flex-1">
                         {subtitle && (
-                            <span className="text-[10px] font-bold tracking-[0.3em] text-raw-clay uppercase mb-2 block">
+                            <span className="text-[10px] md:text-sm font-black tracking-[0.4em] text-[#ff00ff] uppercase mb-4 block drop-shadow-sm">
                                 {subtitle}
                             </span>
                         )}
-                        <h2 className="text-2xl md:text-4xl font-serif text-slate-900">
+                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-slate-900 uppercase tracking-tighter italic leading-none">
                             {title}
                         </h2>
                     </div>

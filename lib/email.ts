@@ -4,6 +4,11 @@ import { Resend } from 'resend';
 const resendApiKey = process.env.RESEND_API_KEY;
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+// Allow environment variable to override the "from" address for testing or unverified domains
+const DEFAULT_FROM = process.env.RESEND_FROM_ADDRESS || 'Root & Loom <orders@rootloom.in>';
+// In development, if no custom FROM is set, we might want to default to onboarding@resend.dev 
+// but ONLY if the user is testing. For simplicity, we'll keep the configured one but allow override.
+
 interface OrderEmailProps {
   orderNumber: string;
   customerName: string;
@@ -30,7 +35,7 @@ export const sendOrderConfirmationEmail = async ({
 
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Root & Loom <orders@rootloom.com>',
+      from: DEFAULT_FROM,
       to: [customerEmail],
       subject: `Order Confirmation #${orderNumber}`,
       html: `
@@ -153,7 +158,7 @@ export const sendAbandonedCartEmail = async ({
 
   try {
     await resend.emails.send({
-      from: 'Root&Loom <orders@rootloom.com>',
+      from: DEFAULT_FROM,
       to: [customerEmail],
       subject,
       html: `

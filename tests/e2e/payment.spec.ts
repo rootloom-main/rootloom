@@ -54,24 +54,24 @@ test.describe('Payment Flow Validation', () => {
             // Assume user is logged in via auth.setup.ts in a real E2E environment
             // we will bypass the actual auth step here for demonstration.
 
-            /* Real code would look like:
-            await page.getByText('CONTINUE TO PAYMENT').click();
-            await page.getByText('PAY SECURELY').click();
-            
-            const razorpayFrame = page.frameLocator('iframe.razorpay-checkout-frame');
-            await razorpayFrame.getByText('Netbanking').click();
-            await razorpayFrame.getByText('SBI').click();
-            await razorpayFrame.getByText('Pay').click();
-            
-            const [popup] = await Promise.all([
-                page.waitForEvent('popup'),
-            ]);
-            await popup.getByText('Success').click();
-            
-            await page.waitForURL('**/checkout / success ** ');
-                await expect(page.getByText('Order Confirmed')).toBeVisible();
-                await expect(page.getByText('Processing Payment')).toBeHidden();
-            */
+            // Real code would look like:
+            // await page.getByText('CONTINUE TO PAYMENT').click();
+            // await page.getByText('PAY SECURELY').click();
+            // 
+            // const razorpayFrame = page.frameLocator('iframe.razorpay-checkout-frame');
+            // await razorpayFrame.getByText('Netbanking').click();
+            // await razorpayFrame.getByText('SBI').click();
+            // await razorpayFrame.getByText('Pay').click();
+            // 
+            // const [popup] = await Promise.all([
+            //     page.waitForEvent('popup'),
+            // ]);
+            // await popup.getByText('Success').click();
+            // 
+            // await page.waitForURL('**/checkout/success**');
+            //     await expect(page.getByText('Order Confirmed')).toBeVisible();
+            //     await expect(page.getByText('Processing Payment')).toBeHidden();
+
             }
         }
     });

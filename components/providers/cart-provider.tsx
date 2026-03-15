@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 import {
@@ -8,7 +8,8 @@ import {
   addToCart as addToCartAction,
   updateCartItem as updateCartItemAction,
   removeFromCart as removeFromCartAction,
-  clearCart as clearCartAction
+  clearCart as clearCartAction,
+  mergeCart
 } from '@/lib/actions/cart';
 import { MiniCartPreview } from '@/components/layout/mini-cart-preview';
 
@@ -35,7 +36,7 @@ interface CartContextType {
   cart: CartItem[];
   cartCount: number;
   isLoading: boolean;
-  addToCart: (productId: string, variantId: string, quantity: number) => Promise<void>;
+  addToCart: (item: { productId: string, variantId: string, quantity: number, productData?: any, variantData?: any }) => Promise<void>;
   updateCartItem: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -53,10 +54,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
   const { user, loading: authLoading } = useAuth();
+  const prevUser = useRef(user);
+
+  // Guest Cart Logic
+  const getGuestCart = () => {
+    if (typeof window === 'undefined') return [];
+    const saved = localStorage.getItem('rootloom_guest_cart');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const saveGuestCart = (items: CartItem[]) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('rootloom_guest_cart', JSON.stringify(items));
+  };
 
   const fetchCart = async () => {
     if (!user) {
-      setCart([]);
+      setCart(getGuestCart());
       setIsLoading(false);
       return;
     }
@@ -71,16 +85,82 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Merge Guest Cart when user signs in
   useEffect(() => {
+    const handleLoginMerge = async () => {
+      if (user && !prevUser.current) {
+        const guestItems = getGuestCart();
+        if (guestItems.length > 0) {
+          setIsLoading(true);
+          const formattedItems = guestItems.map((item: CartItem) => ({
+            productId: item.product_id,
+            variantId: item.variant_id,
+            quantity: item.quantity
+          }));
+
+          await mergeCart(formattedItems);
+          localStorage.removeItem('rootloom_guest_cart');
+          toast.success('Your items from guest cart have been added!');
+          await fetchCart();
+        }
+      }
+      prevUser.current = user;
+    };
+
     if (!authLoading) {
+      handleLoginMerge();
       fetchCart();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
-  const addToCart = async (productId: string, variantId: string, quantity: number) => {
+  const addToCart = async (arg1: any, arg2?: string, arg3?: number) => {
+    let productId: string;
+    let variantId: string;
+    let quantity: number;
+    let productData: any;
+    let variantData: any;
+
+    if (typeof arg1 === 'object' && !Array.isArray(arg1)) {
+      // New object-based signature
+      ({ productId, variantId, quantity, productData, variantData } = arg1);
+    } else {
+      // Legacy positional signature: addToCart(productId, variantId, quantity)
+      productId = arg1;
+      variantId = arg2 as string;
+      quantity = arg3 || 1;
+    }
+
+    console.log('[CartProvider] addToCart:', { productId, variantId, quantity });
+
     if (!user) {
-      toast.error('Please login to add items to cart');
+      // Guest Logic
+      const guestCart = getGuestCart();
+      const existing = guestCart.find((i: any) => i.variant_id === variantId);
+
+      let updatedCart;
+      if (existing) {
+        updatedCart = guestCart.map((i: any) =>
+          i.variant_id === variantId ? { ...i, quantity: i.quantity + quantity } : i
+        );
+      } else {
+        // We need some preview data for the UI if it's a new guest item
+        const newItem = {
+          id: Math.random().toString(36).substr(2, 9),
+          product_id: productId,
+          variant_id: variantId,
+          quantity,
+          product: productData,
+          variant: variantData
+        };
+        updatedCart = [...guestCart, newItem];
+        setLastAddedItem(newItem as any);
+      }
+
+      saveGuestCart(updatedCart);
+      setCart(updatedCart);
+      setIsMiniCartOpen(true);
+      toast.success('Added to your bag!');
       return;
     }
 
@@ -93,7 +173,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const added = (newCartData as any[]).find((i) => i.product_id === productId && i.variant_id === variantId);
       if (added) setLastAddedItem(added);
 
-      // Open mini preview instead of full sticky cart drawer for a lower-friction flow
       setIsMiniCartOpen(true);
     } catch (error: any) {
       console.error('Error adding to cart:', error);
@@ -102,12 +181,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateCartItem = async (itemId: string, quantity: number) => {
+    if (!user) {
+      const guestCart = getGuestCart();
+      const updated = guestCart.map((i: any) =>
+        i.id === itemId ? { ...i, quantity } : i
+      );
+      saveGuestCart(updated);
+      setCart(updated);
+      return;
+    }
+
     try {
       const result = await updateCartItemAction(itemId, quantity);
       if (!result.success) throw new Error(result.message);
 
       await fetchCart();
-      toast.success(result.message);
     } catch (error: any) {
       console.error('Error updating cart:', error);
       toast.error(error.message || 'Failed to update cart');
@@ -115,12 +203,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const removeFromCart = async (itemId: string) => {
+    if (!user) {
+      const guestCart = getGuestCart();
+      const updated = guestCart.filter((i: any) => i.id !== itemId);
+      saveGuestCart(updated);
+      setCart(updated);
+      return;
+    }
+
     try {
       const result = await removeFromCartAction(itemId);
       if (!result.success) throw new Error(result.message);
 
       await fetchCart();
-      toast.success(result.message);
     } catch (error: any) {
       console.error('Error removing from cart:', error);
       toast.error(error.message || 'Failed to remove from cart');
@@ -128,7 +223,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const clearCart = async () => {
-    if (!user) return;
+    if (!user) {
+      saveGuestCart([]);
+      setCart([]);
+      return;
+    }
+
     try {
       const result = await clearCartAction();
       if (!result.success) throw new Error(result.message);
@@ -136,7 +236,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       await fetchCart();
     } catch (error: any) {
       console.error('Error clearing cart:', error);
-      toast.error(error.message || 'Failed to clear cart');
     }
   };
 
@@ -178,3 +277,4 @@ export function useCart() {
   }
   return context;
 }
+

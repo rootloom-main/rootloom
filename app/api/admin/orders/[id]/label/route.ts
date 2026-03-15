@@ -14,8 +14,10 @@ export async function POST(
     const supabase = await createClient();
     const { id } = params;
 
-    // Mock Label Generation Logic
-    const trackingNumber = `TRK-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    const { trackingNumber } = await req.json();
+    if (!trackingNumber) {
+        return NextResponse.json({ error: 'Tracking number is required' }, { status: 400 });
+    }
 
     // Update Order
     const { error } = await (supabase
@@ -32,11 +34,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-        message: 'Shipping label generated successfully',
-        label: {
-            trackingNumber,
-            carrier: 'MockCarrier',
-            url: `https://mockcarrier.com/track/${trackingNumber}`
-        }
+        message: 'Order marked as shipped successfully',
+        trackingNumber
     });
 }

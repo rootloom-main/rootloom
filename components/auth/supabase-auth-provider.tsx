@@ -55,15 +55,42 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     useEffect(() => {
         let isMounted = true;
 
+        // Fetch initial session on mount
+        const initSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (isMounted) {
+                    const currentUser = session?.user || null;
+                    setUser(currentUser);
+                    if (currentUser) {
+                        await checkAdminStatus(currentUser);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching session:', err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        initSession();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
                 if (!isMounted) return;
 
                 const currentUser = session?.user || null;
                 setUser(currentUser);
-                setLoading(false);
+                
+                if (currentUser) {
+                    await checkAdminStatus(currentUser);
+                } else {
+                    setIsAdmin(false);
+                }
 
-                checkAdminStatus(currentUser);
+                setLoading(false);
 
                 if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
                     router.refresh();

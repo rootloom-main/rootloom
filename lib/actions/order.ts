@@ -1,12 +1,12 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
-import { processRazorpayRefund } from '@/lib/razorpay';
 
 export async function cancelOrder(orderId: string) {
     const supabase = await createClient() as any;
+    const adminSupabase = await createAdminClient() as any;
 
     // Verify user is authenticated
     const user = await getCurrentUser();
@@ -16,7 +16,7 @@ export async function cancelOrder(orderId: string) {
     }
 
     // Fetch order to verify ownership and status
-    const { data: order, error: fetchError } = await supabase
+    const { data: order, error: fetchError } = await adminSupabase
         .from('orders')
         .select('user_id, status, payment_id, payment_status, total, refund_status')
         .eq('id', orderId)
@@ -45,7 +45,7 @@ export async function cancelOrder(orderId: string) {
     }
 
     // 1. Restock Inventory
-    const { data: orderItems, error: itemsError } = await supabase
+    const { data: orderItems, error: itemsError } = await adminSupabase
         .from('order_items')
         .select('variant_id, quantity')
         .eq('order_id', orderId);
@@ -57,7 +57,7 @@ export async function cancelOrder(orderId: string) {
 
     if (orderItems && orderItems.length > 0) {
         for (const item of orderItems) {
-            const { error: stockError } = await supabase.rpc('increment_stock', {
+            const { error: stockError } = await adminSupabase.rpc('increment_stock', {
                 variant_id: item.variant_id,
                 qty: item.quantity
             });
@@ -69,32 +69,15 @@ export async function cancelOrder(orderId: string) {
         }
     }
 
-    // 2. Process Razorpay Refund if paid online
-    let refundProcessed = false;
-    if (order.payment_status === 'completed' && order.payment_id && !order.payment_id.startsWith('cod_')) {
-        // Do not refund again if already processed
-        if (order.refund_status !== 'processed') {
-            try {
-                await processRazorpayRefund({
-                    paymentId: order.payment_id,
-                    amount: order.total, // Full refund for cancellation
-                });
-                refundProcessed = true;
-            } catch (e: any) {
-                console.error(`Razorpay Refund Failed for cancellation ${orderId}:`, e.message);
-                return { success: false, message: `Payment gateway failed: ${e.message}` };
-            }
-        }
-    }
-
     // 3. Update order status to cancelled
     const updateData: any = { status: 'cancelled', updated_at: new Date().toISOString() };
-    if (refundProcessed) {
-        updateData.refund_status = 'processed';
-        updateData.refund_amount = order.total;
-    }
 
-    const { error: updateError } = await supabase
+    // 2. Manual Refund Handling: 
+    // If paid, we mark refund_status as 'requested' so admin can manually process it.
+    if (order.payment_status === 'completed' && order.refund_status !== 'processed') {
+        updateData.refund_status = 'requested';
+    }
+    const { error: updateError } = await adminSupabase
         .from('orders')
         .update(updateData)
         .eq('id', orderId);

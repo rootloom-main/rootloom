@@ -5,11 +5,10 @@ import { sendAbandonedCartEmail } from '@/lib/email';
 export const dynamic = 'force-dynamic'; // Use Node.js runtime and force dynamic to prevent build-time execution failures
 
 export async function GET(req: Request) {
-    // Optional: Check for auth header to secure this endpoint
-    // const authHeader = req.headers.get('authorization');
-    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    //     return new NextResponse('Unauthorized', { status: 401 });
-    // }
+    const authHeader = req.headers.get('authorization');
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const supabase = await createClient();
 

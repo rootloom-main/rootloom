@@ -2,6 +2,7 @@
 
 import { createSSRClient } from '@/lib/utils/auth';
 import { getCurrentUser } from '@/lib/utils/auth';
+import { revalidatePath } from 'next/cache';
 
 export async function createBannerAction(formData: FormData) {
     const supabase = await createSSRClient();
@@ -23,45 +24,71 @@ export async function createBannerAction(formData: FormData) {
     }
 
     const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
     const link = formData.get('link') as string;
     const position = formData.get('position') as string;
     const active = formData.get('active') === 'true';
+    const display_order = parseInt(formData.get('display_order') as string) || 0;
+    const badge = formData.get('badge') as string;
+    const cta = formData.get('cta') as string;
+    const theme = formData.get('theme') as string;
     const imageFile = formData.get('image') as File | null;
+    const existingImageUrl = formData.get('existing_image_url') as string | null;
 
-    if (!title || !imageFile) {
-        return { success: false, error: 'Title and Image are required' };
+    if (!title) {
+        return { success: false, error: 'Title is required' };
+    }
+
+    if (!imageFile && !existingImageUrl) {
+        return { success: false, error: 'Banner image is required' };
     }
 
     try {
-        // 1. Upload Image
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+        let imageUrl = existingImageUrl || '';
 
-        const { error: uploadError } = await supabase.storage
-            .from('banners')
-            .upload(filePath, imageFile);
+        // 1. Upload Image (Only if file provided)
+        if (imageFile && imageFile.size > 0) {
+            const fileExt = imageFile.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${fileName}`;
 
-        if (uploadError) throw uploadError;
+            const { error: uploadError } = await supabase.storage
+                .from('banners')
+                .upload(filePath, imageFile);
 
-        // 2. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from('banners')
-            .getPublicUrl(filePath);
+            if (uploadError) throw uploadError;
+
+            // 2. Get Public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('banners')
+                .getPublicUrl(filePath);
+            
+            imageUrl = publicUrl;
+        }
 
         // 3. Create Record
+        const bannerData: any = {
+            title,
+            description,
+            link: link || null,
+            position,
+            active,
+            display_order,
+            image_url: imageUrl,
+            metadata: {
+                badge,
+                cta,
+                theme
+            }
+        };
+
         const { error: dbError } = await supabase
             .from('banners')
-            .insert({
-                title,
-                link,
-                position,
-                active,
-                image_url: publicUrl
-            });
+            .insert(bannerData);
 
         if (dbError) throw dbError;
 
+        revalidatePath('/');
         return { success: true };
 
     } catch (error: any) {
@@ -90,30 +117,103 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
     }
 
     const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
     const link = formData.get('link') as string;
     const position = formData.get('position') as string;
     const active = formData.get('active') === 'true';
+    const display_order = parseInt(formData.get('display_order') as string) || 0;
+    const badge = formData.get('badge') as string;
+    const cta = formData.get('cta') as string;
+    const theme = formData.get('theme') as string;
+    const imageFile = formData.get('image') as File | null;
+    const existingImageUrl = formData.get('existing_image_url') as string | null;
 
     if (!title || !bannerId) {
         return { success: false, error: 'Title and Banner ID are required' };
     }
 
     try {
+        let imageUrl = existingImageUrl;
+
+        // 1. Upload New Image (If provided)
+        if (imageFile && imageFile.size > 0) {
+            const fileExt = imageFile.name.split('.').pop();
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('banners')
+                .upload(filePath, imageFile);
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('banners')
+                .getPublicUrl(filePath);
+            
+            imageUrl = publicUrl;
+        }
+
+        const updateData: any = {
+            title,
+            description,
+            link: link || null,
+            position,
+            active,
+            display_order,
+            image_url: imageUrl || undefined,
+            metadata: {
+                badge,
+                cta,
+                theme
+            }
+        };
+
         const { error: dbError } = await supabase
             .from('banners')
-            .update({
-                title,
-                link: link || null,
-                position,
-                active
-            })
+            .update(updateData)
             .eq('id', bannerId);
 
         if (dbError) throw dbError;
 
+        revalidatePath('/');
         return { success: true };
     } catch (error: any) {
         console.error('Action error updating banner:', error);
         return { success: false, error: error.message || 'Failed to update banner' };
     }
+}
+
+export async function toggleBannerAction(bannerId: string, currentActive: boolean) {
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
+
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    const { error } = await supabase
+        .from('banners')
+        .update({ active: !currentActive })
+        .eq('id', bannerId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function deleteBannerAction(bannerId: string) {
+    const supabase = await createSSRClient();
+    const user = await getCurrentUser();
+
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    const { error } = await supabase
+        .from('banners')
+        .delete()
+        .eq('id', bannerId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath('/');
+    return { success: true };
 }

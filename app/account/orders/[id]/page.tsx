@@ -27,6 +27,7 @@ export default async function OrderDetailPage({
     .select(
       `
       *,
+      delivered_at,
       shipping_address:addresses(
         full_name,
         phone,
@@ -49,7 +50,8 @@ export default async function OrderDetailPage({
         variant:product_variants(
           size,
           color
-        )
+        ),
+        returns(*)
       )
     `
     )
@@ -63,20 +65,43 @@ export default async function OrderDetailPage({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'default';
-      case 'processing':
-        return 'default';
-      case 'shipped':
-        return 'default';
-      case 'delivered':
-        return 'default';
-      case 'cancelled':
-        return 'destructive';
-      default:
-        return 'default';
+      case 'pending': return 'secondary';
+      case 'processing': return 'default';
+      case 'shipped': return 'default';
+      case 'delivered': return 'default';
+      case 'cancelled': return 'destructive';
+      case 'returned': return 'destructive';
+      default: return 'default';
     }
   };
+
+  const getReturnStatusColor = (status: string) => {
+    switch (status) {
+      case 'requested': return 'secondary';
+      case 'approved': return 'default';
+      case 'picked_up': return 'default';
+      case 'refund_processed': return 'default';
+      case 'rejected': return 'destructive';
+      default: return 'default';
+    }
+  };
+
+  // Return Eligibility Logic (7 Days)
+  let isReturnEligible = false;
+  let returnDeadline = null;
+  let returnExpired = false;
+
+  if (order.status === 'delivered' && order.delivered_at) {
+    const deliveryDate = new Date(order.delivered_at);
+    returnDeadline = new Date(deliveryDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const currentDate = new Date();
+
+    if (currentDate <= returnDeadline) {
+      isReturnEligible = true;
+    } else {
+      returnExpired = true;
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -124,12 +149,19 @@ export default async function OrderDetailPage({
                       />
                     </div>
                     <div className="flex-1">
-                      <Link
-                        href={`/product/${item.product?.slug}`}
-                        className="font-semibold hover:underline"
-                      >
-                        {item.product?.name}
-                      </Link>
+                      <div className="flex justify-between items-start">
+                        <Link
+                          href={`/product/${item.product?.slug}`}
+                          className="font-semibold hover:underline"
+                        >
+                          {item.product?.name}
+                        </Link>
+                        {item.returns?.[0] && (
+                           <Badge variant={getReturnStatusColor(item.returns[0].status)} className="capitalize">
+                             {item.returns[0].status.replace(/_/g, ' ')}
+                           </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">
                         Size: {item.variant?.size} | Color: {item.variant?.color}
                       </p>
@@ -137,6 +169,18 @@ export default async function OrderDetailPage({
                         <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                         <p className="font-semibold">{formatPrice(item.price * item.quantity)}</p>
                       </div>
+                      
+                      {item.returns?.[0] && (
+                        <div className="mt-4 p-3 bg-stone-50 border border-stone-100 rounded-lg">
+                          <p className="text-xs font-bold text-deep-forest uppercase tracking-wider mb-1">Return Update</p>
+                          <p className="text-sm text-stone-600">
+                             {item.returns[0].status === 'requested' && "We've received your request and are reviewing it."}
+                             {item.returns[0].status === 'approved' && "Return approved. We'll schedule a pickup soon."}
+                             {item.returns[0].status === 'pickup_scheduled' && `Pickup scheduled. ID: ${item.returns[0].pickup_tracking_id || 'Pending'}`}
+                             {item.returns[0].status === 'refund_processed' && "Refund has been initiated to your account."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -145,19 +189,54 @@ export default async function OrderDetailPage({
           </Card>
 
           {/* Cancel Order Button */}
-          <div className="flex justify-end">
-            <CancelOrderButton orderId={order.id} orderStatus={order.status} />
-          </div>
-
-          {order.status === 'delivered' && (
-            <div className="flex justify-end">
-              <Link href={`/account/orders/${order.id}/return`}>
-                <Button variant="outline">Request Return / Exchange</Button>
-              </Link>
+          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+            <div className="flex justify-end mt-4">
+              <CancelOrderButton orderId={order.id} orderStatus={order.status} />
             </div>
           )}
 
+          {/* Return Eligibility Section */}
+          {order.status === 'delivered' && (
+            <div className="mt-6 border border-stone-100 rounded-xl p-6 bg-stone-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-deep-forest flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Order Delivered
+                </h3>
+                {isReturnEligible && returnDeadline && (
+                  <p className="text-sm text-green-700 mt-1">
+                    Return eligible until {formatDate(returnDeadline.toISOString())}
+                  </p>
+                )}
+                {(order.refund_status === 'processed' || order.refund_status === 'requested') && (
+                  <p className="text-sm text-red-600 mt-1 font-semibold italic">
+                    This order has been processed for a refund.
+                  </p>
+                )}
+                {returnExpired && !order.refund_status && (
+                  <p className="text-sm text-stone-500 mt-1">
+                    The return window for this order has expired.
+                  </p>
+                )}
+              </div>
 
+              {isReturnEligible && 
+               order.refund_status !== 'processed' && 
+               order.refund_status !== 'requested' &&
+               !order.order_items.some((item: any) => item.returns && item.returns.length > 0) && (
+                <Link href={`/account/orders/${order.id}/return`}>
+                  <Button className="bg-deep-forest hover:bg-deep-forest/90 text-white font-bold rounded-xl whitespace-nowrap">
+                    Request Return / Exchange
+                  </Button>
+                </Link>
+              )}
+              {(order.order_items.some((item: any) => item.returns && item.returns.length > 0) || order.refund_status === 'processed') && (
+                <div className="px-4 py-2 bg-deep-forest/5 text-deep-forest font-bold rounded-xl text-sm italic">
+                  {order.refund_status === 'processed' ? 'Return / Refund Completed' : 'Return request in progress'}
+                </div>
+              )}
+            </div>
+          )}
           {order.tracking_number && (
             <Card>
               <CardHeader>
@@ -234,6 +313,19 @@ export default async function OrderDetailPage({
                 >
                   Payment {order.payment_status}
                 </Badge>
+                {order.refund_status && order.refund_status !== 'none' && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg">
+                    <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Refund Status</p>
+                    <div className="flex justify-between items-center">
+                      <Badge variant="outline" className="text-red-700 border-red-200 bg-white capitalize">
+                        {order.refund_status}
+                      </Badge>
+                      {(order.refund_amount || 0) > 0 && (
+                        <span className="font-bold text-red-700">{formatPrice(order.refund_amount)}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 {order.payment_id && (
                   <p className="text-xs text-gray-500 mt-2">
                     Payment ID: {order.payment_id}

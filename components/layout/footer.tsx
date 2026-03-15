@@ -39,25 +39,33 @@ export function Footer() {
               <h3 className="font-serif text-2xl md:text-3xl font-bold text-heirloom-white tracking-wide">ROOT & LOOM</h3>
             </Link>
             <p className="text-sm text-ash-white/70 leading-relaxed max-w-sm">
-              Weaving tradition into modern luxury. Sustainable, ethical, and crafted for the contemporary journey.
+                Redefining the urban wardrobe. Bold fits, premium drip, and street-ready energy for the next generation.
             </p>
 
             <div className="flex gap-4 pt-2">
-              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+              <a href="https://www.instagram.com/rootloom.in/" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
                 <Instagram className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
-              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+              <a href="https://www.facebook.com/share/1D1ZrHGpBb/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
                 <Facebook className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
-              <a href="#" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Twitter className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
+              <a href="https://wa.me/919913555532" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
+                <Phone className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
               </a>
             </div>
 
-            <div className="pt-4 border-t border-white/5">
+            <div className="pt-4 border-t border-white/5 space-y-2">
               <div className="flex items-center gap-3 text-xs md:text-sm text-ash-white/80">
-                <Mail className="h-4 w-4 text-raw-clay" />
-                <span>support@rootandloom.com</span>
+                <Mail className="h-4 w-4 text-raw-clay flex-shrink-0" />
+                <a href="mailto:root@rootloom.in" className="hover:text-white transition-colors">root@rootloom.in</a>
+              </div>
+              <div className="flex items-start gap-3 text-xs md:text-sm text-ash-white/80">
+                <MapPin className="h-4 w-4 text-raw-clay flex-shrink-0 mt-0.5" />
+                <span className="max-w-[250px] leading-relaxed">
+                  Shri Ram Folding Works Shri Ram Industries park-3<br />
+                  Shed 19 Near Vaishalinagar OPP Cozy Hotel Shahwadi<br />
+                  Narol Ahmedabad 382405
+                </span>
               </div>
             </div>
           </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, X, ZoomIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, ZoomIn, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { WishlistButton } from '@/components/product/wishlist-button';
 
@@ -27,6 +28,11 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
     const [direction, setDirection] = useState(0); // -1 = prev, 1 = next
     const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
     const [isZoomed, setIsZoomed] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const mainImageRef = useRef<HTMLDivElement>(null);
     const thumbnailsRef = useRef<HTMLDivElement>(null);
@@ -171,8 +177,16 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
                         </div>
                     </div>
 
-                    {/* Zoom hint */}
-                    <div className="absolute bottom-3 right-3 z-10 bg-black/30 backdrop-blur-sm text-white text-[10px] font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex">
+                    {/* Expand Button Overlay */}
+                    <div 
+                        className="absolute top-3 left-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md cursor-pointer active:scale-95"
+                        onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(true); }}
+                    >
+                        <Maximize2 className="h-4 w-4 text-deep-forest" />
+                    </div>
+
+                    {/* Zoom hint - enhanced */}
+                    <div className="absolute bottom-3 right-3 z-10 bg-black/60 backdrop-blur-md text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-none flex items-center gap-2 shadow-[2px_2px_0px_#ff00ff] opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex">
                         <ZoomIn className="h-3 w-3" /> Hover to zoom
                     </div>
 
@@ -259,98 +273,126 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
                 </div>
             )}
 
-            {/* ─── Lightbox ─── */}
-            <AnimatePresence>
-                {isLightboxOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="fixed inset-0 z-50 bg-black/97 backdrop-blur-lg flex flex-col items-center justify-center"
-                        onClick={() => setIsLightboxOpen(false)}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        {/* Close */}
-                        <button
+            {/* ─── Lightbox (Pro Gallery Redesign with Portal Fix) ─── */}
+            {mounted && createPortal(
+                <AnimatePresence>
+                    {isLightboxOpen && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="fixed inset-0 z-[99999] bg-black flex flex-col md:flex-row overflow-hidden"
                             onClick={() => setIsLightboxOpen(false)}
-                            className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full z-50 transition-colors"
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={handleTouchEnd}
                         >
-                            <X className="h-6 w-6" />
-                        </button>
-
-                        {/* Counter */}
-                        <div className="absolute top-5 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium z-50">
-                            {selectedIndex + 1} / {sortedImages.length}
-                        </div>
-
-                        {/* Prev / Next */}
-                        {sortedImages.length > 1 && (
-                            <>
-                                <button onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white bg-white/10 hover:bg-white/20 p-3 rounded-full z-50 transition-colors hidden sm:flex">
-                                    <ChevronLeft className="h-7 w-7" />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 hover:text-white bg-white/10 hover:bg-white/20 p-3 rounded-full z-50 transition-colors hidden sm:flex">
-                                    <ChevronRight className="h-7 w-7" />
-                                </button>
-                            </>
-                        )}
-
-                        {/* Main lightbox image with slide animation */}
-                        <div
-                            className="w-full max-w-3xl max-h-[82vh] relative flex items-center justify-center overflow-hidden px-4"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <AnimatePresence initial={false} custom={direction}>
-                                <motion.div
-                                    key={selectedIndex}
-                                    custom={direction}
-                                    variants={slideVariants}
-                                    initial="enter"
-                                    animate="center"
-                                    exit="exit"
-                                    transition={{ type: 'spring', stiffness: 340, damping: 36, mass: 0.8 }}
-                                    className="absolute inset-0"
+                            {/* ... existing lightbox content ... */}
+                            <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-6 z-[110] bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+                                <div className="text-white/80 text-[10px] font-black uppercase tracking-[0.4em] italic pointer-events-auto bg-white/5 backdrop-blur-md px-4 py-2 shadow-[2px_2px_0px_#ff00ff]">
+                                    {selectedIndex + 1} / {sortedImages.length} 
+                                </div>
+                                <button
+                                    onClick={() => setIsLightboxOpen(false)}
+                                    className="p-2.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all hover:rotate-90 pointer-events-auto"
                                 >
-                                    <Image
-                                        src={currentImg.image_url}
-                                        alt={currentImg.alt_text || productName}
-                                        fill
-                                        className="object-contain"
-                                        quality={95}
-                                        priority
-                                    />
-                                </motion.div>
-                            </AnimatePresence>
-                        </div>
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
 
-                        {/* Bottom thumbnail strip in lightbox */}
-                        {sortedImages.length > 1 && (
-                            <div className="absolute bottom-4 left-0 right-0 px-4">
-                                <div className="flex gap-2 justify-center overflow-x-auto scrollbar-hide">
+                            {sortedImages.length > 1 && (
+                                <div 
+                                    className="hidden md:flex w-24 lg:w-32 flex-col gap-3 py-20 px-4 bg-zinc-900 border-r border-white/5 overflow-y-auto scrollbar-hide z-[105]"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     {sortedImages.map((img, i) => (
                                         <button
                                             key={img.id}
-                                            onClick={(e) => { e.stopPropagation(); goTo(i); }}
+                                            onClick={() => goTo(i)}
                                             className={cn(
-                                                'relative w-14 h-14 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all',
+                                                'relative aspect-[4/5] rounded-lg overflow-hidden border-2 transition-all shrink-0',
                                                 i === selectedIndex
-                                                    ? 'border-white opacity-100 scale-110'
-                                                    : 'border-white/20 opacity-40 hover:opacity-70'
+                                                    ? 'border-[#ff00ff] shadow-[0_0_15px_rgba(255,0,255,0.4)] scale-105'
+                                                    : 'border-transparent opacity-40 hover:opacity-100'
                                             )}
                                         >
-                                            <Image src={img.image_url} alt={`Thumbnail ${i + 1}`} fill className="object-cover" />
+                                            <Image src={img.image_url} alt={`Thumb ${i+1}`} fill className="object-cover" />
                                         </button>
                                     ))}
                                 </div>
+                            )}
+
+                            <div 
+                                className="relative flex-1 flex items-center justify-center p-4 md:p-12 lg:p-20 group"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {sortedImages.length > 1 && (
+                                    <>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                                            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-[110] w-12 h-12 md:w-16 md:h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-white transition-all backdrop-blur-sm opacity-0 group-hover:opacity-100 hidden sm:flex"
+                                        >
+                                            <ChevronLeft className="h-8 w-8" />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                                            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-[110] w-12 h-12 md:w-16 md:h-16 flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-white transition-all backdrop-blur-sm opacity-0 group-hover:opacity-100 hidden sm:flex"
+                                        >
+                                            <ChevronRight className="h-8 w-8" />
+                                        </button>
+                                    </>
+                                )}
+
+                                <div className="relative w-full h-full max-w-5xl">
+                                    <AnimatePresence initial={false} custom={direction}>
+                                        <motion.div
+                                            key={selectedIndex}
+                                            custom={direction}
+                                            variants={slideVariants}
+                                            initial="enter"
+                                            animate="center"
+                                            exit="exit"
+                                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                                            className="absolute inset-0 flex items-center justify-center"
+                                        >
+                                            <div className="relative w-full h-full">
+                                                <Image
+                                                    src={currentImg.image_url}
+                                                    alt={productName}
+                                                    fill
+                                                    className="object-contain"
+                                                    quality={100}
+                                                    priority
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
                             </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+
+                            {sortedImages.length > 1 && (
+                                <div className="md:hidden w-full h-24 bg-zinc-900 border-t border-white/5 px-4 flex items-center z-[105]">
+                                    <div className="flex gap-2.5 overflow-x-auto scrollbar-hide py-2 mx-auto">
+                                        {sortedImages.map((img, i) => (
+                                            <button
+                                                key={img.id}
+                                                onClick={(e) => { e.stopPropagation(); goTo(i); }}
+                                                className={cn(
+                                                    'relative w-14 h-16 rounded-md overflow-hidden border-2 transition-all shrink-0',
+                                                    i === selectedIndex ? 'border-[#ff00ff] scale-110' : 'border-transparent opacity-50'
+                                                )}
+                                            >
+                                                <Image src={img.image_url} alt={`Thumb ${i+1}`} fill className="object-cover" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }

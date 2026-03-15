@@ -38,6 +38,17 @@ const productSchema = z.object({
     base_price: z.coerce.number().min(0, 'Price must be positive'),
     featured: z.boolean().default(false),
     status: z.enum(['draft', 'active', 'archived']).default('draft'),
+    metadata: z.object({
+        fabric: z.string().optional(),
+        material: z.string().optional(),
+        genz_tagline: z.string().optional(),
+        shipping_info: z.string().optional(),
+        size_guide_html: z.string().optional(),
+        perks: z.array(z.object({
+            label: z.string().min(1),
+            desc: z.string().min(1)
+        })).optional(),
+    }).optional(),
     variants: z
         .array(
             z.object({
@@ -60,9 +71,10 @@ interface Category {
 interface ProductFormProps {
     initialData?: any;
     categories: Category[];
+    collections: any[];
 }
 
-export function ProductForm({ initialData, categories }: ProductFormProps) {
+export function ProductForm({ initialData, categories, collections }: ProductFormProps) {
     const router = useRouter();
     const supabase = createClient();
     const [loading, setLoading] = useState(false);
@@ -70,6 +82,9 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [existingImages, setExistingImages] = useState<any[]>(
         initialData?.product_images || []
+    );
+    const [selectedCollections, setSelectedCollections] = useState<string[]>(
+        initialData?.collection_products?.map((cp: any) => cp.collection_id) || []
     );
 
     const form = useForm<ProductFormValues>({
@@ -83,6 +98,19 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
                 base_price: initialData.base_price,
                 featured: initialData.featured,
                 status: initialData.status || 'draft',
+                metadata: {
+                    fabric: initialData.metadata?.fabric || '',
+                    material: initialData.metadata?.material || '',
+                    genz_tagline: initialData.metadata?.genz_tagline || '',
+                    shipping_info: initialData.metadata?.shipping_info || '',
+                    size_guide_html: initialData.metadata?.size_guide_html || '',
+                    perks: initialData.metadata?.perks || [
+                        { label: 'Premium Packaging', desc: 'Arrives in eco-friendly packaging' },
+                        { label: 'Quality Assured', desc: 'Every piece hand-inspected' },
+                        { label: 'Sustainable', desc: 'Eco-conscious production' },
+                        { label: 'Verified Brand', desc: 'Authentic Root & Loom product' },
+                    ],
+                },
                 variants: initialData.product_variants || [
                     { size: '', color: '', stock: 0, sku: '' },
                 ],
@@ -95,6 +123,19 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
                 base_price: 0,
                 featured: false,
                 status: 'draft',
+                metadata: {
+                    fabric: '',
+                    material: '',
+                    genz_tagline: '',
+                    shipping_info: '',
+                    size_guide_html: '',
+                    perks: [
+                        { label: 'Premium Packaging', desc: 'Arrives in eco-friendly packaging' },
+                        { label: 'Quality Assured', desc: 'Every piece hand-inspected' },
+                        { label: 'Sustainable', desc: 'Eco-conscious production' },
+                        { label: 'Verified Brand', desc: 'Authentic Root & Loom product' },
+                    ],
+                },
                 variants: [{ size: '', color: '', stock: 0, sku: '' }],
             },
     });
@@ -148,6 +189,21 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
                         image_url: publicUrl,
                         alt_text: data.name,
                     });
+                }
+            }
+
+            // 4. Handle Collection Assignments
+            if (productId) {
+                // Delete existing mappings
+                await (supabase as any).from('collection_products').delete().eq('product_id', productId);
+                
+                // Insert new mappings
+                if (selectedCollections.length > 0) {
+                    const mappings = selectedCollections.map(colId => ({
+                        product_id: productId,
+                        collection_id: colId
+                    }));
+                    await (supabase as any).from('collection_products').insert(mappings);
                 }
             }
 
@@ -284,6 +340,159 @@ export function ProductForm({ initialData, categories }: ProductFormProps) {
                                 </FormItem>
                             )}
                         />
+                        
+                        {/* ─── Gen-Z Metadata Section ─── */}
+                        <div className="p-4 bg-fuchsia-50/50 border border-fuchsia-100 rounded-xl space-y-4">
+                            <h3 className="text-sm font-black text-fuchsia-600 uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-fuchsia-500 rounded-full animate-pulse" />
+                                Gen-Z & Material Details
+                            </h3>
+                            
+                            <FormField
+                                control={form.control}
+                                name="metadata.genz_tagline"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs font-bold text-fuchsia-700">Gen-Z Tagline</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Main Character Energy ONLY 💅" {...field} className="bg-white border-fuchsia-200 focus-visible:ring-fuchsia-300" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="metadata.fabric"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-bold text-slate-700">Fabric</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. 100% Organic Cotton" {...field} className="bg-white" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="metadata.material"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-bold text-slate-700">Material</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="e.g. Breathable Mesh" {...field} className="bg-white" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
+
+                        {/* ─── Advanced Content Management ─── */}
+                        <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-6">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-slate-900 rounded-full" />
+                                Advanced Tab Content
+                            </h3>
+
+                            <FormField
+                                control={form.control}
+                                name="metadata.shipping_info"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs font-bold text-slate-700">Shipping & Returns (Override)</FormLabel>
+                                        <FormControl>
+                                            <Textarea placeholder="If empty, standard policy will show." {...field} className="bg-white min-h-[100px]" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="metadata.size_guide_html"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs font-bold text-slate-700">Size Guide Details</FormLabel>
+                                        <FormControl>
+                                            <Textarea placeholder="Additional size notes or custom table data..." {...field} className="bg-white" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {/* Perks Management */}
+                            <div className="space-y-4">
+                                <FormLabel className="text-xs font-bold text-slate-700 uppercase tracking-wider">Product Perks (About Section)</FormLabel>
+                                <div className="grid gap-3">
+                                    {[0, 1, 2, 3].map((index) => (
+                                        <div key={index} className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-white border border-slate-100 rounded-lg shadow-sm">
+                                            <FormField
+                                                control={form.control}
+                                                name={`metadata.perks.${index}.label`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <Input placeholder="Perk Label" {...field} className="text-xs font-bold" />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`metadata.perks.${index}.desc`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormControl>
+                                                            <Input placeholder="Perk Description" {...field} className="text-xs" />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ─── Collections & Campaigns ─── */}
+                        <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <span className="w-2 h-2 bg-indigo-500 rounded-full" />
+                                Collections & Campaigns
+                            </h3>
+                            <p className="text-xs text-slate-500 mb-4">Select which collections this product should appear in.</p>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                {collections.map((col: any) => (
+                                    <div key={col.id} className="flex items-center space-x-2 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                                        <Checkbox 
+                                            id={`col-${col.id}`} 
+                                            checked={selectedCollections.includes(col.id)}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedCollections([...selectedCollections, col.id]);
+                                                } else {
+                                                    setSelectedCollections(selectedCollections.filter(id => id !== col.id));
+                                                }
+                                            }}
+                                        />
+                                        <label htmlFor={`col-${col.id}`} className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+                                            {col.name}
+                                        </label>
+                                    </div>
+                                ))}
+                                {collections.length === 0 && (
+                                    <p className="text-xs text-slate-400 italic col-span-2">No active collections found. Create one in the Marketing tab.</p>
+                                )}
+                            </div>
+                        </div>
                         <FormField
                             control={form.control}
                             name="featured"

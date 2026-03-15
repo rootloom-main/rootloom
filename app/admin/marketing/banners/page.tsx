@@ -23,6 +23,7 @@ interface Banner {
     link: string | null;
     position: string;
     active: boolean;
+    display_order: number;
     created_at: string;
 }
 
@@ -94,6 +95,7 @@ export default async function BannersPage() {
                                 <TableHead className="w-[100px]">Image</TableHead>
                                 <TableHead>Title</TableHead>
                                 <TableHead>Position</TableHead>
+                                <TableHead>Order</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -115,6 +117,7 @@ export default async function BannersPage() {
                                     </TableCell>
                                     <TableCell className="font-medium">{banner.title}</TableCell>
                                     <TableCell className="capitalize">{banner.position}</TableCell>
+                                    <TableCell>{(banner as any).display_order || 0}</TableCell>
                                     <TableCell>
                                         <span className={`px-2 py-1 rounded text-xs ${banner.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                                             {banner.active ? 'Active' : 'Inactive'}

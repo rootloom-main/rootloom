@@ -27,6 +27,8 @@ interface Order {
         email: string;
         full_name: string | null;
     } | null;
+    refund_status?: string;
+    refund_amount?: number;
 }
 
 interface AdminOrdersTableProps {
@@ -57,6 +59,15 @@ export function AdminOrdersTable({ orders }: AdminOrdersTableProps) {
 
     const getPaymentStatusVariant = (status: string) => {
         return status === 'completed' ? 'default' : 'destructive';
+    };
+
+    const getRefundStatusVariant = (status: string) => {
+        switch (status) {
+            case 'processed': return 'default';
+            case 'requested': return 'secondary';
+            case 'rejected': return 'destructive';
+            default: return 'outline';
+        }
     };
 
     return (
@@ -99,6 +110,7 @@ export function AdminOrdersTable({ orders }: AdminOrdersTableProps) {
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Payment</TableHead>
+                            <TableHead>Refund</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -133,6 +145,15 @@ export function AdminOrdersTable({ orders }: AdminOrdersTableProps) {
                                         <Badge variant={getPaymentStatusVariant(order.payment_status)} className="capitalize">
                                             {order.payment_status}
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {order.refund_status && order.refund_status !== 'none' ? (
+                                            <Badge variant={getRefundStatusVariant(order.refund_status)} className="capitalize">
+                                                {order.refund_status}
+                                            </Badge>
+                                        ) : (
+                                            <span className="text-stone-300">-</span>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-right">{formatPrice(order.total)}</TableCell>
                                     <TableCell className="text-right">

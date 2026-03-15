@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils/format";
+import { getProductPrice } from "@/lib/utils/pricing";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { useState, useEffect } from 'react';
 import Link from "next/link";
@@ -20,7 +21,7 @@ export function CartSheet() {
     }, []);
 
     const subtotal = cart.reduce((total, item) => {
-        const price = item.product.base_price + item.variant.price_adjustment;
+        const price = getProductPrice(item.product, item.variant);
         return total + price * item.quantity;
     }, 0);
 
@@ -56,7 +57,7 @@ export function CartSheet() {
                         <ScrollArea className="flex-1 p-4">
                             <div className="space-y-4">
                                 {cart.map((item) => {
-                                    const price = item.product.base_price + item.variant.price_adjustment;
+                                    const price = getProductPrice(item.product, item.variant);
 
                                     return (
                                         <div key={item.id} className="flex gap-4">

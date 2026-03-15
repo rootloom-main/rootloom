@@ -3,7 +3,7 @@ import { createSSRClient, getCurrentUser } from '@/lib/utils/auth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, MapPin, User, ArrowRight, CreditCard, Heart } from 'lucide-react';
+import { Package, MapPin, User, ArrowRight, CreditCard, Heart, Layers } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -157,12 +157,20 @@ export default async function AccountPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[
             {
-              title: "Your Collections",
+              title: "Order History",
               desc: "Track, return, or buy heirlooms again",
               icon: Package,
               href: "/account/orders",
               color: "text-blue-600",
               bg: "bg-blue-50/50"
+            },
+            {
+              title: "Heirloom Collections",
+              desc: "Explore curated sale archives and drops",
+              icon: Layers,
+              href: "/collections",
+              color: "text-indigo-600",
+              bg: "bg-indigo-50/50"
             },
             {
               title: "Address Book",

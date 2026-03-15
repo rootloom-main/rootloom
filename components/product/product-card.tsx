@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { formatPrice } from '@/lib/utils/format';
+import { getProductPrice, calculateMRP, calculateDiscountPercentage } from '@/lib/utils/pricing';
 import { Star, Eye, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,9 +30,10 @@ interface ProductCardProps {
     }>;
   };
   highlight?: string;
+  priority?: boolean;
 }
 
-export function ProductCard({ product, highlight }: ProductCardProps) {
+export function ProductCard({ product, highlight, priority }: ProductCardProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
@@ -50,6 +52,10 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
   // Mock rating for visual consistency
   const rating = 4.5;
   const reviewCount = product.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 50 + 10;
+
+  const displayPrice = getProductPrice(product);
+  const mrp = calculateMRP(displayPrice);
+  const discount = calculateDiscountPercentage(displayPrice, mrp);
 
   // Highlight matching text function
   const highlightMatch = (text: string, term?: string) => {
@@ -110,7 +116,7 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
   return (
     <>
       <div
-        className="group relative bg-white border border-stone-200 rounded-lg hover:shadow-xl transition-all duration-300 flex flex-col h-full overflow-hidden"
+        className="group relative bg-white border border-stone-200 rounded-xl hover:shadow-[0_0_30px_rgba(255,0,255,0.15)] hover:border-[#ff00ff]/30 transition-all duration-500 flex flex-col h-full overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onPointerDown={handlePointerDown}
@@ -122,13 +128,19 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
           />
 
           {/* Badges */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+          <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
             {product.base_price > 2000 && (
-              <Badge className="bg-[#cc0c39] hover:bg-[#cc0c39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
+              <Badge className="bg-[#ff00ff] hover:bg-[#ff00ff] text-white text-[10px] font-black px-2 py-1 rounded-none uppercase tracking-widest shadow-[4px_4px_0px_#000]">
                 Best Seller
+              </Badge>
+            )}
+            {discount > 25 && (
+              <Badge className="bg-[#00ffff] hover:bg-[#00ffff] text-black text-[10px] font-black px-2 py-1 rounded-none uppercase tracking-widest shadow-[4px_4px_0px_#000]">
+                Hype Drop
               </Badge>
             )}
           </div>
@@ -143,7 +155,7 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
           {/* Quick Actions overlay on desktop */}
           {mounted && (
             <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur-sm hidden md:flex flex-col gap-2 border-t border-stone-100">
-              <Button size="sm" className="w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-sm text-xs font-semibold h-9 shadow-sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
+              <Button size="sm" className="w-full bg-black hover:bg-black text-white rounded-none text-xs font-black uppercase tracking-widest h-10 shadow-[4px_4px_0px_#ff00ff] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
                 <ShoppingCart className="w-3.5 h-3.5 mr-2" /> Add to Cart
               </Button>
               <Button
@@ -160,8 +172,8 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
 
         <div className="p-4 flex flex-col flex-1 gap-1.5">
           {/* Title */}
-          <Link href={`/product/${product.slug}`} className="group-hover:text-deep-forest transition-colors">
-            <h3 className="font-medium text-slate-900 text-sm leading-snug line-clamp-2 min-h-[2.5em]" title={product.name}>
+          <Link href={`/product/${product.slug}`} className="group-hover:text-[#ff00ff] transition-colors">
+            <h3 className="font-black text-slate-900 text-sm md:text-base leading-tight line-clamp-2 min-h-[2.5em] uppercase tracking-tight italic" title={product.name}>
               {highlightMatch(product.name, highlight)}
             </h3>
           </Link>
@@ -178,14 +190,14 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
 
           {/* Price */}
           <div className="mt-auto flex items-baseline gap-2 flex-wrap">
-            <span className="text-lg font-semibold text-slate-900">{formatPrice(product.base_price)}</span>
-            {product.base_price > 1000 && (
+            <span className="text-xl font-black text-slate-900 tracking-tighter">{formatPrice(displayPrice)}</span>
+            {discount > 0 && (
               <>
                 <span className="text-sm text-stone-400 line-through">
-                  {formatPrice(product.base_price * 1.3)}
+                  {formatPrice(mrp)}
                 </span>
                 <span className="text-[11px] font-bold text-deep-forest bg-deep-forest/5 px-1.5 py-0.5 rounded-sm tracking-wide uppercase">
-                  (30% OFF)
+                  ({discount}% OFF)
                 </span>
               </>
             )}
@@ -194,9 +206,6 @@ export function ProductCard({ product, highlight }: ProductCardProps) {
           {/* Mobile Add to Cart (visible only on mobile) */}
           {mounted && (
             <div className="md:hidden mt-3 gap-2 flex">
-              <Button variant="outline" size="sm" className="w-10 px-0 flex-shrink-0 border-stone-200 text-stone-600 hover:bg-stone-50 h-9 font-medium" onClick={handleQuickView}>
-                <Eye className="w-4 h-4" />
-              </Button>
               <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-9 font-medium" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
                 Add to Cart
               </Button>
