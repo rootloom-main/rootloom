@@ -38,28 +38,28 @@ export function Footer() {
             <Link href="/" className="block">
               <h3 className="font-serif text-2xl md:text-3xl font-bold text-heirloom-white tracking-wide">ROOT & LOOM</h3>
             </Link>
-            <p className="text-sm text-ash-white/70 leading-relaxed max-w-sm">
+            <p className="text-sm text-ash-white/90 leading-relaxed max-w-sm">
                 Redefining the urban wardrobe. Bold fits, premium drip, and street-ready energy for the next generation.
             </p>
 
             <div className="flex gap-4 pt-2">
-              <a href="https://www.instagram.com/rootloom.in/" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Instagram className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
+              <a href="https://www.instagram.com/rootloom.in/" target="_blank" rel="noopener noreferrer" className="h-11 w-11 md:h-12 md:w-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-raw-clay transition-colors group" aria-label="Instagram">
+                <Instagram className="h-5 w-5 md:h-6 md:w-6 text-ash-white group-hover:text-white" />
               </a>
-              <a href="https://www.facebook.com/share/1D1ZrHGpBb/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Facebook className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
+              <a href="https://www.facebook.com/share/1D1ZrHGpBb/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="h-11 w-11 md:h-12 md:w-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-raw-clay transition-colors group" aria-label="Facebook">
+                <Facebook className="h-5 w-5 md:h-6 md:w-6 text-ash-white group-hover:text-white" />
               </a>
-              <a href="https://wa.me/919913555532" target="_blank" rel="noopener noreferrer" className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-raw-clay transition-colors group">
-                <Phone className="h-4 w-4 md:h-5 md:w-5 text-ash-white group-hover:text-white" />
+              <a href="https://wa.me/919913555532" target="_blank" rel="noopener noreferrer" className="h-11 w-11 md:h-12 md:w-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-raw-clay transition-colors group" aria-label="WhatsApp">
+                <Phone className="h-5 w-5 md:h-6 md:w-6 text-ash-white group-hover:text-white" />
               </a>
             </div>
 
             <div className="pt-4 border-t border-white/5 space-y-2">
-              <div className="flex items-center gap-3 text-xs md:text-sm text-ash-white/80">
+              <div className="flex items-center gap-3 text-xs md:text-sm text-ash-white/90">
                 <Mail className="h-4 w-4 text-raw-clay flex-shrink-0" />
-                <a href="mailto:root@rootloom.in" className="hover:text-white transition-colors">root@rootloom.in</a>
+                <a href="mailto:root@rootloom.in" className="hover:text-white transition-colors py-2">root@rootloom.in</a>
               </div>
-              <div className="flex items-start gap-3 text-xs md:text-sm text-ash-white/80">
+              <div className="flex items-start gap-3 text-xs md:text-sm text-ash-white/90">
                 <MapPin className="h-4 w-4 text-raw-clay flex-shrink-0 mt-0.5" />
                 <span className="max-w-[250px] leading-relaxed">
                   Shri Ram Folding Works Shri Ram Industries park-3<br />
@@ -80,7 +80,7 @@ export function Footer() {
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                      className="text-xs md:text-sm text-ash-white/90 hover:text-raw-clay transition-colors duration-200 py-1.5 inline-block"
                     >
                       {link.name}
                     </Link>
@@ -97,7 +97,7 @@ export function Footer() {
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                      className="text-xs md:text-sm text-ash-white/90 hover:text-raw-clay transition-colors duration-200 py-1.5 inline-block"
                     >
                       {link.name}
                     </Link>
@@ -114,7 +114,7 @@ export function Footer() {
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className="text-xs md:text-sm text-ash-white/70 hover:text-raw-clay transition-colors duration-200"
+                      className="text-xs md:text-sm text-ash-white/90 hover:text-raw-clay transition-colors duration-200 py-1.5 inline-block"
                     >
                       {link.name}
                     </Link>
@@ -126,12 +126,12 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 md:mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] md:text-xs text-ash-white/50 text-center md:text-left">
+        <div className="mt-12 md:mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] md:text-xs text-ash-white/70 text-center md:text-left">
           <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center">
             <p>&copy; {new Date().getFullYear()} Root & Loom. All rights reserved.</p>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               {footerLinks.legal.map(link => (
-                <Link key={link.name} href={link.href} className="hover:text-ash-white transition-colors">
+                <Link key={link.name} href={link.href} className="hover:text-ash-white transition-colors py-2">
                   {link.name}
                 </Link>
               ))}

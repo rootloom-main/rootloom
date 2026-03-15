@@ -119,7 +119,7 @@ export function Header() {
             <div className="flex items-center gap-0.5 sm:gap-4 min-w-0">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 md:hidden text-deep-forest hover:bg-stone-paper rounded-full">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 md:hidden text-deep-forest hover:bg-stone-paper rounded-full" aria-label="Open mobile menu">
                     <Menu className="h-4 w-4 sm:h-6 sm:w-6" />
                   </Button>
                 </SheetTrigger>
@@ -230,8 +230,8 @@ export function Header() {
                 <SearchOverlay />
               </div>
 
-              <Link href="/account/wishlist" className="relative group">
-                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors">
+              <Link href="/account/wishlist" className="relative group" aria-label="View wishlist">
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors" aria-label="Wishlist">
                   <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                   {mounted && wishlistCount > 0 && (
                     <Badge
@@ -248,6 +248,7 @@ export function Header() {
                 size="icon"
                 className="relative h-8 w-8 sm:h-10 sm:w-10 text-deep-forest hover:text-raw-clay hover:bg-transparent rounded-full transition-colors"
                 onClick={() => setIsCartOpen(true)}
+                aria-label="Toggle cart"
               >
                 <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
                 {mounted && cartCount > 0 && (
@@ -262,7 +263,7 @@ export function Header() {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors" aria-label="User account menu">
                       <User className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -305,8 +306,8 @@ export function Header() {
                 </DropdownMenu>
               ) : (
                 <div className="flex items-center">
-                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent">
+                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden" aria-label="Login">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent" aria-label="Login">
                       <User className="h-4 w-4 sm:h-5 sm:w-5" />
                     </Button>
                   </Link>

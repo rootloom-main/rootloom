@@ -157,16 +157,16 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
           {/* Quick Actions overlay on desktop */}
           {mounted && (
             <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-white/95 backdrop-blur-sm hidden md:flex flex-col gap-2 border-t border-stone-100">
-              <Button size="sm" className="w-full bg-black hover:bg-black text-white rounded-none text-xs font-black uppercase tracking-widest h-10 shadow-[4px_4px_0px_#ff00ff] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
-                <ShoppingCart className="w-3.5 h-3.5 mr-2" /> Add to Cart
+              <Button size="sm" className="w-full bg-black hover:bg-black text-white rounded-none text-xs font-black uppercase tracking-widest h-11 md:h-10 shadow-[4px_4px_0px_#ff00ff] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
+                <ShoppingCart className="w-4 h-4 mr-2" /> Add to Cart
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full border-stone-200 hover:bg-stone-50 text-stone-700 rounded-sm text-xs font-medium h-9"
+                className="w-full border-stone-200 hover:bg-stone-50 text-stone-700 rounded-sm text-xs font-medium h-11 md:h-9 mt-1 md:mt-0"
                 onClick={handleQuickView}
               >
-                <Eye className="w-3.5 h-3.5 mr-2" /> Quick View
+                <Eye className="w-4 h-4 md:w-3.5 md:h-3.5 mr-2" /> Quick View
               </Button>
             </div>
           )}
@@ -208,7 +208,7 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
           {/* Mobile Add to Cart (visible only on mobile) */}
           {mounted && (
             <div className="md:hidden mt-3 gap-2 flex">
-              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-9 font-medium" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
+              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-11 font-semibold" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
                 Add to Cart
               </Button>
             </div>

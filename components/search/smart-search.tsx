@@ -367,7 +367,7 @@ function SmartSearchInner() {
                                             e.stopPropagation();
                                             setRecentSearches([]);
                                             localStorage.removeItem('recentSearches');
-                                        }} className="text-[10px] text-primary font-medium hover:underline">
+                                        }} className="text-[10px] text-primary font-medium hover:underline" aria-label="Clear all recent searches">
                                             Clear All
                                         </button>
                                     )}
@@ -392,6 +392,7 @@ function SmartSearchInner() {
                                                 <button
                                                     onClick={(e) => removeRecentSearch(term, e)}
                                                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-200 rounded-full transition-all text-slate-400"
+                                                    aria-label={`Remove ${term} from recent searches`}
                                                 >
                                                     <X className="h-3 w-3" />
                                                 </button>
