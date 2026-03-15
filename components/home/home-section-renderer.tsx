@@ -7,11 +7,9 @@ import { FeaturedProducts } from '@/components/home/featured-products';
 import { NewArrivals } from '@/components/home/new-arrivals';
 import { BestSellers } from '@/components/home/best-sellers';
 import { AllProductsPreview } from '@/components/home/all-products-preview';
-import dynamic from 'next/dynamic';
-
-const BrandStory = dynamic(() => import('@/components/home/brand-story'));
-const TrustSection = dynamic(() => import('@/components/home/trust-section'));
-const Newsletter = dynamic(() => import('@/components/home/newsletter-section'));
+import BrandStory from '@/components/home/brand-story';
+import TrustSection from '@/components/home/trust-section';
+import Newsletter from '@/components/home/newsletter-section';
 
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { ProductGridSkeleton } from '@/components/product/product-skeleton';
@@ -62,8 +60,6 @@ export function HomeSectionRenderer({ sections, data }: HomeSectionRendererProps
                         );
                     case 'FEATURED':
                         return <FeaturedProducts key={section.id} products={data.featuredProducts} />;
-                    case 'BRAND_STORY':
-                        return <BrandStory key={section.id} />;
                     case 'ALL_PRODUCTS':
                         return (
                             <Suspense key={section.id} fallback={<SectionLoader />}>
@@ -93,10 +89,12 @@ export function HomeSectionRenderer({ sections, data }: HomeSectionRendererProps
                                 </div>
                             </Suspense>
                         );
+                    case 'BRAND_STORY':
+                        return <Suspense key={section.id} fallback={<SectionLoader />}><BrandStory /></Suspense>;
                     case 'NEWSLETTER':
-                        return <Newsletter key={section.id} />;
+                        return <Suspense key={section.id} fallback={<SectionLoader />}><Newsletter /></Suspense>;
                     case 'TRUST':
-                        return <TrustSection key={section.id} />;
+                        return <Suspense key={section.id} fallback={<SectionLoader />}><TrustSection /></Suspense>;
                     default:
                         return null;
                 }

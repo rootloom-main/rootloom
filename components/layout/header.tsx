@@ -99,8 +99,12 @@ export function Header() {
   return (
     <>
       {/* Top Announcement Bar */}
-      <div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase">
-        ⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡
+      <div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase" suppressHydrationWarning>
+        {mounted ? (
+          "⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡"
+        ) : (
+          "⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡"
+        )}
       </div>
 
       <header
