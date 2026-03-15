@@ -12,7 +12,7 @@ export const ProductService = {
         if (cached) return cached;
 
         const supabase = await createClient();
-        const { data, error } = await supabase.from('categories').select('*').order('name');
+        const { data, error } = await supabase.from('categories').select('id, name, slug, image_url').order('name');
 
         if (error) {
             console.error('Failed to fetch categories:', error);
@@ -61,7 +61,7 @@ export const ProductService = {
                 const { data: fullProducts, error: fullError } = await supabase
                     .from('products')
                     .select(`
-                        *,
+                        id, name, slug, base_price,
                         category:categories(name, slug),
                         product_images(image_url, alt_text, display_order),
                         product_variants(id, size, color, stock, price_adjustment)
@@ -84,7 +84,7 @@ export const ProductService = {
         }
 
         let query = supabase.from('products').select(`
-      *,
+      id, name, slug, base_price,
       category:categories(name, slug),
       product_images(image_url, alt_text, display_order),
       product_variants(id, size, color, stock, price_adjustment)
@@ -138,7 +138,7 @@ export const ProductService = {
         const { data, error } = await supabase
             .from('products')
             .select(`
-        *,
+        id, name, slug, description, base_price, metadata,
         category:categories(name, slug),
         product_images(id, image_url, alt_text, display_order),
         product_variants(id, size, color, stock, price_adjustment, sku)

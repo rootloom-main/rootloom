@@ -32,7 +32,7 @@ async function CollectionContent({ slug }: { slug: string }) {
     // 1. Fetch Collection
     const { data: collection, error } = await (supabase
         .from('collections' as unknown as any) as any)
-        .select('*')
+        .select('id, name, slug, description, image_url, badge_label, seo_metadata, type, rules, sort_by')
         .eq('slug', slug)
         .eq('is_active', true)
         .single();
@@ -168,9 +168,9 @@ async function CollectionContent({ slug }: { slug: string }) {
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-16">
-                        {productList.map((product) => (
+                        {productList.map((product, index) => (
                             <div key={product.id} className="group">
-                                <ProductCard product={product} />
+                                <ProductCard product={product} priority={index < 4} />
                             </div>
                         ))}
                     </div>

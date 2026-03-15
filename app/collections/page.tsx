@@ -11,7 +11,7 @@ export default async function CollectionsIndexPage() {
     const supabase = await createClient();
     
     const { data: collections } = await (supabase.from('collections' as unknown as any) as any)
-        .select('*')
+        .select('id, name, slug, description, image_url, badge_label, created_at')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 

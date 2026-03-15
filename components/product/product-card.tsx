@@ -9,9 +9,11 @@ import { Star, Eye, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WishlistButton } from '@/components/product/wishlist-button';
-import { QuickViewModal } from '@/components/ui/quick-view-modal';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const QuickViewModal = dynamic(() => import('@/components/ui/quick-view-modal').then(mod => mod.QuickViewModal), { ssr: false });
 
 interface ProductCardProps {
   product: {

@@ -7,9 +7,12 @@ import { FeaturedProducts } from '@/components/home/featured-products';
 import { NewArrivals } from '@/components/home/new-arrivals';
 import { BestSellers } from '@/components/home/best-sellers';
 import { AllProductsPreview } from '@/components/home/all-products-preview';
-import { TrustSection } from '@/components/home/trust-section';
-import { BrandStory } from '@/components/home/brand-story';
-import { Newsletter } from '@/components/home/newsletter-section';
+import dynamic from 'next/dynamic';
+
+const BrandStory = dynamic(() => import('@/components/home/brand-story').then(mod => mod.BrandStory));
+const TrustSection = dynamic(() => import('@/components/home/trust-section').then(mod => mod.TrustSection));
+const Newsletter = dynamic(() => import('@/components/home/newsletter-section').then(mod => mod.Newsletter));
+
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { ProductGridSkeleton } from '@/components/product/product-skeleton';
 
