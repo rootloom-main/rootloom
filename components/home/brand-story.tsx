@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { FadeIn } from '@/components/ui/fade-in';
 
-export function BrandStory() {
+export default function BrandStory() {
     return (
         <section className="py-24 bg-stone-50 overflow-hidden">
             <div className="container mx-auto px-6">

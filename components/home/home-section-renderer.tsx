@@ -9,9 +9,9 @@ import { BestSellers } from '@/components/home/best-sellers';
 import { AllProductsPreview } from '@/components/home/all-products-preview';
 import dynamic from 'next/dynamic';
 
-const BrandStory = dynamic(() => import('@/components/home/brand-story').then(mod => mod.BrandStory));
-const TrustSection = dynamic(() => import('@/components/home/trust-section').then(mod => mod.TrustSection));
-const Newsletter = dynamic(() => import('@/components/home/newsletter-section').then(mod => mod.Newsletter));
+const BrandStory = dynamic(() => import('@/components/home/brand-story'));
+const TrustSection = dynamic(() => import('@/components/home/trust-section'));
+const Newsletter = dynamic(() => import('@/components/home/newsletter-section'));
 
 import { PromoBanner } from '@/components/marketing/promo-banner';
 import { ProductGridSkeleton } from '@/components/product/product-skeleton';

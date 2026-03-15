@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Mail, ArrowRight } from 'lucide-react';
 import { FadeIn } from '@/components/ui/fade-in';
 
-export function Newsletter() {
+export default function Newsletter() {
     return (
         <section className="py-24 bg-deep-forest text-heirloom-white relative overflow-hidden">
             {/* Background Pattern */}

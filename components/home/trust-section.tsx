@@ -25,7 +25,7 @@ const features = [
     },
 ];
 
-export function TrustSection() {
+export default function TrustSection() {
     return (
         <section className="py-16 bg-[#f9f8f6] border-b border-stone-200">
             <div className="container mx-auto px-4">
