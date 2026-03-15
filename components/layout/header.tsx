@@ -10,7 +10,10 @@ import { cn } from '@/lib/utils';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { SmartSearch } from '@/components/search/smart-search';
-const SearchOverlay = dynamic(() => import('@/components/search/search-overlay').then(mod => mod.SearchOverlay));
+const SearchOverlay = dynamic(() => import('@/components/search/search-overlay').then(mod => ({ default: mod.SearchOverlay })), { 
+  ssr: false,
+  loading: () => <div className="h-10 w-10 animate-pulse bg-stone-100 rounded-full" />
+});
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -21,7 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from '@/lib/supabase/client';
-const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mod => mod.CartSheet), {
+const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mod => ({ default: mod.CartSheet })), {
   ssr: false
 });
 import { useAuth } from '@/components/auth/supabase-auth-provider';

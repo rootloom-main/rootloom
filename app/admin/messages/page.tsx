@@ -14,7 +14,8 @@ import {
     CheckCircle2, 
     Trash2,
     Calendar,
-    Phone
+    Phone,
+    Archive
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -61,10 +62,14 @@ export default function AdminMessagesPage() {
                 query = query.eq('status', filterStatus);
             }
 
-            const { data, error } = await query;
+            const { data, error } = await query as { data: any[] | null, error: any };
 
             if (error) throw error;
-            setSubmissions(data || []);
+            setSubmissions((data || []).map(s => ({
+                ...s,
+                order_id: s.order_id || s.subject || null, // Fallback if schema is old
+                status: s.status || 'unread'
+            })));
         } catch (error: any) {
             toast.error('Failed to load messages: ' + error.message);
         } finally {
@@ -78,8 +83,8 @@ export default function AdminMessagesPage() {
 
     const updateStatus = async (id: string, status: string) => {
         try {
-            const { error } = await supabase
-                .from('contact_submissions')
+            const { error } = await (supabase
+                .from('contact_submissions') as any)
                 .update({ status })
                 .eq('id', id);
 

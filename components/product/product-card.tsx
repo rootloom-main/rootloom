@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-const QuickViewModal = dynamic(() => import('@/components/ui/quick-view-modal').then(mod => mod.QuickViewModal), { ssr: false });
+const QuickViewModal = dynamic(() => import('@/components/ui/quick-view-modal').then(mod => ({ default: mod.QuickViewModal })), { ssr: false });
 
 interface ProductCardProps {
   product: {
