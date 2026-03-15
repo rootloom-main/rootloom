@@ -473,7 +473,7 @@ export function ProductDetails({
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   size="lg"
-                  className="flex-1 bg-deep-forest hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg shadow-deep-forest/10 hover:shadow-deep-forest/20 transition-all duration-300 text-sm md:text-base h-14 uppercase tracking-wider"
+                  className="flex-1 bg-deep-forest hover:bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-deep-forest/20 hover:shadow-deep-forest/30 transition-all duration-300 text-base md:text-lg h-16 md:h-14 uppercase tracking-widest border-2 border-transparent"
                   onClick={handleBuyNow}
                   disabled={!selectedVariant || selectedVariant.stock === 0 || isBuying || isAdding}
                 >
@@ -481,11 +481,11 @@ export function ProductDetails({
                 </Button>
                 <Button
                   size="lg"
-                  className="flex-1 bg-raw-clay hover:bg-[#7a4e3c] text-white font-bold rounded-xl shadow-lg shadow-raw-clay/10 hover:shadow-raw-clay/20 transition-all duration-300 text-sm md:text-base h-14 uppercase tracking-wider"
+                  className="flex-1 bg-raw-clay hover:bg-[#7a4e3c] text-white font-black rounded-xl shadow-lg shadow-raw-clay/20 hover:shadow-raw-clay/30 transition-all duration-300 text-base md:text-lg h-16 md:h-14 uppercase tracking-widest"
                   onClick={handleAddToCart}
                   disabled={!selectedVariant || selectedVariant.stock === 0 || isAdding || isBuying}
                 >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  <ShoppingCart className="h-6 w-6 mr-2" />
                   {isAdding ? 'Adding...' : 'Add to Cart'}
                 </Button>
               </div>

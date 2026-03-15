@@ -81,6 +81,7 @@ const config: Config = {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'slow-zoom': 'slow-zoom 20s linear infinite alternate',
         'fade-in-up': 'fade-in-up 1s ease-out forwards',
+        'marquee': 'marquee 25s linear infinite',
       },
       keyframes: {
         'accordion-down': {
@@ -98,6 +99,10 @@ const config: Config = {
         'fade-in-up': {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'marquee': {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-100%)' },
         },
       },
     },

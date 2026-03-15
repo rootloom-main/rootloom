@@ -1,186 +1,156 @@
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, Leaf, Users, Heart, Globe } from 'lucide-react';
+import { Sparkles, Flame, Globe2, ShieldCheck, ArrowRight } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'About Root & Loom | Premium GenZ Streetwear & Sustainable Drip',
+    description: 'We are the future of streetwear. Root & Loom brings you sustainable, ethical, and unabashedly pure drip. No fast fashion, just real culture.',
+    openGraph: {
+        title: 'About Root & Loom | Premium GenZ Streetwear',
+        description: 'Sustainable, ethical, and pure drip. Join the streetwear revolution.',
+        images: ['https://images.pexels.com/photos/1933873/pexels-photo-1933873.jpeg'],
+    }
+};
 
 export default function AboutPage() {
     return (
-        <div className="bg-white min-h-screen">
-            {/* Hero Section - Immersive Experience */}
-            <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+        <main className="min-h-screen bg-[#fafafa] selection:bg-deep-forest selection:text-white overflow-hidden font-sans">
+            {/* SEO Hidden H1 for Structure */}
+            <h1 className="sr-only">About Root & Loom - Sustainable GenZ Streetwear</h1>
+            
+            {/* HERO SECTION - Brutalist / Y2K inspired */}
+            <section className="relative min-h-[90vh] flex items-center justify-center border-b-[12px] border-deep-forest overflow-hidden">
                 <div className="absolute inset-0 z-0">
                     <Image
-                        src="https://images.pexels.com/photos/3771612/pexels-photo-3771612.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                        alt="Artisan weaving fabric on a traditional loom"
+                        src="https://images.pexels.com/photos/1933873/pexels-photo-1933873.jpeg?auto=compress&cs=tinysrgb&w=1600"
+                        alt="Urban streetwear lifestyle"
                         fill
-                        className="object-cover brightness-[0.4] scale-105 animate-slow-zoom"
+                        className="object-cover grayscale opacity-20 scale-105 animate-slow-zoom"
                         priority
                     />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#fafafa] z-0"></div>
                 </div>
-                <div className="relative z-10 text-center text-white max-w-4xl px-4 animate-fade-in-up">
-                    <span className="text-sm md:text-base font-medium tracking-[0.2em] uppercase mb-4 block text-gray-300">
-                        Since 2023
-                    </span>
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold mb-8 leading-tight">
-                        Woven with <br /> <span className="text-heirloom-white italic">Purpose & Soul</span>
-                    </h1>
-                    <p className="text-lg md:text-2xl font-light tracking-wide text-gray-200 max-w-2xl mx-auto mb-10 leading-relaxed">
-                        Root & Loom bridges the gap between ancient craftsmanship and modern luxury.
-                    </p>
-                    <Link href="#our-story">
-                        <Button variant="outline" className="border-white text-white hover:bg-white hover:text-black transition-all rounded-full px-8 py-6 text-lg">
-                            Discover Our Story
-                        </Button>
-                    </Link>
-                </div>
-            </section>
-
-            {/* Mission Statement - Typography Focused */}
-            <section id="our-story" className="py-24 md:py-32 container mx-auto px-4 text-center">
-                <div className="max-w-4xl mx-auto">
-                    <h2 className="text-3xl md:text-5xl font-serif font-medium leading-tight text-gray-900 mb-12">
-                        &quot;We believe that true luxury lies in the story behind the garment—the hands that wove it, the soil that grew it, and the legacy it carries.&quot;
+                
+                <div className="relative z-10 container mx-auto px-4 text-center mt-20">
+                    <div className="inline-block bg-deep-forest text-white px-4 py-1.5 rounded-full font-bold text-xs md:text-sm uppercase tracking-widest mb-6 border-2 border-stone-200 shadow-[4px_4px_0px_#1A231D] transform -rotate-2">
+                        Established 2024
+                    </div>
+                    <div className="text-6xl md:text-8xl lg:text-[10rem] font-black uppercase tracking-tighter text-deep-forest leading-none mb-6">
+                        WE ARE <br className="hidden md:block"/> THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-deep-forest to-raw-clay">VIBE</span>
+                    </div>
+                    <h2 className="text-lg md:text-3xl font-bold text-stone-800 max-w-3xl mx-auto uppercase tracking-wide leading-relaxed">
+                        Redefining streetwear for the next generation. Pure drip, zero compromises, 100% sustainable.
                     </h2>
-                    <div className="w-24 h-1 bg-gray-900 mx-auto opacity-20"></div>
                 </div>
-            </section>
-
-            {/* Alternating Story Sections */}
-            <section className="py-20 bg-gray-50">
-                <div className="container mx-auto px-4 space-y-24">
-                    {/* Part 1: The Root */}
-                    <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
-                        <div className="relative aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl group">
-                            <Image
-                                src="https://images.pexels.com/photos/5709661/pexels-photo-5709661.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                                alt="Ethical cotton farming"
-                                fill
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-                        </div>
-                        <div className="space-y-8">
-                            <div className="space-y-4">
-                                <span className="text-emerald-700 font-medium tracking-wider uppercase text-sm">The Beginning</span>
-                                <h3 className="text-4xl md:text-5xl font-serif text-gray-900">Rooted in Earth</h3>
-                            </div>
-                            <p className="text-gray-600 text-lg leading-relaxed">
-                                Our journey begins in the fields of India, where we partner directly with farmers who practice regenerative agriculture. By eschewing harmful chemicals and embracing organic methods, we ensure that every fiber is as kind to the earth as it is to your skin.
-                            </p>
-                            <ul className="space-y-4 pt-4">
-                                {['GOTS Certified Organic Cotton', 'Regenerative Farming Practices', 'Water-Saving Techniques'].map((item, i) => (
-                                    <li key={i} className="flex items-center gap-3 text-gray-700">
-                                        <Leaf className="w-5 h-5 text-emerald-600" />
-                                        <span>{item}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
-
-                    {/* Part 2: The Loom */}
-                    <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center md:flex-row-reverse">
-                        <div className="order-2 md:order-1 space-y-8">
-                            <div className="space-y-4">
-                                <span className="text-amber-700 font-medium tracking-wider uppercase text-sm">The Craft</span>
-                                <h3 className="text-4xl md:text-5xl font-serif text-gray-900">Woven by Masters</h3>
-                            </div>
-                            <p className="text-gray-600 text-lg leading-relaxed">
-                                Fast fashion has forgotten the art of patience. We haven&apos;t. Our fabrics are hand-loomed by master artisans whose skills have been passed down through generations. Each irregularity in the weave is not a flaw, but a signature of human touch.
-                            </p>
-                            <Link href="/shop" className="inline-flex items-center gap-2 text-gray-900 font-medium hover:text-amber-700 transition-colors group">
-                                Explore Handwoven Collection <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                            </Link>
-                        </div>
-                        <div className="relative aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl order-1 md:order-2 group">
-                            <Image
-                                src="https://images.pexels.com/photos/4614167/pexels-photo-4614167.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                                alt="Artisan working on a loom"
-                                fill
-                                className="object-cover transition-transform duration-700 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-                        </div>
+                
+                {/* Scrolling Marquee inside Hero */}
+                <div className="absolute bottom-0 left-0 right-0 w-full overflow-hidden bg-deep-forest text-heirloom-white border-y-[6px] border-raw-clay py-4 z-20 flex whitespace-nowrap">
+                    <div className="animate-marquee inline-flex flex-nowrap items-center gap-10 font-black text-2xl md:text-3xl uppercase tracking-widest w-[200%]">
+                        <span>SUSTAINABLE DRIP</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>STREETWEAR CULTURE</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>NO FAST FASHION BS</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>ROOT & LOOM</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>SUSTAINABLE DRIP</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>STREETWEAR CULTURE</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>NO FAST FASHION BS</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
+                        <span>ROOT & LOOM</span> <Sparkles className="inline w-8 h-8 text-raw-clay" />
                     </div>
                 </div>
             </section>
 
-            {/* Core Values Grid */}
-            <section className="py-24 container mx-auto px-4">
-                <div className="text-center max-w-3xl mx-auto mb-16">
-                    <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-6">Our Promise to You</h2>
-                    <p className="text-gray-600 text-lg">
-                        We don&apos;t just sell clothes; we advocate for a better way of living. One that values quality over quantity and people over profit.
-                    </p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                    {[
-                        {
-                            icon: Globe,
-                            title: 'Transparent Sourcing',
-                            desc: 'Know exactly where your clothes come from. We provide full transparency from farm to closet.'
-                        },
-                        {
-                            icon: Users,
-                            title: 'Fair Wages',
-                            desc: 'We ensure living wages for all our artisans, empowering communities and preserving heritage.'
-                        },
-                        {
-                            icon: Heart,
-                            title: 'Circular Fashion',
-                            desc: 'Designed for longevity. Our take-back program ensures old garments act as nutrients for new ones.'
-                        }
-                    ].map((item, idx) => (
-                        <div key={idx} className="bg-gray-50 p-10 rounded-xl text-center hover:shadow-xl transition-shadow duration-300 border border-transparent hover:border-gray-200">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-sm mb-6 text-gray-900">
-                                <item.icon className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">{item.title}</h3>
-                            <p className="text-gray-600 leading-relaxed">{item.desc}</p>
+            {/* THE MANIFESTO */}
+            <section className="py-24 md:py-32 container mx-auto px-4 relative">
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-12 md:gap-24">
+                    <div className="w-full md:w-1/2 relative group">
+                        <div className="absolute inset-0 bg-raw-clay translate-x-4 translate-y-4 border-[3px] border-deep-forest rounded-[2rem] transition-transform group-hover:translate-x-6 group-hover:translate-y-6 duration-300"></div>
+                        <div className="relative aspect-[4/5] rounded-[2rem] overflow-hidden border-[3px] border-deep-forest z-10 bg-stone-100">
+                            <Image
+                                src="https://images.pexels.com/photos/2726111/pexels-photo-2726111.jpeg?auto=compress&cs=tinysrgb&w=1200"
+                                alt="Edgy street fashion manifesto"
+                                fill
+                                className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 hover:scale-105"
+                            />
                         </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Visual Break / Quote */}
-            <section className="relative py-32 bg-gray-900 text-white overflow-hidden">
-                <div className="absolute inset-0 opacity-20">
-                    <Image
-                        src="https://images.pexels.com/photos/994523/pexels-photo-994523.jpeg?auto=compress&cs=tinysrgb&w=1200"
-                        alt="Fabric texture details"
-                        fill
-                        className="object-cover"
-                    />
-                </div>
-                <div className="container mx-auto px-4 relative z-10 text-center">
-                    <blockquote className="text-2xl md:text-4xl font-serif italic max-w-4xl mx-auto leading-relaxed">
-                        &quot;Fashion should be a form of escapism, not a form of imprisonment.&quot;
-                    </blockquote>
-                    <cite className="block mt-8 text-gray-400 not-italic uppercase tracking-widest text-sm">— Alexander McQueen</cite>
-                </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="py-24 container mx-auto px-4 text-center">
-                <div className="bg-heirloom-white/30 rounded-3xl p-12 md:p-20 border border-gray-200 shadow-sm relative overflow-hidden">
-                    <div className="relative z-10 max-w-2xl mx-auto space-y-8">
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900">Wear the Change</h2>
-                        <p className="text-lg text-gray-600">
-                            Join thousands of conscious consumers who are redefining luxury. Experience the difference of ethically crafted fashion.
+                    </div>
+                    
+                    <div className="w-full md:w-1/2 space-y-8">
+                        <div className="flex items-center gap-3">
+                            <Flame className="w-10 h-10 text-raw-clay" />
+                            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-deep-forest">The Manifesto</h2>
+                        </div>
+                        <p className="text-2xl md:text-3xl font-bold leading-relaxed text-stone-900 border-l-8 border-raw-clay pl-6">
+                            We got tired of brands choosing aesthetics over ethics. So we built Root & Loom. 
                         </p>
-                        <div className="pt-4">
+                        <p className="text-lg md:text-xl text-stone-600 leading-relaxed font-medium">
+                            Our garments aren&apos;t just pieces of cloth. They are a statement. Woven by master artisans across India, infused with modern street culture, and engineered to last. <br/><br/>
+                            <span className="bg-deep-forest text-white px-2 py-1 font-bold">This is anti-fast-fashion.</span> You wear it, you own it, it defines your era.
+                        </p>
+                        
+                        <div className="pt-6">
                             <Link href="/shop">
-                                <Button size="lg" className="bg-gray-900 text-white hover:bg-gray-800 rounded-full px-10 h-14 text-lg shadow-lg hover:shadow-xl transition-all">
-                                    Shop the Collection
+                                <Button size="lg" className="bg-deep-forest hover:bg-slate-900 text-white rounded-none font-black text-lg md:text-xl uppercase tracking-widest h-16 md:h-20 px-10 md:px-14 border-4 border-deep-forest shadow-[8px_8px_0px_#8B6A4F] hover:shadow-[4px_4px_0px_#8B6A4F] hover:translate-x-1 hover:translate-y-1 transition-all">
+                                    Cop The Look
                                 </Button>
                             </Link>
                         </div>
                     </div>
-                    {/* Decorative background elements if needed */}
                 </div>
             </section>
-        </div>
+
+            {/* BENTO BOX GRID / VALUES */}
+            <section className="py-24 bg-deep-forest text-white border-y-[12px] border-raw-clay">
+                <div className="container mx-auto px-4">
+                    <div className="text-center mb-16 md:mb-24">
+                        <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tighter mb-4 text-transparent bg-clip-text bg-gradient-to-r from-raw-clay to-heirloom-white">
+                            How We Roll
+                        </h2>
+                        <h3 className="text-xl md:text-2xl text-stone-400 font-bold uppercase tracking-widest">The 3 Non-Negotiables</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                        {/* Box 1 */}
+                        <div className="bg-[#1A231D] p-10 md:p-12 rounded-[2rem] border-2 border-stone-800 hover:border-raw-clay transition-all duration-300 group hover:-translate-y-2 shadow-2xl">
+                            <Globe2 className="w-16 h-16 text-raw-clay mb-8 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500" />
+                            <h4 className="text-3xl font-black uppercase mb-4 tracking-wide text-heirloom-white">Earth First</h4>
+                            <p className="text-stone-300 font-medium leading-relaxed text-lg">
+                                Regenerative cotton, non-toxic dyes, zero greenwashing. We only drop fits that respect the planet and leave no dirty footprint behind.
+                            </p>
+                        </div>
+                        
+                        {/* Box 2 */}
+                        <div className="bg-[#1A231D] p-10 md:p-12 rounded-[2rem] border-2 border-stone-800 hover:border-woven-sand transition-all duration-300 group lg:-translate-y-6 shadow-2xl">
+                            <Sparkles className="w-16 h-16 text-woven-sand mb-8 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500" />
+                            <h4 className="text-3xl font-black uppercase mb-4 tracking-wide text-heirloom-white">Premium Drip</h4>
+                            <p className="text-stone-300 font-medium leading-relaxed text-lg">
+                                Oversized silhouettes, heavy GSM fabrics, and details that break necks. Unapologetically bold designs made for the boldest generation.
+                            </p>
+                        </div>
+
+                        {/* Box 3 */}
+                        <div className="bg-[#1A231D] p-10 md:p-12 rounded-[2rem] border-2 border-stone-800 hover:border-yellow-500 transition-all duration-300 group hover:-translate-y-2 shadow-2xl">
+                            <ShieldCheck className="w-16 h-16 text-yellow-500 mb-8 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500" />
+                            <h4 className="text-3xl font-black uppercase mb-4 tracking-wide text-heirloom-white">Fair Play</h4>
+                            <p className="text-stone-300 font-medium leading-relaxed text-lg">
+                                Our artisans get paid living wages in safe environments. We don&apos;t believe in exploitation. Period. We uplift everyone in our supply chain.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA SECTION */}
+            <section className="py-32 md:py-48 container mx-auto px-4 text-center">
+                <h2 className="text-6xl md:text-[8rem] font-black uppercase tracking-tighter text-deep-forest mb-12 leading-[0.9]">
+                    Stop Wearing <br className="hidden md:block"/> Boring <span className="text-raw-clay line-through opacity-80 decoration-deep-forest">Sh*t.</span>
+                </h2>
+                <Link href="/shop" className="inline-block">
+                    <Button size="lg" className="bg-raw-clay hover:bg-oxide-brown text-white rounded-full font-black text-2xl md:text-4xl uppercase tracking-widest h-24 md:h-32 px-12 md:px-20 border-8 border-deep-forest shadow-[12px_12px_0px_#1A231D] hover:shadow-[6px_6px_0px_#1A231D] hover:translate-x-2 hover:translate-y-2 transition-all group">
+                        Upgrade Your Fit <ArrowRight className="ml-4 md:ml-8 w-10 h-10 md:w-16 md:h-16 group-hover:translate-x-4 transition-transform" />
+                    </Button>
+                </Link>
+            </section>
+        </main>
     );
 }
-
