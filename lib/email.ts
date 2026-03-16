@@ -224,7 +224,73 @@ export const sendAbandonedCartEmail = async ({
     });
     return { success: true };
   } catch (error) {
-    console.error('Error sending abandoned cart email:', error);
+    return { success: false, error };
+  }
+};
+
+export const sendMagicLinkEmail = async (email: string, link: string) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY is not set. Skipping magic link email.');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM,
+      to: [email],
+      subject: 'Your Magic Link for Root & Loom',
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 40px; border: 1px solid #eaeaea; text-align: center; }
+    .logo { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #1F2F26; text-decoration: none; margin-bottom: 30px; display: block; }
+    .title { font-size: 20px; font-weight: 300; color: #333333; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
+    .message { font-size: 16px; color: #444444; line-height: 1.5; margin-bottom: 30px; }
+    .btn { display: inline-block; padding: 14px 30px; background-color: #1F2F26; color: #ffffff !important; text-decoration: none; font-size: 14px; letter-spacing: 1px; font-weight: bold; margin-top: 20px; border-radius: 4px; }
+    .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #999999; line-height: 1.5; }
+    .link-alt { font-size: 12px; color: #999; margin-top: 20px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">ROOT & LOOM</a>
+    <div class="title">Login to Your Account</div>
+    
+    <div class="message">
+      <p>Click the button below to sign in to your Root & Loom account.</p>
+      <p>This link will expire in 1 hour and can only be used once.</p>
+    </div>
+
+    <a href="${link}" class="btn">SIGN IN TO ROOT & LOOM</a>
+
+    <div class="link-alt">
+      If the button doesn't work, copy and paste this link into your browser:<br>
+      ${link}
+    </div>
+
+    <div class="footer">
+      <p>Root & Loom | Sustainable Luxury Fashion</p>
+      <p>If you didn't request this email, you can safely ignore it.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend magic link error:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending magic link email:', error);
     return { success: false, error };
   }
 };

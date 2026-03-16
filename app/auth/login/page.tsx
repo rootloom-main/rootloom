@@ -44,9 +44,16 @@ function LoginPageContent() {
       const result = await signInWithIdentifier(identifier);
       if (result.error) throw new Error(result.error);
 
-      setStep('otp');
-      setTimer(60);
-      toast.success(`Code sent to ${identifier}`);
+      const isEmail = identifier.includes('@');
+      if (isEmail) {
+        toast.success(`Magic link sent to ${identifier}. Please check your inbox.`);
+        // For email, we stay on this step or show a "Check Email" state
+        setStep('identifier'); 
+      } else {
+        setStep('otp');
+        setTimer(60);
+        toast.success(`Verification code sent to ${identifier}`);
+      }
     } catch (error: any) {
       const msg = error.message || 'Failed to send verification code';
       toast.error(msg);

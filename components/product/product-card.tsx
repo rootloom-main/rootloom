@@ -39,9 +39,6 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [lastTap, setLastTap] = useState<number>(0);
-  const [swipeAdded, setSwipeAdded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -85,43 +82,12 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
     setIsQuickViewOpen(true);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const touchEnd = e.changedTouches[0].clientX;
-    const distance = touchStart - touchEnd;
-
-    // Swipe Right (negative distance means moved right)
-    if (distance < -50) {
-      // Trigger Quick View / Add
-      setIsQuickViewOpen(true);
-      setSwipeAdded(true);
-      setTimeout(() => setSwipeAdded(false), 1500);
-    }
-    setTouchStart(null);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    const now = Date.now();
-    const DOUBLE_TAP_DELAY = 300;
-    if (now - lastTap < DOUBLE_TAP_DELAY) {
-      e.preventDefault(); // Prevent second click
-      const btn = document.getElementById(`wishlist-btn-${product.id}`);
-      if (btn) btn.click();
-    }
-    setLastTap(now);
-  };
 
   return (
     <>
       <div
         className="group relative bg-white border border-stone-200 rounded-xl hover:shadow-[0_0_30px_rgba(255,0,255,0.15)] hover:border-[#ff00ff]/30 transition-all duration-500 flex flex-col h-full overflow-hidden"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onPointerDown={handlePointerDown}
       >
         <div onClick={() => router.push(`/product/${product.slug}`)} className="cursor-pointer block relative aspect-[4/5] overflow-hidden bg-stone-100">
           <Image
@@ -208,19 +174,23 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
           {/* Mobile Add to Cart (visible only on mobile) */}
           {mounted && (
             <div className="md:hidden mt-3 gap-2 flex">
-              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-11 font-semibold" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsQuickViewOpen(true); }}>
-                Add to Cart
+              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-11 font-semibold" onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/product/${product.slug}`); }}>
+                View Details
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      <QuickViewModal
-        product={product}
-        open={isQuickViewOpen}
-        onOpenChange={setIsQuickViewOpen}
-      />
+      {mounted && (
+        <div className="hidden md:block">
+          <QuickViewModal
+            product={product}
+            open={isQuickViewOpen}
+            onOpenChange={setIsQuickViewOpen}
+          />
+        </div>
+      )}
     </>
   );
 }

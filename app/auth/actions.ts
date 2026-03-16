@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
+import { sendMagicLinkEmail } from '@/lib/email';
 
 export async function signInWithIdentifier(identifier: string) {
     const headerList = headers();
@@ -19,14 +20,29 @@ export async function signInWithIdentifier(identifier: string) {
     const isEmail = identifier.includes('@');
 
     if (isEmail) {
-        const { error } = await supabase.auth.signInWithOtp({
+        // Use admin client to generate link to bypass Supabase's internal SMTP/rate limits
+        const adminSupabase = createAdminClient();
+        const { data, error } = await adminSupabase.auth.admin.generateLink({
+            type: 'magiclink',
             email: identifier,
             options: {
-                shouldCreateUser: true,
-                emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+                redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
             },
         });
-        if (error) return { error: error.message };
+
+        if (error) {
+            console.error('Error generating magic link:', error);
+            return { error: error.message };
+        }
+
+        if (data?.properties?.action_link) {
+            const emailResult = await sendMagicLinkEmail(identifier, data.properties.action_link);
+            if (!emailResult.success) {
+                return { error: 'Failed to send magic link email via Resend' };
+            }
+        } else {
+            return { error: 'Failed to generate sign-in link' };
+        }
     } else {
         let formattedPhone = identifier.trim().replace(/[\s\-\(\)]/g, '');
         if (!formattedPhone.startsWith('+')) {
