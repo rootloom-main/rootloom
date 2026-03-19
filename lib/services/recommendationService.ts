@@ -19,6 +19,7 @@ export const RecommendationService = {
             .from('products')
             .select('*, product_images(image_url, alt_text, display_order)')
             .eq('featured', true)
+            .is('deleted_at', null)
             .limit(limit);
 
         if (error || !products || products.length === 0) {
@@ -26,6 +27,7 @@ export const RecommendationService = {
             const { data: latest } = await supabase
                 .from('products')
                 .select('*, product_images(image_url, alt_text, display_order)')
+                .is('deleted_at', null)
                 .order('created_at', { ascending: false })
                 .limit(limit);
             products = latest;
@@ -54,6 +56,7 @@ export const RecommendationService = {
             .select('*, product_images(image_url, alt_text, display_order), product_variants(price_adjustment)')
             .eq('category_id', categoryId)
             .neq('id', excludeProductId)
+            .is('deleted_at', null)
             .limit(limit);
 
         if (error) {
@@ -84,6 +87,7 @@ export const RecommendationService = {
             .from('products')
             .select('*, product_images(image_url, alt_text, display_order)')
             .in('id', productIds)
+            .is('deleted_at', null)
             .limit(10);
 
         if (products) {

@@ -29,7 +29,7 @@ export async function deleteProduct(productId: string) {
 
     // Invalidate Search Cache
     if (redis) {
-        await redis.flushdb();
+        await redis.flushall();
     }
 
     return { success: true, message: 'Product archived successfully' };
@@ -86,7 +86,7 @@ export async function createProduct(data: any) {
 
     // Invalidate Search Cache
     if (redis) {
-        await redis.flushdb();
+        await redis.flushall();
     }
 
     return { success: true, message: 'Product created', productId: newProduct?.id };
@@ -144,7 +144,7 @@ export async function updateProduct(productId: string, data: any) {
 
     // Invalidate Search Cache
     if (redis) {
-        await redis.flushdb();
+        await redis.flushall();
     }
 
     return { success: true, message: 'Product updated', productId };

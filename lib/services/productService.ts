@@ -66,6 +66,7 @@ export const ProductService = {
                         product_images(image_url, alt_text, display_order),
                         product_variants(id, size, color, stock, price_adjustment)
                     `)
+                    .is('deleted_at', null)
                     .in('id', ids);
                 
                 if (fullError) return [];
@@ -88,7 +89,7 @@ export const ProductService = {
           category:categories!inner(name, slug),
           product_images(image_url, alt_text, display_order),
           product_variants(id, size, color, stock, price_adjustment)
-        `);
+        `).is('deleted_at', null);
 
         if (params?.categorySlug && params.categorySlug !== 'all') {
             query = query.eq('category.slug', params.categorySlug);
@@ -148,6 +149,7 @@ export const ProductService = {
         product_variants(id, size, color, stock, price_adjustment, sku)
       `)
             .eq('slug', slug)
+            .is('deleted_at', null)
             .single();
 
         if (error) return null;
@@ -172,7 +174,8 @@ export const ProductService = {
                 product_images(image_url, alt_text), 
                 product_variants(id, size, color, stock, price_adjustment),
                 category:categories!inner(slug)
-            `);
+            `)
+            .is('deleted_at', null);
         
         if (categorySlug) {
             query = query.eq('category.slug', categorySlug);
@@ -203,7 +206,8 @@ export const ProductService = {
                 product_images(image_url, alt_text), 
                 product_variants(id, size, color, stock, price_adjustment),
                 category:categories!inner(slug)
-            `);
+            `)
+            .is('deleted_at', null);
 
         if (categorySlug) {
             query = query.eq('category.slug', categorySlug);
@@ -231,6 +235,7 @@ export const ProductService = {
             .from('products')
             .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
             .eq('featured', true)
+            .is('deleted_at', null)
             .limit(limit);
 
         if (error) return [];
