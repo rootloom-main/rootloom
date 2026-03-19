@@ -36,6 +36,13 @@ export async function getCurrentUser() {
 
     if (error) {
       console.warn('Auth: Error fetching Supabase user in Server Component', error.message);
+      
+      // Fallback: Check if there's a valid session even if getUser failed.
+      // Error can happen during transient network issues or race conditions with cookie sync.
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (session?.user && !sessionError) {
+        return session.user;
+      }
       return null;
     }
 

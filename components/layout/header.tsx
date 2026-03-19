@@ -31,7 +31,7 @@ const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mo
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 export function Header() {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, refreshSession } = useAuth();
   // ... state ...
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -67,7 +67,16 @@ export function Header() {
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    
+    // 1. Sync auth context
+    await refreshSession();
+
+    // 2. Refresh server state
     router.refresh();
+
+    // 3. HARD REDIRECT - Ensures session cookies are fully cleared and 
+    // all server/client components are fresh.
+    window.location.href = '/';
   };
 
   const navigation = [

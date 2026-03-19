@@ -15,9 +15,11 @@ import {
     InputOTPSlot,
     InputOTPSeparator,
 } from '@/components/ui/input-otp';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 export function LoginForm() {
     const router = useRouter();
+    const { refreshSession } = useAuth();
     const searchParams = useSearchParams();
 
     // Stable Supabase client — created once, never re-created on re-render.
@@ -106,22 +108,22 @@ export function LoginForm() {
 
             if (result.error) throw result.error;
 
-            // SUCCESS: Supabase has set the session cookie.
-            // The SupabaseAuthProvider's onAuthStateChange listener will fire SIGNED_IN,
-            // call router.refresh() to sync server components, and update the user state.
-            // We only need to navigate — no manual router.refresh() needed here.
             toast.success('Logged in successfully!');
+
+            // 1. Force a session sync in the client-side context
+            await refreshSession();
 
             const next = searchParams?.get('next') || '/';
 
-            // Ensure server components are in sync before/during navigation
+            // 2. Refresh the server-side components
             router.refresh();
 
-            // Use startTransition + router.replace so React flushes pending state
-            // updates (from the auth provider) before committing the navigation.
-            startTransition(() => {
-                router.replace(next);
-            });
+            // 3. HARD REDIRECT - The most reliable fix
+            // Using window.location.href guarantees the server reads the new cookies
+            // and the entire page state is fresh.
+            setTimeout(() => {
+                window.location.href = next;
+            }, 100);
         } catch (error: any) {
             toast.error(error.message || 'Invalid code. Please try again.');
             setOtp('');

@@ -89,9 +89,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 4. Refresh the session - this is CRITICAL for Server Components
-  // Note: getUser() is safer than getSession() in middleware due to security checks
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  // 4. Check session - this is used for basic routing logic
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  const user = session?.user;
 
   // 5. Protected Routes Handling
   const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
@@ -99,14 +99,14 @@ export async function middleware(request: NextRequest) {
   const isAccountRoute = request.nextUrl.pathname.startsWith('/account');
 
   // Redirect to login if NO user and trying to access protected routes
-  if ((isAdminRoute || isAccountRoute) && (!user || userError)) {
+  if ((isAdminRoute || isAccountRoute) && (!user || sessionError)) {
     const redirectUrl = new URL('/auth/login', request.url);
     redirectUrl.searchParams.set('next', request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
   // Redirect to dashboard/home if USER IS logged in and trying to access auth pages (login/signup)
-  if (isAuthRoute && user && !userError && !request.nextUrl.pathname.includes('/callback')) {
+  if (isAuthRoute && user && !sessionError && !request.nextUrl.pathname.includes('/callback')) {
     return NextResponse.redirect(new URL('/account', request.url));
   }
 

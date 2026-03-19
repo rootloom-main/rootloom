@@ -16,6 +16,7 @@ interface AuthContextType {
     profile: UserProfile | null;
     isAdmin: boolean;
     loading: boolean;
+    refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
     profile: null,
     isAdmin: false,
     loading: true,
+    refreshSession: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -88,7 +90,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
                     }
                 }
             } catch (err) {
-                console.error('Error fetching session:', err);
+                console.error('Auth: Error fetching session in initSession:', err);
                 if (isMounted) setLoading(false);
             }
         };
@@ -127,8 +129,26 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const refreshSession = async () => {
+        try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (error) throw error;
+            
+            const currentUser = session?.user || null;
+            setUser(currentUser);
+            if (currentUser) {
+                await loadProfileAndAdminStatus(currentUser);
+            } else {
+                setProfile(null);
+                setIsAdmin(false);
+            }
+        } catch (err) {
+            console.error('Auth: Error in refreshSession:', err);
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, profile, isAdmin, loading, refreshSession }}>
             {children}
         </AuthContext.Provider>
     );

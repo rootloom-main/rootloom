@@ -10,12 +10,14 @@ import { toast } from 'sonner';
 import { completeOnboarding } from './actions';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 export function OnboardingForm({ initialEmail }: { initialEmail?: string }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState(initialEmail || '');
     const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
+    const { refreshSession } = useAuth();
     const router = useRouter();
     const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
 
@@ -30,12 +32,18 @@ export function OnboardingForm({ initialEmail }: { initialEmail?: string }) {
 
             toast.success(`Welcome to Root & Loom, ${name.split(' ')[0]}! 👋`);
 
-            const supabase = createClient();
-            await supabase.auth.getSession();
+            // 1. Force session sync on the client context
+            await refreshSession();
+
+            // 2. Refresh server-side components
             router.refresh();
 
             const next = searchParams?.get('next') || '/';
-            router.push(next);
+
+            // 3. HARD REDIRECT - Most reliable way to ensure all state is fresh
+            setTimeout(() => {
+                window.location.href = next;
+            }, 100);
         } catch (error: any) {
             toast.error(error.message || 'Failed to complete onboarding');
         } finally {

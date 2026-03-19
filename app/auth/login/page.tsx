@@ -13,9 +13,11 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 function LoginPageContent() {
   const router = useRouter();
+  const { refreshSession } = useAuth();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<'identifier' | 'otp' | 'email_sent'>('identifier');
   const [loading, setLoading] = useState(false);
@@ -74,19 +76,23 @@ function LoginPageContent() {
       if (result.error) throw new Error(result.error);
 
       toast.success(result.isNewUser ? 'Verification successful!' : 'Welcome back!');
+      
+      // 1. Force session sync on the client context
+      await refreshSession();
 
-      // Force session sync on the client - this ensures the SDK reads the new cookies
-      await supabase.auth.getSession();
+      // 2. Refresh server-side components
       router.refresh();
 
       // Standard redirection
       const next = searchParams?.get('next') || '/';
-      
-      if (result.redirectUrl) {
-        router.push(result.redirectUrl);
-      } else {
-        router.push(result.isNewUser ? `/auth/onboarding?next=${encodeURIComponent(next)}` : next);
-      }
+      const redirectPath = result.isNewUser ? `/auth/onboarding?next=${encodeURIComponent(next)}` : next;
+
+      // 3. HARD REDIRECT - The "Brutal but Works" fix
+      // Using window.location.href ensures the browser flushes all state 
+      // and re-fetches the entire page with the new auth cookies.
+      setTimeout(() => {
+        window.location.href = redirectPath;
+      }, 100);
     } catch (error: any) {
       toast.error(error.message || 'Invalid or expired code');
       setOtp('');
