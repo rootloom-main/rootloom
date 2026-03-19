@@ -84,11 +84,15 @@ export const ProductService = {
         }
 
         let query = supabase.from('products').select(`
-      id, name, slug, base_price,
-      category:categories(name, slug),
-      product_images(image_url, alt_text, display_order),
-      product_variants(id, size, color, stock, price_adjustment)
-    `);
+          id, name, slug, base_price,
+          category:categories!inner(name, slug),
+          product_images(image_url, alt_text, display_order),
+          product_variants(id, size, color, stock, price_adjustment)
+        `);
+
+        if (params?.categorySlug && params.categorySlug !== 'all') {
+            query = query.eq('category.slug', params.categorySlug);
+        }
 
         if (params?.minPrice !== undefined) {
             query = query.gte('base_price', params.minPrice);

@@ -7,10 +7,11 @@ export const runtime = 'nodejs';
 export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
-    // if "next" is in param, use it as the redirect URL
+    const token_hash = searchParams.get('token_hash');
+    const type = searchParams.get('type') as any;
     const next = searchParams.get('next') ?? '/';
 
-    if (code) {
+    if (code || (token_hash && type)) {
         const cookieStore = cookies();
         const response = NextResponse.redirect(`${origin}${next}`);
 
@@ -35,9 +36,15 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!error) {
-            return response;
+        if (code) {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (!error) return response;
+        } else if (token_hash && type) {
+            const { error } = await supabase.auth.verifyOtp({
+                token_hash,
+                type,
+            });
+            if (!error) return response;
         }
     }
 

@@ -109,7 +109,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       totalReviews
       : 0;
 
-  const siteUrl = 'https://rootloom.vercel.app';
+  const siteUrl = 'https://rootloom.in';
 
   return (
     <div className="pb-16 bg-white">

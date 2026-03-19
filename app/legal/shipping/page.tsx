@@ -23,6 +23,9 @@ export default function ShippingPage() {
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">4. How do I check the status of my order?</h2>
                 <p>When your order has shipped, you will receive an email notification from us which will include a tracking number you can use to check its status. Please allow 48 hours for the tracking information to become available.</p>
+
+                <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">5. Contact Us</h2>
+                <p>If you have any questions about our shipping policy, please contact us at <a href="mailto:root@rootloom.in" className="text-deep-forest underline">root@rootloom.in</a>.</p>
             </div>
         </div>
     );

@@ -188,14 +188,14 @@ export function ShopContent({
   );
 
   return (
-    <div className="grid md:grid-cols-4 gap-8">
-      <aside className="hidden md:block">
+    <div className="flex flex-col md:flex-row gap-8">
+      <aside className="hidden md:block w-72 shrink-0">
         <div className="sticky top-24 space-y-6">
           {renderFilters('desktop')}
         </div>
       </aside>
 
-      <div className="md:col-span-3">
+      <div className="flex-1">
         <div className="flex justify-between items-center mb-6">
           <p className="text-slate-bark">
             {loading ? 'Loading...' : `${products.length} products found`}
@@ -248,7 +248,7 @@ export function ShopContent({
             </Button>
           </div>
         ) : (
-          <div className={cn("grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-300 relative", (!isInitialLoad && (loading || isPending)) ? "opacity-50 pointer-events-none" : "opacity-100")}>
+          <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-opacity duration-300 relative", (!isInitialLoad && (loading || isPending)) ? "opacity-50 pointer-events-none" : "opacity-100")}>
             {(!isInitialLoad && (loading || isPending)) && (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <Loader2 className="h-8 w-8 animate-spin text-deep-forest" />

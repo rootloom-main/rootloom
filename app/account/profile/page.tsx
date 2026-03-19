@@ -30,8 +30,8 @@ export default async function ProfilePage() {
             </div>
 
             <ProfileForm
-                user={{ email: user.email || '' }}
-                profile={profile || { full_name: '', phone: '' }}
+                user={{ email: user.email || null, phone: user.phone || null }}
+                profile={profile || { full_name: '', phone: '', email: '' }}
             />
         </div>
     );

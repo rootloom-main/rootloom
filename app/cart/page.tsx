@@ -11,13 +11,24 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/utils/format';
 import { getProductPrice } from '@/lib/utils/pricing';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function CartPage() {
-  const { cart, cartCount, isLoading: cartLoading } = useCart();
+  const { 
+    cart, 
+    cartCount, 
+    isLoading: cartLoading,
+    selectedCartCount,
+    selectedCartTotal,
+    toggleAllSelection,
+    isAllSelected,
+    isIndeterminate
+  } = useCart();
   const { user } = useAuth();
   const router = useRouter();
 
   const handleCheckout = () => {
+    if (selectedCartCount === 0) return;
     if (!user) {
       router.push('/auth/login?next=/checkout');
     } else {
@@ -25,13 +36,8 @@ export default function CartPage() {
     }
   };
 
-  const subtotal = cart.reduce((total, item) => {
-    const price = getProductPrice(item.product, item.variant);
-    return total + price * item.quantity;
-  }, 0);
-
-  const shipping = subtotal > 999 ? 0 : 50;
-  const total = subtotal + shipping;
+  const shipping = selectedCartTotal > 999 ? 0 : 50;
+  const total = selectedCartTotal + shipping;
 
   if (cartLoading) {
     return (
@@ -69,9 +75,20 @@ export default function CartPage() {
   return (
     <div className="bg-stone-50 min-h-screen pb-24 lg:pb-12">
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6 text-deep-forest">My Cart ({cartCount})</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <h1 className="text-3xl font-serif font-bold text-deep-forest">Your Collection ({cartCount})</h1>
+          
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-sm border border-stone-200">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-bark">Select All Items</span>
+            <Checkbox 
+                checked={isAllSelected}
+                onCheckedChange={() => toggleAllSelection()}
+                className="h-5 w-5 border-stone-300 data-[state=checked]:bg-deep-forest data-[state=checked]:border-deep-forest"
+            />
+          </div>
+        </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column: Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             {cart.map((item) => (
@@ -83,10 +100,10 @@ export default function CartPage() {
           <div className="lg:col-span-1">
             <PriceDetails
               cart={cart}
-              subtotal={subtotal}
+              subtotal={selectedCartTotal}
               shipping={shipping}
               total={total}
-              itemCount={cartCount}
+              itemCount={selectedCartCount}
               onCheckout={handleCheckout}
             />
           </div>
@@ -94,16 +111,17 @@ export default function CartPage() {
       </div>
 
       {/* Mobile Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-between items-center z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-between items-center z-50">
         <div>
-          <p className="text-xs text-stone-500 font-bold uppercase tracking-widest">Total</p>
-          <p className="text-lg font-bold text-deep-forest">{formatPrice(total)}</p>
+          <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1">Total ({selectedCartCount})</p>
+          <p className="text-xl font-bold text-deep-forest leading-none">{formatPrice(total)}</p>
         </div>
         <Button
-          className="w-1/2 bg-deep-forest hover:bg-deep-forest/90 text-white font-semibold uppercase tracking-wide h-12"
+          className="w-1/2 bg-deep-forest hover:bg-deep-forest/90 text-white font-bold uppercase tracking-widest h-12 rounded-sm disabled:bg-stone-300 disabled:opacity-50"
           onClick={handleCheckout}
+          disabled={selectedCartCount === 0}
         >
-          Place Order
+          {selectedCartCount === 0 ? "Select Items" : "Checkout Now"}
         </Button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createSSRClient } from '@/lib/utils/auth';
+import { createSSRClient, createAdminClient } from '@/lib/utils/auth';
 import https from 'https';
 import dns from 'dns';
 
@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createSSRClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const { currency, addressId, couponCode } = await req.json();
+    const { currency, addressId, couponCode, selectedItemIds } = await req.json();
 
     if (!addressId) {
       return NextResponse.json(
@@ -26,9 +27,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Secure Verification: Fetch Cart from DB
-    const { data: cartItemsDB } = await supabase
+    let query = supabase
       .from('cart_items')
       .select(`
+          id,
           quantity,
           product_id,
           variant_id,
@@ -37,8 +39,15 @@ export async function POST(req: NextRequest) {
         `)
       .eq('user_id', user.id);
 
+    // If specific items are selected, only process those
+    if (selectedItemIds && Array.isArray(selectedItemIds) && selectedItemIds.length > 0) {
+      query = query.in('id', selectedItemIds);
+    }
+
+    const { data: cartItemsDB } = await query;
+
     if (!cartItemsDB || cartItemsDB.length === 0) {
-      return NextResponse.json({ success: false, message: 'Cart is empty' }, { status: 400 });
+      return NextResponse.json({ success: false, message: 'No selected items found in cart' }, { status: 400 });
     }
 
     const cartItems = cartItemsDB.map((item: any) => {
@@ -163,8 +172,8 @@ export async function POST(req: NextRequest) {
     });
 
     // 6. DB Logging: Save Pending Payment with Snapshot
-    const { error: paymentError } = await supabase
-      .from('payments')
+    const { error: paymentError } = await (adminSupabase
+      .from('payments' as any)
       .insert({
         user_id: user.id,
         razorpay_order_id: razorpayData.id,
@@ -172,6 +181,7 @@ export async function POST(req: NextRequest) {
         currency: razorpayData.currency || 'INR',
         status: 'pending',
         cart_snapshot: cartItemsDB.map((item: any) => ({
+          id: item.id, // Added ID for partial checkout cleanup
           product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: item.quantity,
@@ -179,7 +189,7 @@ export async function POST(req: NextRequest) {
         })),
         address_id: addressId,
         coupon_code: couponCode || null
-      });
+      }) as any);
 
     if (paymentError) {
         console.error('Failed to log payment initiation:', paymentError);

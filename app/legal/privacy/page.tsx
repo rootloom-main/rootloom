@@ -23,6 +23,9 @@ export default function PrivacyPage() {
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">4. Cookies</h2>
                 <p>We use cookies and similar tracking technologies to track activity on our Site and hold certain information to improve your shopping experience (such as maintaining your cart contents).</p>
+
+                <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">5. Contact Us</h2>
+                <p>If you have any questions about this Privacy Policy, please contact us at <a href="mailto:root@rootloom.in" className="text-deep-forest underline">root@rootloom.in</a>.</p>
             </div>
         </div>
     );

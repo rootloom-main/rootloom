@@ -41,10 +41,16 @@ type CheckoutStep = 'address' | 'summary' | 'payment';
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { cart, cartCount, clearCart } = useCart();
+  const { cart, cartCount, clearCart, selectedItemIds, refreshCart } = useCart();
   const { user, loading: authLoading } = useAuth();
   const posthog = usePostHog();
   const rzpInstance = useRef<any>(null);
+
+  // Filter cart to only selected items
+  const selectedCart = useMemo(() => 
+    cart.filter(item => selectedItemIds.includes(item.id)), 
+    [cart, selectedItemIds]
+  );
 
   const [loading, setLoading] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -80,16 +86,18 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; id: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Totals
-  const subtotal = useMemo(() => cart.reduce((total, item) => {
+  // Totals - Using selectedCart
+  const subtotal = useMemo(() => selectedCart.reduce((total, item) => {
     const price = getProductPrice(item.product, item.variant);
     return total + price * item.quantity;
-  }, 0), [cart]);
+  }, 0), [selectedCart]);
 
   const shipping = subtotal > 999 ? 0 : 50;
   const total = Math.round(Math.max(0, subtotal + shipping - discount));
 
-  // Protect Route
+  // Protected Count
+  const selectedCount = selectedCart.reduce((total, item) => total + item.quantity, 0);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/login?next=/checkout');
@@ -97,11 +105,30 @@ export default function CheckoutPage() {
   }, [user, authLoading, router]);
 
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => setScriptLoaded(true);
-    document.body.appendChild(script);
+    if (!authLoading && user && selectedCount === 0 && !isProcessingPayment) {
+      router.push('/cart');
+      toast.error('Please select items to checkout');
+    }
+  }, [user, authLoading, selectedCount, router, isProcessingPayment]);
+
+  useEffect(() => {
+    // If Razorpay is already loaded (e.g. navigating back), mark ready immediately
+    if (window.Razorpay) {
+      setScriptLoaded(true);
+    } else {
+      // Only inject script once — check if already in DOM
+      const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
+      if (existing) {
+        // Script tag exists — listen in case it's still loading
+        existing.addEventListener('load', () => setScriptLoaded(true));
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => setScriptLoaded(true);
+        document.body.appendChild(script);
+      }
+    }
 
     // Handle retry deep-linking
     const isRetry = searchParams?.get('retry') === 'true';
@@ -111,9 +138,6 @@ export default function CheckoutPage() {
     }
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
       if (rzpInstance.current) {
         try {
           rzpInstance.current.close();
@@ -292,6 +316,8 @@ export default function CheckoutPage() {
           currency: 'INR',
           couponCode: appliedCoupon?.code,
           addressId: address.id,
+          selectedItemIds: selectedItemIds,
+          isPartialCheckout: true
         }),
       });
 
@@ -304,7 +330,7 @@ export default function CheckoutPage() {
         amount: orderData.order.amount,
         currency: orderData.order.currency,
         name: 'Root&Loom',
-        description: 'Sustainable Luxury Fashion',
+        description: 'Rooted in Vibes. Loomed for the Journey.',
         order_id: orderData.order.id,
         handler: async function (response: any) {
           setIsProcessingPayment(true);
@@ -316,14 +342,14 @@ export default function CheckoutPage() {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                address_id: address.id,
+                addressId: address.id,
                 couponCode: appliedCoupon?.code,
               }),
             });
 
             const verifyData = await verifyResponse.json();
             if (verifyData.success) {
-              await clearCart();
+              await refreshCart();
               router.push(`/checkout/success?orderNumber=${verifyData.orderNumber}`);
             } else {
               toast.error(verifyData.message || 'Verification failed');
@@ -382,21 +408,18 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cartItems: cart.map((item) => ({
-            product_id: item.product_id,
-            variant_id: item.variant_id,
-            quantity: item.quantity,
-            price: getProductPrice(item.product, item.variant),
-          })),
-          address_id: address.id,
+          selectedItemIds: selectedItemIds,
+          addressId: address.id,
           subtotal, shipping_cost: shipping, total,
           couponCode: appliedCoupon?.code,
+          isPartialCheckout: true // Signal partial cleanup
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        await clearCart();
+        // Option A: Refresh cart instead of clearCart() to keep unselected items
+        await refreshCart();
         router.push(`/checkout/success?orderNumber=${data.orderNumber}`);
       } else {
         throw new Error(data.message);
@@ -408,7 +431,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (authLoading || cartCount === 0) {
+  if (authLoading || (selectedCount === 0 && !isProcessingPayment)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50">
         <Loader2 className="w-8 h-8 animate-spin text-deep-forest" />
@@ -584,7 +607,7 @@ export default function CheckoutPage() {
             {checkoutStep === 'summary' && (
               <div className="bg-white border-t border-stone-100">
                 <div className="divide-y divide-stone-100">
-                  {cart.map(item => (
+                  {selectedCart.map(item => (
                     <div key={item.id} className="p-6 flex gap-6">
                       <div className="h-[120px] w-[90px] relative flex-shrink-0 bg-stone-50 border border-stone-100 rounded p-2">
                         {item.product.product_images?.[0] ? (
@@ -680,7 +703,7 @@ export default function CheckoutPage() {
                 <div className="mt-8 border-t border-stone-100 pt-6">
                   <Button
                     onClick={processPayment}
-                    disabled={loading || (paymentMethod === 'razorpay' && !scriptLoaded)}
+                    disabled={loading}
                     className="bg-deep-forest hover:bg-deep-forest/90 text-white rounded-sm px-12 font-bold text-lg tracking-wide h-14 shadow-lg flex items-center w-full sm:w-auto justify-center"
                   >
                     {loading ? (
@@ -707,7 +730,7 @@ export default function CheckoutPage() {
             </div>
             <div className="p-5 space-y-4">
               <div className="flex justify-between text-stone-900 font-medium">
-                <span>Price ({cartCount} items)</span>
+                <span>Price ({selectedCount} {selectedCount === 1 ? 'item' : 'items'})</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
               {discount > 0 && (

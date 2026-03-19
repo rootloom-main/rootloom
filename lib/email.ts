@@ -100,7 +100,7 @@ export const sendOrderConfirmationEmail = async ({
     </div>
 
     <div class="footer">
-      <p>Root & Loom | Sustainable Luxury Fashion</p>
+      <p>Root & Loom | Rooted in Vibes. Loomed for the Journey.</p>
       <p>If you have any questions, reply to this email or contact support.</p>
     </div>
   </div>
@@ -215,7 +215,7 @@ export const sendAbandonedCartEmail = async ({
 
     <div class="footer">
       <p>If the button doesn't work, copy this link: ${cartUrl}</p>
-      <p style="margin-top: 20px;">Root & Loom | Sustainable Luxury Fashion</p>
+      <p style="margin-top: 20px;">Root & Loom | Rooted in Vibes. Loomed for the Journey.</p>
     </div>
   </div>
 </body>
@@ -224,6 +224,85 @@ export const sendAbandonedCartEmail = async ({
     });
     return { success: true };
   } catch (error) {
+    return { success: false, error };
+  }
+};
+
+export const sendOtpEmail = async (email: string, code: string) => {
+  if (!resend) {
+    console.warn('RESEND_API_KEY is not set. Skipping OTP email.');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM,
+      to: [email],
+      subject: `${code} is your Root & Loom verification code`,
+      html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F9F8F6; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    .wrapper { width: 100%; table-layout: fixed; background-color: #F9F8F6; padding-bottom: 40px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #E5E1DA; border-radius: 16px; overflow: hidden; margin-top: 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .header { padding: 40px 40px 20px; text-align: center; }
+    .logo { font-size: 20px; font-weight: 700; letter-spacing: 0.15em; color: #1A231D; text-decoration: none; text-transform: uppercase; display: inline-block; margin-bottom: 10px; }
+    .content { padding: 0 40px 40px; text-align: center; }
+    .title { font-size: 24px; font-weight: 500; color: #1A231D; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .message { font-size: 16px; color: #5C5C5C; line-height: 1.6; margin-bottom: 32px; }
+    .code-container { margin: 32px 0; background: #F9F8F6; padding: 24px; border-radius: 12px; border: 1px solid #E5E1DA; display: inline-block; min-width: 200px; }
+    .code { font-size: 32px; font-weight: 700; color: #1A231D; letter-spacing: 0.2em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .footer { padding: 32px 40px; background-color: #FBFBFA; border-top: 1px solid #E5E1DA; text-align: center; }
+    .footer-text { font-size: 12px; color: #8F8F8F; line-height: 1.8; margin-bottom: 8px; }
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper { background-color: #121212 !important; }
+      .container { background-color: #1C1C1C !important; border-color: #2D2D2D !important; }
+      .logo, .title { color: #FFFFFF !important; }
+      .message { color: #A3A3A3 !important; }
+      .code-container { background: #242424 !important; border-color: #333333 !important; }
+      .code { color: #FFFFFF !important; }
+      .footer { background-color: #181818 !important; border-color: #2D2D2D !important; }
+      .footer-text { color: #8F8F8F !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">Root & Loom</a>
+      </div>
+      <div class="content">
+        <h1 class="title">Verification Code</h1>
+        <p class="message">Enter the following code to sign in to your Root & Loom account. This code is valid for 10 minutes.</p>
+        <div class="code-container">
+          <span class="code">${code}</span>
+        </div>
+        <p class="footer-text" style="margin-top: 32px;">If you didn't request this code, you can safely ignore this email.</p>
+      </div>
+      <div class="footer">
+        <p class="footer-text"><strong>Root & Loom</strong><br>Rooted in Vibes. Loomed for the Journey.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend OTP error:', error);
+      return { success: false, error: (error as any).message || 'Unknown Resend error' };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error sending OTP email:', error);
     return { success: false, error };
   }
 };
@@ -238,44 +317,56 @@ export const sendMagicLinkEmail = async (email: string, link: string) => {
     const { data, error } = await resend.emails.send({
       from: DEFAULT_FROM,
       to: [email],
-      subject: 'Your Magic Link for Root & Loom',
+      subject: 'Sign in to Root & Loom',
       html: `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in to Root & Loom</title>
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; padding: 40px; border: 1px solid #eaeaea; text-align: center; }
-    .logo { font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #1F2F26; text-decoration: none; margin-bottom: 30px; display: block; }
-    .title { font-size: 20px; font-weight: 300; color: #333333; margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; }
-    .message { font-size: 16px; color: #444444; line-height: 1.5; margin-bottom: 30px; }
-    .btn { display: inline-block; padding: 14px 30px; background-color: #1F2F26; color: #ffffff !important; text-decoration: none; font-size: 14px; letter-spacing: 1px; font-weight: bold; margin-top: 20px; border-radius: 4px; }
-    .footer { text-align: center; margin-top: 50px; font-size: 12px; color: #999999; line-height: 1.5; }
-    .link-alt { font-size: 12px; color: #999; margin-top: 20px; word-break: break-all; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F9F8F6; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    .wrapper { width: 100%; table-layout: fixed; background-color: #F9F8F6; padding-bottom: 40px; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #E5E1DA; border-radius: 16px; overflow: hidden; margin-top: 40px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .header { padding: 40px 40px 20px; text-align: center; }
+    .logo { font-size: 20px; font-weight: 700; letter-spacing: 0.15em; color: #1A231D; text-decoration: none; text-transform: uppercase; display: inline-block; margin-bottom: 10px; }
+    .content { padding: 0 40px 40px; text-align: center; }
+    .title { font-size: 24px; font-weight: 500; color: #1A231D; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .message { font-size: 16px; color: #5C5C5C; line-height: 1.6; margin-bottom: 32px; }
+    .btn-container { margin: 32px 0; }
+    .btn { display: inline-block; padding: 16px 36px; background-color: #1A231D; color: #FFFFFF !important; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 12px; letter-spacing: 0.02em; }
+    .footer { padding: 32px 40px; background-color: #FBFBFA; border-top: 1px solid #E5E1DA; text-align: center; }
+    .footer-text { font-size: 12px; color: #8F8F8F; line-height: 1.8; margin-bottom: 8px; }
+    .link-alt { font-size: 11px; color: #A3A3A3; word-break: break-all; margin: 20px 0 0; padding: 12px; background: #F5F5F3; border-radius: 8px; }
+    @media (prefers-color-scheme: dark) {
+      body, .wrapper { background-color: #121212 !important; }
+      .container { background-color: #1C1C1C !important; border-color: #2D2D2D !important; }
+      .logo, .title { color: #FFFFFF !important; }
+      .message { color: #A3A3A3 !important; }
+      .btn { background-color: #FFFFFF !important; color: #1A231D !important; }
+      .footer { background-color: #181818 !important; border-color: #2D2D2D !important; }
+      .footer-text { color: #666666 !important; }
+      .link-alt { background: #242424 !important; color: #555555 !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">ROOT & LOOM</a>
-    <div class="title">Login to Your Account</div>
-    
-    <div class="message">
-      <p>Click the button below to sign in to your Root & Loom account.</p>
-      <p>This link will expire in 1 hour and can only be used once.</p>
-    </div>
-
-    <a href="${link}" class="btn">SIGN IN TO ROOT & LOOM</a>
-
-    <div class="link-alt">
-      If the button doesn't work, copy and paste this link into your browser:<br>
-      ${link}
-    </div>
-
-    <div class="footer">
-      <p>Root & Loom | Sustainable Luxury Fashion</p>
-      <p>If you didn't request this email, you can safely ignore it.</p>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <a href="${process.env.NEXT_PUBLIC_SITE_URL}" class="logo">Root & Loom</a>
+      </div>
+      <div class="content">
+        <h1 class="title">Secure Sign In</h1>
+        <p class="message">Welcome back. Click the button below to sign in securely to your Root & Loom account. This link will expire in 1 hour.</p>
+        <div class="btn-container"><a href="${link}" class="btn">Confirm Sign In</a></div>
+        <p class="footer-text" style="margin-top: 32px;">If you didn't request this email, you can safely ignore it.</p>
+      </div>
+      <div class="footer">
+        <p class="footer-text"><strong>Root & Loom</strong><br>Rooted in Vibes. Loomed for the Journey.</p>
+        <div class="link-alt">Trouble with the button? Copy and paste this URL into your browser:<br><span style="display: block; margin-top: 4px;">${link}</span></div>
+      </div>
     </div>
   </div>
 </body>
@@ -285,7 +376,7 @@ export const sendMagicLinkEmail = async (email: string, link: string) => {
 
     if (error) {
       console.error('Resend magic link error:', error);
-      return { success: false, error };
+      return { success: false, error: (error as any).message || 'Unknown Resend error' };
     }
 
     return { success: true, data };

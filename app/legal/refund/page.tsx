@@ -23,6 +23,9 @@ export default function RefundPage() {
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">4. Non-Refundable Items</h2>
                 <p>Custom-made, bespoke items, or items purchased during a final clearance sale are strictly non-refundable and non-returnable.</p>
+
+                <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">5. Contact Us</h2>
+                <p>If you have any questions about our refund policy, please contact us at <a href="mailto:root@rootloom.in" className="text-deep-forest underline">root@rootloom.in</a>.</p>
             </div>
         </div>
     );

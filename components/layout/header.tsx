@@ -15,6 +15,7 @@ const SearchOverlay = dynamic(() => import('@/components/search/search-overlay')
   loading: () => <div className="h-10 w-10 animate-pulse bg-stone-100 rounded-full" />
 });
 import { Badge } from '@/components/ui/badge';
+import { Suspense } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,7 @@ const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mo
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 
 export function Header() {
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   // ... state ...
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -42,8 +43,6 @@ export function Header() {
   const { wishlistCount } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentCategory = searchParams?.get('category');
 
   useEffect(() => {
     setMounted(true);
@@ -81,7 +80,7 @@ export function Header() {
     { name: 'About', href: '/about' },
   ];
 
-  const isLinkActive = (href: string) => {
+  const isLinkActive = (href: string, pathname: string | null, currentCategory: string | null): boolean => {
     const [path, query] = href.split('?');
     if (path === '/' && pathname !== '/') return false;
 
@@ -96,20 +95,11 @@ export function Header() {
     // Only active if we are on /shop AND no category is selected.
     if (path === '/shop' && pathname === '/shop' && currentCategory) return false;
 
-    return pathname?.startsWith(path);
+    return pathname?.startsWith(path) || false;
   };
 
   return (
     <>
-      {/* Top Announcement Bar */}
-      <div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase" suppressHydrationWarning>
-        {mounted ? (
-          "⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡"
-        ) : (
-          "⚡ Fast Shipping on all orders over ₹999 | 100% Secure Checkout ⚡"
-        )}
-      </div>
-
       <header
         className={cn(
           "sticky top-0 z-50 w-full transition-all duration-500 ease-in-out font-sans",
@@ -137,59 +127,45 @@ export function Header() {
                     </SheetTitle>
                   </SheetHeader>
 
-                  <nav className="flex flex-col gap-2">
-                    {navigation.map((item) => {
-                      const active = isLinkActive(item.href);
-                      return (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          className={cn(
-                            "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors group",
-                            active
-                              ? "bg-stone-paper text-deep-forest"
-                              : "text-slate-bark hover:bg-stone-paper/50 hover:text-deep-forest"
-                          )}
-                        >
-                          {item.name}
-                          <ChevronRight className={cn(
-                            "h-4 w-4 transition-transform opacity-0 group-hover:opacity-100",
-                            active && "opacity-100"
-                          )} />
-                        </Link>
-                      )
-                    })}
-                  </nav>
+                  <Suspense fallback={<div className="flex flex-col gap-2 h-40 animate-pulse bg-stone-50 rounded-lg" />}>
+                    <MobileNav navigation={navigation} pathname={pathname} isLinkActive={isLinkActive} />
+                  </Suspense>
 
                   <div className="mt-8 pt-6 border-t border-woven-sand/50 space-y-4">
-                    {!user ? (
-                      <div className="flex flex-col gap-3">
-                        <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`}>
-                          <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
-                            Login
-                          </Button>
-                        </Link>
-                        <Link href="/auth/signup">
-                          <Button className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90">
-                            Create Account
-                          </Button>
-                        </Link>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3 px-2">
-                          <div className="h-10 w-10 rounded-full bg-stone-paper flex items-center justify-center text-deep-forest font-serif font-bold text-lg">
-                            {(user.email?.[0] || user.phone?.[0] || 'U').toUpperCase()}
-                          </div>
-                          <div className="flex flex-col">
-                            <p className="text-sm font-medium text-deep-forest">My Account</p>
-                            <p className="text-xs text-slate-bark truncate max-w-[150px]">{user.email || user.phone}</p>
-                          </div>
+                    {mounted && (
+                      !user ? (
+                        <div className="flex flex-col gap-3">
+                          <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`}>
+                            <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
+                              Login
+                            </Button>
+                          </Link>
+                          <Link href="/auth/signup">
+                            <Button className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90">
+                              Create Account
+                            </Button>
+                          </Link>
                         </div>
-                        <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/5 px-2">
-                          Sign Out
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 px-2">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-deep-forest to-raw-clay flex items-center justify-center text-white font-serif font-bold text-lg shrink-0">
+                              {(profile?.full_name?.[0] || user.user_metadata?.full_name?.[0] || user.email?.[0] || '?').toUpperCase()}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <p className="text-sm font-semibold text-deep-forest truncate">
+                                {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || (user.phone ? `+91 ${user.phone.replace(/\D/g,'').slice(-10, -5)} ${user.phone.replace(/\D/g,'').slice(-5)}` : 'Guest')}
+                              </p>
+                              <p className="text-xs text-slate-bark truncate max-w-[160px]">
+                                {user.email || (user.phone ? `+${user.phone.replace(/\D/g,'')}` : '')}
+                              </p>
+                            </div>
+                          </div>
+                          <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/5 px-2">
+                            Sign Out
+                          </Button>
+                        </div>
+                      )
                     )}
                   </div>
                 </SheetContent>
@@ -203,29 +179,9 @@ export function Header() {
             </div>
 
             {/* Center: Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              {navigation.map((item) => {
-                const active = isLinkActive(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={cn(
-                      "text-sm font-medium relative py-1 transition-colors duration-300 group",
-                      active
-                        ? "text-deep-forest font-semibold"
-                        : "text-slate-bark hover:text-deep-forest"
-                    )}
-                  >
-                    {item.name}
-                    <span className={cn(
-                      "absolute bottom-0 left-0 h-0.5 bg-raw-clay rounded-full transition-all duration-300 ease-out",
-                      active ? "w-full" : "w-0 group-hover:w-full"
-                    )} />
-                  </Link>
-                );
-              })}
-            </nav>
+            <Suspense fallback={<div className="hidden md:flex items-center gap-8 w-64 h-6 animate-pulse bg-stone-50 rounded" />}>
+              <DesktopNav navigation={navigation} pathname={pathname} isLinkActive={isLinkActive} />
+            </Suspense>
 
             {/* Right: Icons */}
             <div className="flex items-center gap-0 flex-shrink-0">
@@ -267,63 +223,94 @@ export function Header() {
                 )}
               </Button>
 
-              {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors" aria-label="User account menu">
-                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 p-2 bg-white border border-stone-200 shadow-lg rounded-xl">
-                    <div className="flex items-center justify-start gap-2 p-2 mb-2 rounded-lg bg-stone-50">
-                      <div className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-white font-serif font-bold">
-                        {(user.user_metadata?.full_name?.[0] || user.user_metadata?.name?.[0] || user.email?.[0] || 'U').toUpperCase()}
-                      </div>
-                      <div className="flex flex-col space-y-0.5 max-w-[160px]">
-                        <p className="text-sm font-semibold truncate text-stone-900">{user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User'}</p>
-                        <p className="text-xs text-stone-500 truncate">{user.email || user.phone}</p>
-                      </div>
-                    </div>
-                    {/* Admin Link */}
-                    {isAdmin && (
-                      <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest mb-1 bg-amber-50">
-                        <Link href="/admin" className="w-full font-semibold text-amber-700">Admin Dashboard</Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
-                      <Link href="/account" className="w-full">My Account</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
-                      <Link href="/collections" className="w-full">Explore Collections</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
-                      <Link href="/account/wishlist" className="w-full">My Wishlist</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
-                      <Link href="/account/orders" className="w-full">My Orders</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator className="my-2 bg-woven-sand" />
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 rounded-md"
-                    >
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <div className="flex items-center">
-                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden" aria-label="Login">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent" aria-label="Login">
-                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
-                  </Link>
-                  <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="hidden md:block ml-2">
-                    <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
-                      Login
-                    </Button>
-                  </Link>
-                </div>
+              {mounted && (
+                user ? (() => {
+                  // Format helper
+                  const formatPhone = (p: string) => {
+                    const digits = p.replace(/\D/g, '');
+                    if (digits.length === 12 && digits.startsWith('91')) {
+                      return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+                    }
+                    if (digits.length === 10) return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+                    return `+${digits}`;
+                  };
+
+                  // Resolve display name: profile DB > metadata > email prefix > phone
+                  const displayName =
+                    profile?.full_name ||
+                    user.user_metadata?.full_name ||
+                    user.user_metadata?.name ||
+                    (user.email ? user.email.split('@')[0] : null) ||
+                    (user.phone ? formatPhone(user.phone) : 'Guest');
+
+                  // Avatar initial from display name
+                  const avatarInitial = displayName[0]?.toUpperCase() || '?';
+
+                  // Format sub-label: prefer email, else format phone nicely
+                  const rawPhone = profile?.phone || user.phone || user.user_metadata?.phone;
+                  const subLabel = user.email || (rawPhone ? formatPhone(rawPhone) : '');
+
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors" aria-label="User account menu">
+                          <span className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-white font-serif font-bold text-sm">
+                            {avatarInitial}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-60 p-2 bg-white border border-stone-200 shadow-lg rounded-xl">
+                        <div className="flex items-center justify-start gap-3 p-2 mb-2 rounded-lg bg-stone-50 border border-stone-100">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-deep-forest to-raw-clay flex items-center justify-center text-white font-serif font-bold text-base shrink-0">
+                            {avatarInitial}
+                          </div>
+                          <div className="flex flex-col space-y-0.5 min-w-0">
+                            <p className="text-sm font-semibold truncate text-stone-900">{displayName}</p>
+                            {subLabel && <p className="text-xs text-stone-500 truncate">{subLabel}</p>}
+                          </div>
+                        </div>
+                        {/* Admin Link */}
+                        {isAdmin && (
+                          <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest mb-1 bg-amber-50">
+                            <Link href="/admin" className="w-full font-semibold text-amber-700">Admin Dashboard</Link>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                          <Link href="/account" className="w-full">My Account</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                          <Link href="/collections" className="w-full">Explore Collections</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                          <Link href="/account/wishlist" className="w-full">My Wishlist</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-stone-paper focus:text-deep-forest">
+                          <Link href="/account/orders" className="w-full">My Orders</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-2 bg-woven-sand" />
+                        <DropdownMenuItem
+                          onClick={handleSignOut}
+                          className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/5 rounded-md"
+                        >
+                          Sign Out
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                })() : (
+                  <div className="flex items-center">
+                    <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden" aria-label="Login">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent" aria-label="Login">
+                        <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </Button>
+                    </Link>
+                    <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="hidden md:block ml-2">
+                      <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
+                        Login
+                      </Button>
+                    </Link>
+                  </div>
+                )
               )}
             </div>
           </div>
@@ -331,5 +318,83 @@ export function Header() {
       </header>
       <CartSheet />
     </>
+  );
+}
+
+function MobileNav({ 
+  navigation, 
+  pathname, 
+  isLinkActive 
+}: { 
+  navigation: any[], 
+  pathname: string | null,
+  isLinkActive: (href: string, pathname: string | null, currentCategory: string | null) => boolean
+}) {
+  const searchParams = useSearchParams();
+  const currentCategory = searchParams?.get('category') || null;
+
+  return (
+    <nav className="flex flex-col gap-2">
+      {navigation.map((item) => {
+        const active = isLinkActive(item.href, pathname, currentCategory);
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={cn(
+              "flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors group",
+              active
+                ? "bg-stone-paper text-deep-forest"
+                : "text-slate-bark hover:bg-stone-paper/50 hover:text-deep-forest"
+            )}
+          >
+            {item.name}
+            <ChevronRight className={cn(
+              "h-4 w-4 transition-transform opacity-0 group-hover:opacity-100",
+              active && "opacity-100"
+            )} />
+          </Link>
+        )
+      })}
+    </nav>
+  );
+}
+
+function DesktopNav({ 
+  navigation, 
+  pathname, 
+  isLinkActive 
+}: { 
+  navigation: any[], 
+  pathname: string | null,
+  isLinkActive: (href: string, pathname: string | null, currentCategory: string | null) => boolean
+}) {
+  const searchParams = useSearchParams();
+  const currentCategory = searchParams?.get('category') || null;
+
+  return (
+    <nav className="hidden md:flex items-center gap-8">
+      {navigation.map((item) => {
+        const active = isLinkActive(item.href, pathname, currentCategory);
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={cn(
+              "text-sm font-medium relative py-1 transition-colors duration-300 group",
+              active
+                ? "text-deep-forest font-semibold"
+                : "text-slate-bark hover:text-deep-forest"
+            )}
+          >
+            {item.name}
+            <span className={cn(
+              "absolute bottom-0 left-0 h-0.5 bg-raw-clay rounded-full transition-all duration-300 ease-out",
+              active ? "w-full" : "w-0 group-hover:w-full"
+            )} />
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

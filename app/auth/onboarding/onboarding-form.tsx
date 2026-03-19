@@ -9,6 +9,7 @@ import { Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { completeOnboarding } from './actions';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export function OnboardingForm({ initialEmail }: { initialEmail?: string }) {
     const [name, setName] = useState('');
@@ -29,9 +30,12 @@ export function OnboardingForm({ initialEmail }: { initialEmail?: string }) {
 
             toast.success(`Welcome to Root & Loom, ${name.split(' ')[0]}! 👋`);
 
+            const supabase = createClient();
+            await supabase.auth.getSession();
+            router.refresh();
+
             const next = searchParams?.get('next') || '/';
             router.push(next);
-            router.refresh();
         } catch (error: any) {
             toast.error(error.message || 'Failed to complete onboarding');
         } finally {

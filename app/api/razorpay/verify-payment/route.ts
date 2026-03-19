@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { createSSRClient } from '@/lib/utils/auth';
+import { createSSRClient, createAdminClient } from '@/lib/utils/auth';
 import { processOrderCreation } from '@/lib/order-processing';
-import { validateCouponLogic } from '@/lib/coupon';
 import { sendOrderConfirmationWhatsApp } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
@@ -10,6 +9,7 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createSSRClient();
+    const adminSupabase = createAdminClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -18,31 +18,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    let userPhone = user?.user_metadata?.phone;
-
-    // If not in metadata, fetch from profiles
-    if (!userPhone) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('phone')
-        .eq('id', user.id)
-        .single();
-      if (profile?.phone) {
-        userPhone = profile.phone;
-      }
-    }
-
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
-      address_id,
-      subtotal: clientSubtotal,
-      shipping_cost: clientShipping,
-      total: clientTotal,
+      addressId: clientAddressId,
+      address_id: backwardAddressId,
       couponCode,
     } = await req.json();
 
+    // ── Signature Verification ─────────────────────────────────────────────
     const text = razorpay_order_id + '|' + razorpay_payment_id;
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -59,14 +44,11 @@ export async function POST(req: NextRequest) {
       .digest('hex');
 
     if (generated_signature !== razorpay_signature) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid signature' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 });
     }
 
-    // Idempotency: Check if order exists
-    const { data: existingOrder } = await supabase
+    // ── Idempotency Check ──────────────────────────────────────────────────
+    const { data: existingOrder } = await adminSupabase
       .from('orders')
       .select('id, order_number')
       .eq('payment_id', razorpay_payment_id)
@@ -81,109 +63,141 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Secure Verification: Fetch Cart from DB
-    const { data: cartItemsDB } = await supabase
-      .from('cart_items')
-      .select(`
-          quantity,
-          product_id,
-          variant_id,
-          product:products(name, base_price),
-          variant:product_variants(price_adjustment)
-        `)
-      .eq('user_id', user.id) as { data: any[] | null };
+    // ── Fetch Payment Record (MUST be before using paymentRecord) ──────────
+    const { data: paymentRecord } = await (adminSupabase
+      .from('payments' as any)
+      .select('*')
+      .eq('razorpay_order_id', razorpay_order_id)
+      .single() as any);
 
-    if (!cartItemsDB || cartItemsDB.length === 0) {
-      // Fallback or Error? 
-      // If webhook ran and cleared cart, we would have hit 'existingOrder' check above.
-      // If no existing order and no cart, something is wrong.
-      return NextResponse.json({ success: false, message: 'Cart is empty or order already processed' }, { status: 400 });
+    if (!paymentRecord || !paymentRecord.cart_snapshot) {
+      return NextResponse.json(
+        { success: false, message: 'Payment record or snapshot missing' },
+        { status: 400 }
+      );
     }
 
-    const cartItems = cartItemsDB.map((item: any) => {
-      const product = Array.isArray(item.product) ? item.product[0] : item.product;
-      const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
-      const price = product.base_price + (variant?.price_adjustment || 0);
-      return {
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        quantity: item.quantity,
-        name: product.name,
-        price: price
-      };
-    });
+    // ── Resolve Address ID ─────────────────────────────────────────────────
+    const addressId: string = clientAddressId || backwardAddressId || paymentRecord.address_id;
 
-    const subtotal = cartItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-    const shippingCost = subtotal > 999 ? 0 : 50;
+    // ── Build Cart Items from Snapshot ─────────────────────────────────────
+    const cartItems = paymentRecord.cart_snapshot.map((item: any) => ({
+      product_id: item.product_id,
+      variant_id: item.variant_id,
+      quantity: item.quantity,
+      price: item.price,
+      name: 'Product',
+    }));
 
-    let discountAmount = 0;
-    if (couponCode) {
-      try {
-        const result = await validateCouponLogic(supabase, couponCode, subtotal);
-        if (result.success && result.discountAmount !== undefined) {
-          discountAmount = result.discountAmount;
-          if (result.couponId) {
-            await supabase.rpc('increment_coupon_usage', { coupon_id: result.couponId } as any);
-          }
-        } else {
-          // Coupon may have expired or been redeemed — do NOT block order since payment is captured
-          console.warn('Verify: Coupon issue (proceeding):', result.message);
-        }
-      } catch (e: any) {
-        // Log but never block — payment already captured
-        console.error('Verify: Coupon error (proceeding):', e.message);
-      }
-    }
+    const subtotal: number =
+      paymentRecord.subtotal ||
+      cartItems.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
+    const shippingCost: number = paymentRecord.shipping_cost || (subtotal > 999 ? 0 : 50);
+    const discountAmount: number = paymentRecord.discount_amount || 0;
+    const total: number = paymentRecord.amount;
 
-    const total = Math.round(Math.max(0, subtotal + shippingCost - discountAmount));
-
-    // We can compare 'total' with 'clientTotal' or Razorpay order amount if needed.
-    // For now, trusting our DB calculation is the secure way.
-
+    // ── Create Order ───────────────────────────────────────────────────────
     const { order, backgroundTasks } = await processOrderCreation({
-      supabase,
+      supabase: adminSupabase,
       userId: user.id,
       paymentId: razorpay_payment_id,
       amount: total,
       cartItems,
-      addressId: address_id,
+      addressId,
       discountAmount,
-      couponCode: couponCode || null,
+      couponCode: couponCode || paymentRecord.coupon_code || null,
       shippingCost,
       subtotal,
       userEmail: user.email!,
-      userName: user.user_metadata.full_name || 'Customer'
+      userName: user.user_metadata?.full_name || 'Customer',
     });
 
-    // NOTE: stock deduction is handled ATOMICALLY inside processOrderCreation (rpc create_complete_order)
-    // Removed redundant reserve_stock_batch call to prevent double deduction.
+    // ── Resolve WhatsApp Number (address phone → profile phone → metadata) ─
+    let whatsappPhone: string | null = null;
 
-    // Clear Cart
-    await supabase.from('cart_items').delete().eq('user_id', user.id);
-
-    // Update Payments Table Status
-    await supabase
-      .from('payments')
-      .update({ status: 'success', updated_at: new Date().toISOString() })
-      .eq('razorpay_order_id', razorpay_order_id);
-
-    // Parallelize final tasks
-    const notifications = [];
-    if (userPhone) {
-      notifications.push(
-        sendOrderConfirmationWhatsApp(
-          userPhone,
-          user.user_metadata.full_name || 'Customer',
-          order.order_number,
-          total.toFixed(2),
-          false // isCOD = false (Prepaid)
-        )
-      );
+    if (addressId) {
+      const { data: addrData } = await (adminSupabase
+        .from('addresses' as any)
+        .select('phone')
+        .eq('id', addressId)
+        .single() as any);
+      if (addrData?.phone) whatsappPhone = addrData.phone;
     }
-    
-    // Await all notifications and background tasks before responding
-    await Promise.allSettled([...notifications, backgroundTasks]);
 
+    if (!whatsappPhone) {
+      const { data: profileData } = await adminSupabase
+        .from('profiles')
+        .select('phone')
+        .eq('id', user.id)
+        .single();
+      if (profileData?.phone) whatsappPhone = profileData.phone;
+    }
+
+    if (!whatsappPhone) {
+      whatsappPhone = user?.user_metadata?.phone || null;
+    }
+
+    // ── Clear Purchased Items from Cart ────────────────────────────────────
+    const cartItemIds: string[] = paymentRecord.cart_snapshot.map((i: any) => i.id).filter(Boolean);
+    if (cartItemIds.length > 0) {
+      await (adminSupabase.from('cart_items' as any).delete().in('id', cartItemIds) as any);
+    } else {
+      await (adminSupabase.from('cart_items' as any).delete().eq('user_id', user.id) as any);
+    }
+
+    // ── Update Payment Status ──────────────────────────────────────────────
+    await (adminSupabase
+      .from('payments' as any)
+      .update({ status: 'success', updated_at: new Date().toISOString() })
+      .eq('razorpay_order_id', razorpay_order_id) as any);
+
+    // ── DECOUPLED: Fire-and-forget (no await) ──────────────────────────────
+    // Client is redirected immediately; this runs in the background.
+    (async () => {
+      try {
+        const tasks: Promise<any>[] = [backgroundTasks];
+
+        if (whatsappPhone) {
+          // Fetch first product image for a richer WhatsApp message
+          let productImageUrl: string | undefined;
+          const firstItem = paymentRecord.cart_snapshot[0];
+          if (firstItem?.product_id) {
+            const { data: imgData } = await (adminSupabase
+              .from('product_images' as any)
+              .select('image_url')
+              .eq('product_id', firstItem.product_id)
+              .order('sort_order', { ascending: true })
+              .limit(1)
+              .single() as any);
+            if (imgData?.image_url) productImageUrl = imgData.image_url;
+          }
+
+          console.log(
+            `[WhatsApp] Sending to ${whatsappPhone} for #${order.order_number}` +
+            (productImageUrl ? ' (with product image)' : ' (logo only)')
+          );
+
+          tasks.push(
+            sendOrderConfirmationWhatsApp(
+              whatsappPhone,
+              user.user_metadata?.full_name || 'Customer',
+              order.order_number,
+              total.toFixed(2),
+              false, // isCOD = false (Prepaid)
+              productImageUrl
+            )
+          );
+        } else {
+          console.warn(`[WhatsApp] No phone found for user ${user.id} — notification skipped`);
+        }
+
+        await Promise.allSettled(tasks);
+      } catch (e) {
+        console.error('[WhatsApp] Post-payment background task error:', e);
+      }
+    })();
+
+    // ── Return immediately ─────────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       message: 'Payment verified successfully',
@@ -192,15 +206,11 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    if (error.code === '23505') { // Postgres Unique Violation
-      // Race condition: Webhook inserted order just now
-      return NextResponse.json({
-        success: true,
-        message: 'Order processed by webhook',
-        // Ideally should fetch the order to return ID, but client can redirect to orders list
-      });
+    if (error.code === '23505') {
+      // Postgres unique violation — webhook already created the order
+      return NextResponse.json({ success: true, message: 'Order processed by webhook' });
     }
-    console.error('Error verifying payment:', error);
+    console.error('[VerifyPayment] Error:', error);
     return NextResponse.json(
       { success: false, message: error.message || 'Payment verification failed' },
       { status: 500 }

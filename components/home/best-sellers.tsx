@@ -1,7 +1,7 @@
 import { ProductService } from '@/lib/services/productService';
 import { ProductShowcase } from './product-showcase';
 
-export async function BestSellers({ limit = 8 }: { limit?: number }) {
+export default async function BestSellers({ limit = 8 }: { limit?: number }) {
     // Fetch products using cached service
     const products = await ProductService.getBestSellers(limit);
 

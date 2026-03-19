@@ -5,14 +5,22 @@ import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
+interface UserProfile {
+    full_name: string | null;
+    phone: string | null;
+    role: string | null;
+}
+
 interface AuthContextType {
     user: User | null;
+    profile: UserProfile | null;
     isAdmin: boolean;
     loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
     user: null,
+    profile: null,
     isAdmin: false,
     loading: true,
 });
@@ -24,55 +32,59 @@ const supabase = createClient();
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
+    const [profile, setProfile] = useState<UserProfile | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
-    // Stable ref to router — prevents the auth subscription from being torn down
-    // and re-created every time the router object identity changes (happens on navigation).
+    // Stable ref to router
     const routerRef = useRef(router);
     useEffect(() => {
         routerRef.current = router;
     }, [router]);
 
-    const checkAdminStatus = async (currentUser: User | null) => {
+    const loadProfileAndAdminStatus = async (currentUser: User | null) => {
         if (!currentUser) {
+            setProfile(null);
             setIsAdmin(false);
             return;
         }
 
-        // 1. Check user_metadata first (fastest, no network call)
-        const metadataRole = currentUser.user_metadata?.role;
-        if (metadataRole === 'admin' || metadataRole === 'superadmin') {
-            setIsAdmin(true);
-            return;
-        }
-
-        // 2. Fallback to profiles table
-        const { data: profile } = await supabase
+        // Fetch the user's profile from DB (gets full_name, phone, avatar, role)
+        const { data: dbProfile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('full_name, phone, role')
             .eq('id', currentUser.id)
             .single();
 
-        const dbRole = profile?.role;
-        setIsAdmin(dbRole === 'admin' || dbRole === 'superadmin');
+        if (dbProfile) {
+            setProfile({
+                full_name: (dbProfile as any).full_name || null,
+                phone: (dbProfile as any).phone || null,
+                role: (dbProfile as any).role || null,
+            });
+            const dbRole = (dbProfile as any).role;
+            setIsAdmin(dbRole === 'admin' || dbRole === 'superadmin');
+        } else {
+            // Fallback to user_metadata if profile row doesn't exist yet
+            const metaRole = currentUser.user_metadata?.role;
+            setIsAdmin(metaRole === 'admin' || metaRole === 'superadmin');
+            setProfile(null);
+        }
     };
 
     useEffect(() => {
         let isMounted = true;
 
-        // Fetch initial session on mount
         const initSession = async () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (isMounted) {
                     const currentUser = session?.user || null;
                     setUser(currentUser);
-                    setLoading(false); // Unblock UI immediately
+                    setLoading(false);
                     if (currentUser) {
-                        // Run admin check in background — does not block UI
-                        checkAdminStatus(currentUser);
+                        loadProfileAndAdminStatus(currentUser);
                     }
                 }
             } catch (err) {
@@ -88,26 +100,21 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
                 if (!isMounted) return;
 
                 const currentUser = session?.user || null;
-
-                // Update user state immediately so UI reacts at once
                 setUser(currentUser);
                 setLoading(false);
 
                 if (currentUser) {
-                    // Run admin check in background
-                    checkAdminStatus(currentUser);
+                    loadProfileAndAdminStatus(currentUser);
                 } else {
+                    setProfile(null);
                     setIsAdmin(false);
                 }
 
-                // Refresh server components for SIGNED_IN, SIGNED_OUT, and TOKEN_REFRESHED
-                // so server-side session (cookies) stays in sync with client state.
                 if (
                     event === 'SIGNED_IN' ||
                     event === 'SIGNED_OUT' ||
                     event === 'TOKEN_REFRESHED'
                 ) {
-                    // Use the stable ref so this callback never becomes stale
                     routerRef.current.refresh();
                 }
             }
@@ -117,13 +124,11 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
             isMounted = false;
             subscription.unsubscribe();
         };
-        // Empty dep array: we intentionally run this once.
-        // routerRef is a ref — its .current is always up-to-date without being a dep.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, profile, isAdmin, loading }}>
             {children}
         </AuthContext.Provider>
     );

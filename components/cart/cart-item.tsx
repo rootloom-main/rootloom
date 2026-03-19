@@ -2,19 +2,22 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Minus, Plus, Trash2 } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react'; // Corrected import: removed extra 'import { ShoppingBag }' and 'Check'
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
 import { getProductPrice } from '@/lib/utils/pricing';
-import { useCart } from '@/components/providers/cart-provider'; // Adjust import if needed
+import { useCart } from '@/components/providers/cart-provider';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 interface CartItemProps {
-    item: any; // Replace with proper type from your types/index.ts
+    item: any;
 }
 
 export function CartItem({ item }: CartItemProps) {
-    const { updateCartItem, removeFromCart } = useCart();
+    const { updateCartItem, removeFromCart, toggleItemSelection, selectedItemIds } = useCart(); // Removed extraneous code from this line
+    const isSelected = selectedItemIds.includes(item.id);
 
     const price = getProductPrice(item.product, item.variant);
     const imageUrl =
@@ -22,7 +25,19 @@ export function CartItem({ item }: CartItemProps) {
         'https://images.pexels.com/photos/1656684/pexels-photo-1656684.jpeg?auto=compress&cs=tinysrgb&w=400';
 
     return (
-        <div className="flex flex-col sm:flex-row gap-4 p-4 bg-white rounded-sm shadow-sm border border-stone-200">
+        <div className={cn(
+            "flex flex-col sm:flex-row gap-4 p-4 rounded-sm shadow-sm border transition-all duration-300",
+            isSelected ? "bg-white border-deep-forest/20 shadow-md" : "bg-stone-50/50 border-stone-200 opacity-80"
+        )}>
+            {/* Selection Checkbox */}
+            <div className="flex items-center sm:pt-2">
+                <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleItemSelection(item.id)}
+                    className="h-5 w-5 border-stone-300 data-[state=checked]:bg-deep-forest data-[state=checked]:border-deep-forest"
+                />
+            </div>
+
             {/* Image Section */}
             <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 mx-auto sm:mx-0">
                 <Image

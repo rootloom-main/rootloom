@@ -13,7 +13,7 @@ interface PromoBannerProps {
     };
 }
 
-export function PromoBanner({ banner }: PromoBannerProps) {
+export default function PromoBanner({ banner }: PromoBannerProps) {
     if (!banner) return null;
 
     const content = (

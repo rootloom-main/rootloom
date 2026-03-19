@@ -1,22 +1,19 @@
 import { ProductService } from '@/lib/services/productService';
+import { HomeService } from '@/lib/services/homeService';
 import { HomeSectionRenderer } from '@/components/home/home-section-renderer';
-import { HeroSection } from '@/components/home/hero-section';
-import { createClient } from '@/lib/supabase/server';
+import HeroSection from '@/components/home/hero-section';
 
-export const revalidate = 0; // Disable cache for real-time layout updates
+export const revalidate = 3600; // Cache for 1 hour in production
+import FAQSection from '@/components/home/faq-section';
 
 export default async function Home() {
-    const supabase = await createClient();
-
     // Fetch dynamic sections and initial data in parallel
-    const [sectionsRes, categories, featuredProducts, activeBanners] = await Promise.all([
-        (supabase.from('home_sections' as unknown as any) as any).select('id, type, title, subtitle, active, display_order, config').eq('active', true).order('display_order', { ascending: true }),
+    const [sections, categories, featuredProducts, activeBanners] = await Promise.all([
+        HomeService.getSections(),
         ProductService.getCategories(),
         ProductService.getFeaturedProducts(8),
-        (supabase.from('banners' as unknown as any) as any).select('id, title, description, image_url, link, position, metadata, collections(slug)').eq('active', true).order('display_order', { ascending: false }).then((res: any) => res.data || []),
+        HomeService.getBanners(),
     ]);
-
-    const sections = sectionsRes.data || [];
     
     // Preparation for standard sections
     const heroBanners = activeBanners.filter((b: any) => b.position === 'hero');
@@ -36,8 +33,27 @@ export default async function Home() {
 
     return (
         <div>
+            {/* Semantic SEO Foundation: Hidden from sight, visible to crawlers & screen readers */}
+            <section className="sr-only">
+                <h1>Root & Loom: The Premier Online Destination for Aesthetic Streetwear and Sustainable Fashion</h1>
+                <p>
+                    Root & Loom is a digital-first conscious fashion brand weaving traditional craftsmanship with modern Gen Z aesthetics. 
+                    Specializing in oversized hoodies, premium graphic tees, and ethical denim, we bring "Main Character Energy" to every drop. 
+                    Whether you're looking for Y2K revival styles, eco-friendly luxury, or the latest viral streetwear trends, our curated 
+                    collections are loomed for the journey. Shop the best in sustainable luxury clothes, aesthetic drip, and ethical streetwear 
+                    delivered with fast shipping across India.
+                </p>
+                <ul>
+                    <li>Mens Streetwear & Aesthetic Clothing</li>
+                    <li>Womens Sustainable Fashion & Ethical Luxury</li>
+                    <li>Limited Edition Drops & Viral Fashion Trends</li>
+                    <li>Y2K Style Revival & Modern Street Culture</li>
+                </ul>
+            </section>
+
             {!hasHeroSection && <HeroSection heroBanners={heroBanners} />}
             <HomeSectionRenderer sections={sections} data={data} />
+            <FAQSection />
         </div>
     );
 }

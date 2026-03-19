@@ -17,7 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<'identifier' | 'otp'>('identifier');
+  const [step, setStep] = useState<'identifier' | 'otp' | 'email_sent'>('identifier');
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [otp, setOtp] = useState('');
@@ -46,9 +46,9 @@ function LoginPageContent() {
 
       const isEmail = identifier.includes('@');
       if (isEmail) {
-        toast.success(`Magic link sent to ${identifier}. Please check your inbox.`);
-        // For email, we stay on this step or show a "Check Email" state
-        setStep('identifier'); 
+        setStep('otp'); // Now going to OTP step for email too
+        setTimer(60);
+        toast.success(`Secure code sent to your inbox.`);
       } else {
         setStep('otp');
         setTimer(60);
@@ -69,37 +69,24 @@ function LoginPageContent() {
     setLoading(true);
     try {
       const type = identifier.includes('@') ? 'email' : 'sms';
-      const contactValue = identifier.includes('@') ? identifier : (identifier.startsWith('+') ? identifier : `+91${identifier}`);
+      const result = await verifyOtpEx(otp, type, identifier);
       
-      const { data: { session }, error: verifyError } = await supabase.auth.verifyOtp({
-        email: type === 'email' ? contactValue : undefined,
-        phone: type === 'sms' ? contactValue : undefined,
-        token: otp,
-        type: type
-      } as any);
+      if (result.error) throw new Error(result.error);
 
-      if (verifyError) throw verifyError;
+      toast.success(result.isNewUser ? 'Verification successful!' : 'Welcome back!');
 
-      // Check if profile exists (to determine if it's a new user)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', session?.user?.id || '')
-        .single();
-
-      const next = searchParams?.get('next') || '/';
-
-      if (!profile) {
-        toast.success('Verification successful!');
-        router.push(`/auth/onboarding?next=${encodeURIComponent(next)}`);
-      } else {
-        toast.success('Welcome back!');
-        router.push(next);
-      }
-      
-      // router.refresh() is called by the AuthProvider's listener
-      // but we do it here as well for safety with server components
+      // Force session sync on the client - this ensures the SDK reads the new cookies
+      await supabase.auth.getSession();
       router.refresh();
+
+      // Standard redirection
+      const next = searchParams?.get('next') || '/';
+      
+      if (result.redirectUrl) {
+        router.push(result.redirectUrl);
+      } else {
+        router.push(result.isNewUser ? `/auth/onboarding?next=${encodeURIComponent(next)}` : next);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Invalid or expired code');
       setOtp('');
@@ -192,7 +179,7 @@ function LoginPageContent() {
                 By entering, you agree to our <span className="text-stone-900 font-medium cursor-pointer hover:underline">Terms</span> and <span className="text-stone-900 font-medium cursor-pointer hover:underline">Privacy Policy</span>.
               </p>
             </div>
-          ) : (
+          ) : step === 'otp' ? (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="space-y-2">
                 <h2 className="text-3xl font-semibold tracking-tight text-stone-900">Verify Identity</h2>
@@ -241,6 +228,14 @@ function LoginPageContent() {
                   </div>
                 </div>
               </form>
+            </div>
+          ) : (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 text-center py-12">
+              <div className="w-20 h-20 bg-stone-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Loader2 className="h-10 w-10 animate-spin text-stone-300" />
+              </div>
+              <h2 className="text-2xl font-semibold text-stone-900">Verifying session...</h2>
+              <p className="text-stone-500">Please wait while we log you in.</p>
             </div>
           )}
         </div>

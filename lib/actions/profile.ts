@@ -8,6 +8,7 @@ import { z } from 'zod';
 const profileSchema = z.object({
     fullName: z.string().min(2, 'Name must be at least 2 characters'),
     phone: z.string().optional().or(z.literal('')),
+    email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
 });
 
 export async function updateProfile(prevState: any, formData: FormData) {
@@ -19,8 +20,9 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
 
     const rawData = {
-        fullName: formData.get('fullName'),
-        phone: formData.get('phone'),
+        fullName: formData.get('fullName') as string,
+        phone: formData.get('phone') as string,
+        email: formData.get('email') as string,
     };
 
     const validatedFields = profileSchema.safeParse(rawData);
@@ -28,28 +30,65 @@ export async function updateProfile(prevState: any, formData: FormData) {
     if (!validatedFields.success) {
         return {
             success: false,
-            message: validatedFields.error.flatten().fieldErrors.fullName?.[0] || 'Invalid input',
+            message: validatedFields.error.flatten().fieldErrors.fullName?.[0]
+                || validatedFields.error.flatten().fieldErrors.email?.[0]
+                || 'Invalid input',
         };
     }
 
-    const { fullName, phone } = validatedFields.data;
+    const { fullName, phone, email } = validatedFields.data;
 
-    const { error } = await supabase
+    // 1. Check for duplicate phone number
+    if (phone) {
+        const { data: existingPhoneProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('phone', phone)
+            .neq('id', user.id)
+            .maybeSingle();
+
+        if (existingPhoneProfile) {
+            return { 
+                success: false, 
+                message: 'This phone number is already linked to another account. Please use a different number or contact support.' 
+            };
+        }
+    }
+
+    // 2. Check for duplicate email
+    if (email) {
+        const { data: existingEmailProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .neq('id', user.id)
+            .maybeSingle();
+
+        if (existingEmailProfile) {
+            return { 
+                success: false, 
+                message: 'This email is already linked to another account. Please use a different email or contact support.' 
+            };
+        }
+    }
+
+    // 3. Update the profiles table (name + phone + email)
+    const { error: profileError } = await supabase
         .from('profiles')
         .update({
             full_name: fullName,
             phone: phone || null,
+            email: email || null,
             updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
-    if (error) {
-        console.error('Profile update error:', error);
+    if (profileError) {
+        console.error('Profile update error:', profileError);
         return { success: false, message: 'Failed to update profile' };
     }
 
     revalidatePath('/account');
     revalidatePath('/account/profile');
-
-    return { success: true, message: 'Profile updated successfully' };
+    return { success: true, message: 'Profile updated successfully!' };
 }

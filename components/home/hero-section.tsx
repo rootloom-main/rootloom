@@ -58,7 +58,7 @@ const THEME_CONFIGS: Record<string, any> = {
     }
 };
 
-export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
+export default function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
     const displaySlides = heroBanners.map((banner, index) => {
         const metadata = banner.metadata || {};
         const theme = metadata.theme || 'default';
@@ -112,10 +112,10 @@ export function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
                                 NEW COLLECTION
                             </div>
                             <h2 className="text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl text-[#f9f5ed]">
-                                Root &amp; Loom
+                                Aesthetic Streetwear &amp; Drops
                             </h2>
-                            <p className="text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90 text-[#f9f5ed]">
-                                Inspired by nature. Crafted for the modern world. Explore our latest sustainable fashion collection.
+                            <p className="text-lg md:text-xl mb-10 max-w-sm font-light leading-relaxed opacity-90 text-[#f9f5ed]">
+                                Rooted in Vibes. Loomed for the Journey. Shop the latest in sustainable luxury clothes, oversized fits, and ethical drip.
                             </p>
                             <div className="flex flex-wrap gap-4 mb-12">
                                 <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl transition-all hover:scale-105 hover:shadow-2xl bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]" asChild>

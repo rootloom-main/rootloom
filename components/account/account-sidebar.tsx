@@ -43,7 +43,7 @@ const sidebarItems = [
     },
     {
         title: 'Profile Settings',
-        href: '/account/profile', // We might need to create this or map it to /account/settings
+        href: '/account/profile',
         icon: User
     }
 ];
@@ -52,10 +52,12 @@ export function AccountSidebar() {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = createClient();
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const [orderCount, setOrderCount] = useState(0);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const fetchOrderCount = async () => {
             if (!user) return;
             const { count } = await supabase
@@ -67,7 +69,23 @@ export function AccountSidebar() {
         fetchOrderCount();
     }, [user, supabase]);
 
-    const userName = user?.user_metadata?.full_name || 'Valued Guest';
+    // Format helper
+    const formatPhone = (p: string) => {
+        const d = p.replace(/\D/g, '');
+        if (d.length === 12 && d.startsWith('91')) return `+91 ${d.slice(2, 7)} ${d.slice(7)}`;
+        if (d.length === 10) return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
+        return `+${d}`;
+    };
+
+    // Smart name resolution
+    const rawPhone: string = profile?.phone || user?.phone || user?.user_metadata?.phone || '';
+    const userName =
+        profile?.full_name ||
+        user?.user_metadata?.full_name ||
+        user?.user_metadata?.name ||
+        (user?.email ? user.email.split('@')[0] : null) ||
+        (rawPhone ? formatPhone(rawPhone) : 'Guest');
+
     const memberGrade = orderCount > 5 ? 'Platinum' : orderCount > 2 ? 'Gold' : 'Silver';
     const gradeColor = orderCount > 5 ? 'text-purple-600 border-purple-200 bg-purple-50' : orderCount > 2 ? 'text-amber-600 border-amber-200 bg-amber-50' : 'text-stone-600 border-stone-200 bg-stone-50';
 
@@ -81,26 +99,46 @@ export function AccountSidebar() {
         <aside className="w-full md:w-72 lg:w-80 flex-shrink-0 mb-8 md:mb-0">
             <div className="bg-white rounded-2xl border border-stone-100 shadow-xl overflow-hidden sticky top-24">
                 {/* User Profile / Greeting */}
-                <div className="p-8 border-b border-stone-100 bg-gradient-to-b from-stone-50/50 to-transparent">
-                    <div className="flex items-center gap-4 mb-6">
-                        <Avatar className="h-12 w-12 border-2 border-stone-200 shadow-md ring-2 ring-stone-100">
-                            <AvatarFallback className="bg-stone-100 text-deep-forest text-sm font-bold">
-                                {userName ? userName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'VG'}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col overflow-hidden">
-                            <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em] mb-1">Welcome</span>
-                            <span className="text-lg font-serif font-bold truncate text-deep-forest tracking-tight">{userName}</span>
+                <div className="p-8 border-b border-stone-100 bg-gradient-to-b from-stone-50/50 to-transparent min-h-[160px]">
+                    {mounted ? (
+                        <>
+                            <div className="flex items-center gap-4 mb-6">
+                                <Avatar className="h-12 w-12 border-2 border-stone-200 shadow-md ring-2 ring-stone-100">
+                                    <AvatarFallback className="bg-gradient-to-br from-deep-forest to-raw-clay text-white text-sm font-bold">
+                                        {userName
+                                            ? userName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()
+                                            : '?'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col overflow-hidden">
+                                    <span className="text-xs font-bold text-stone-500 uppercase tracking-[0.2em] mb-1">Welcome</span>
+                                    <span className="text-lg font-serif font-bold truncate text-deep-forest tracking-tight">{userName}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={cn("text-[9px] h-5 px-2 font-bold uppercase tracking-widest rounded-full", gradeColor)}>
+                                    {memberGrade} Companion
+                                </Badge>
+                                <Badge variant="outline" className="text-[9px] h-5 px-2 border-stone-200 text-stone-500 bg-stone-50 font-medium rounded-full">
+                                    Est. {new Date(user?.created_at || '').getFullYear() || '2024'}
+                                </Badge>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="animate-pulse space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-stone-100" />
+                                <div className="space-y-2">
+                                    <div className="h-2 w-16 bg-stone-100 rounded" />
+                                    <div className="h-3 w-24 bg-stone-100 rounded" />
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <div className="h-5 w-20 bg-stone-100 rounded-full" />
+                                <div className="h-5 w-20 bg-stone-100 rounded-full" />
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn("text-[9px] h-5 px-2 font-bold uppercase tracking-widest rounded-full", gradeColor)}>
-                            {memberGrade} Companion
-                        </Badge>
-                        <Badge variant="outline" className="text-[9px] h-5 px-2 border-stone-200 text-stone-500 bg-stone-50 font-medium rounded-full">
-                            Est. {new Date(user?.created_at || '').getFullYear() || '2024'}
-                        </Badge>
-                    </div>
+                    )}
                 </div>
 
                 <div className="p-4 bg-white">

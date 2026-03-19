@@ -47,26 +47,23 @@ export async function middleware(request: NextRequest) {
     contentSecurityPolicyHeaderValue
   )
 
-  // Create an unmodified response with the new headers
+  // 2. Initialize the base response
   let response = NextResponse.next({
     request: {
-      headers: requestHeaders,
+      headers: new Headers(request.headers),
     },
   });
-
-  // Also attach it directly to the outgoing response back to the browser
-  response.headers.set(
-    'Content-Security-Policy',
-    contentSecurityPolicyHeaderValue
-  )
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    // Add CSP before returning
+    response.headers.set('Content-Security-Policy', contentSecurityPolicyHeaderValue);
     return response;
   }
 
+  // 3. Create Supabase client with robust cookie handling
   const supabase = createServerClient(
     supabaseUrl,
     supabaseAnonKey,
@@ -76,10 +73,14 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          
+          // Re-create the response to include the new cookies in the request
           response = NextResponse.next({
             request,
           });
+          
+          // Also set the cookies on the new response for the browser
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -88,23 +89,32 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // This will refresh the session if expired - critical for Server Components
+  // 4. Refresh the session - this is CRITICAL for Server Components
+  // Note: getUser() is safer than getSession() in middleware due to security checks
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  // Admin routes protection
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!user || userError) {
-      console.log('Middleware: Redirecting to login - No user or error', userError?.message);
-      return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
+  // 5. Protected Routes Handling
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+  const isAccountRoute = request.nextUrl.pathname.startsWith('/account');
+
+  // Redirect to login if NO user and trying to access protected routes
+  if ((isAdminRoute || isAccountRoute) && (!user || userError)) {
+    const redirectUrl = new URL('/auth/login', request.url);
+    redirectUrl.searchParams.set('next', request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // Account routes protection
-  if (request.nextUrl.pathname.startsWith('/account')) {
-    if (!user || userError) {
-      return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
+  // Redirect to dashboard/home if USER IS logged in and trying to access auth pages (login/signup)
+  if (isAuthRoute && user && !userError && !request.nextUrl.pathname.includes('/callback')) {
+    return NextResponse.redirect(new URL('/account', request.url));
   }
+
+  // 6. Finalize CSP - Attach to the actual final response object
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicyHeaderValue
+  );
 
   return response;
 }

@@ -1,7 +1,7 @@
 import { ProductService } from '@/lib/services/productService';
 import { ProductShowcase } from './product-showcase';
 
-export async function NewArrivals({ 
+export default async function NewArrivals({ 
     limit = 8, 
     category,
     title = "Fresh Drops",

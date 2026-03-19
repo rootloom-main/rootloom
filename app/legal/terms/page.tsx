@@ -26,6 +26,9 @@ export default function TermsPage() {
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">5. limitation of Liability</h2>
                 <p>In no event shall Root & Loom, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your use of our service.</p>
+
+                <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">6. Contact Us</h2>
+                <p>If you have any questions about these Terms, please contact us at <a href="mailto:root@rootloom.in" className="text-deep-forest underline">root@rootloom.in</a>.</p>
             </div>
         </div>
     );

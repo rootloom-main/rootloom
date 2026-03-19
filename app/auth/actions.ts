@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
-import { sendMagicLinkEmail } from '@/lib/email';
+import { sendOtpEmail } from '@/lib/email';
 
 export async function signInWithIdentifier(identifier: string) {
     const headerList = headers();
@@ -20,28 +20,31 @@ export async function signInWithIdentifier(identifier: string) {
     const isEmail = identifier.includes('@');
 
     if (isEmail) {
-        // Use admin client to generate link to bypass Supabase's internal SMTP/rate limits
-        const adminSupabase = createAdminClient();
-        const { data, error } = await adminSupabase.auth.admin.generateLink({
-            type: 'magiclink',
-            email: identifier,
-            options: {
-                redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-            },
-        });
+        // 1. Generate a 6-digit OTP
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        if (error) {
-            console.error('Error generating magic link:', error);
-            return { error: error.message };
+        // 2. Save to our custom auth_otps table
+        const adminSupabase = createAdminClient();
+        const { error: dbError } = await (adminSupabase as any)
+            .from('auth_otps')
+            .insert([
+                {
+                    email: identifier,
+                    code: otpCode,
+                    expires_at: expiresAt.toISOString(),
+                }
+            ]);
+
+        if (dbError) {
+            console.error('Database error saving OTP:', dbError);
+            return { error: 'Failed to initialize verification. Please try again.' };
         }
 
-        if (data?.properties?.action_link) {
-            const emailResult = await sendMagicLinkEmail(identifier, data.properties.action_link);
-            if (!emailResult.success) {
-                return { error: 'Failed to send magic link email via Resend' };
-            }
-        } else {
-            return { error: 'Failed to generate sign-in link' };
+        // 3. Send via Resend
+        const emailResult = await sendOtpEmail(identifier, otpCode);
+        if (!emailResult.success) {
+            return { error: `Email Error: ${emailResult.error}` };
         }
     } else {
         let formattedPhone = identifier.trim().replace(/[\s\-\(\)]/g, '');
@@ -57,7 +60,13 @@ export async function signInWithIdentifier(identifier: string) {
     return { success: true };
 }
 
-export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact: string) {
+export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact: string): Promise<{ 
+    success?: boolean; 
+    error?: string; 
+    redirectUrl?: string; 
+    isNewUser?: boolean; 
+    user?: any; 
+}> {
     const supabase = await createClient();
     const formattedContact = type === 'sms' && !contact.startsWith('+') ? `+91${contact}` : contact;
 
@@ -69,11 +78,51 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
             type: 'sms',
         });
     } else {
-        result = await supabase.auth.verifyOtp({
+        // Custom Email OTP verification
+        const adminSupabase = createAdminClient();
+        
+        // 1. Check our custom table
+        const { data: otpData, error: otpError } = await (adminSupabase as any)
+            .from('auth_otps')
+            .select('*')
+            .eq('email', formattedContact)
+            .eq('code', token)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (otpError || !otpData) {
+            return { error: 'Invalid or expired verification code.' };
+        }
+
+        // 2. Cleanup: Delete the used OTP
+        await (adminSupabase as any).from('auth_otps').delete().eq('id', otpData.id);
+
+        // 3. Generate a real Supabase session using admin.generateLink
+        const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
+            type: 'magiclink',
             email: formattedContact,
-            token,
-            type: 'email',
         });
+
+        if (linkError || !linkData?.properties?.hashed_token) {
+            console.error('Sign-in link error:', linkError);
+            return { error: 'Verification successful, but sign-in failed. Please try again.' };
+        }
+
+        // 4. Use the non-admin client (supabase) to verify the token hash.
+        // This will automatically set the session cookies on the response.
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: linkData.properties.hashed_token,
+            type: 'magiclink',
+        });
+
+        if (verifyError) {
+            console.error('Server-side verify error:', verifyError);
+            return { error: 'Verification successful, but failed to create session.' };
+        }
+
+        return { success: true };
     }
 
     if (result.error) {

@@ -27,6 +27,7 @@ export function Footer() {
       { name: 'Refund Policy', href: '/legal/refund' },
       { name: 'Shipping Policy', href: '/legal/shipping' },
       { name: 'Cookie Policy', href: '/legal/cookies' },
+      { name: 'Sitemap', href: '/sitemap.xml' },
     ]
   };
 
@@ -64,9 +65,9 @@ export function Footer() {
               <div className="flex items-start gap-3 text-xs md:text-sm text-ash-white/90">
                 <MapPin className="h-4 w-4 text-raw-clay flex-shrink-0 mt-0.5" />
                 <span className="max-w-[250px] leading-relaxed">
-                  Shri Ram Folding Works Shri Ram Industries park-3<br />
-                  Shed 19 Near Vaishalinagar OPP Cozy Hotel Shahwadi<br />
-                  Narol Ahmedabad 382405
+                  Shri Ram Industries Park-3, Shed 19<br />
+                  Near Vaishalinagar, OPP Cozy Hotel, Shahwadi<br />
+                  Narol, Ahmedabad, Gujarat 382405
                 </span>
               </div>
             </div>
@@ -130,7 +131,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="mt-12 md:mt-20 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] md:text-xs text-ash-white/70 text-center md:text-left">
           <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center">
-            <p>&copy; {new Date().getFullYear()} Root & Loom. All rights reserved.</p>
+            <p>&copy; 2026 Root & Loom. All rights reserved.</p>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               {footerLinks.legal.map(link => (
                 <Link key={link.name} href={link.href} className="hover:text-ash-white transition-colors py-2">

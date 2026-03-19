@@ -30,8 +30,8 @@ export default async function OnboardingPage() {
                     <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary to-transparent"></div>
                     <div className="z-10 text-2xl font-bold italic tracking-tighter">RL</div>
                     <div className="z-10">
-                        <h3 className="text-xl font-medium mb-2">Sustainable Luxury</h3>
-                        <p className="text-xs text-stone-400">Crafted for the conscious traveler.</p>
+                        <h3 className="text-xl font-medium mb-2">Rooted in Vibes</h3>
+                        <p className="text-xs text-stone-400">Loomed for the Journey.</p>
                     </div>
                 </div>
                 <div className="flex-1 p-8 sm:p-12">

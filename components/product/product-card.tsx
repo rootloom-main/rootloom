@@ -89,10 +89,10 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
       <div
         className="group relative bg-white border border-stone-200 rounded-xl hover:shadow-[0_0_30px_rgba(255,0,255,0.15)] hover:border-[#ff00ff]/30 transition-all duration-500 flex flex-col h-full overflow-hidden"
       >
-        <div onClick={() => router.push(`/product/${product.slug}`)} className="cursor-pointer block relative aspect-[4/5] overflow-hidden bg-stone-100">
+        <Link href={`/product/${product.slug}`} className="block relative aspect-[4/5] overflow-hidden bg-stone-100">
           <Image
             src={imageUrl}
-            alt={product.name}
+            alt={`${product.name} - Aesthetic Streetwear Drop | Root & Loom`}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
@@ -136,7 +136,7 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
               </Button>
             </div>
           )}
-        </div>
+        </Link>
 
         <div className="p-4 flex flex-col flex-1 gap-1.5">
           {/* Title */}

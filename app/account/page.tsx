@@ -48,7 +48,29 @@ export default async function AccountPage() {
 
   return (
     <div className="space-y-12 pb-16">
-      {/* Interactive Hero Greeting */}
+
+      {/* ── Complete Profile Banner (shown only when name is missing) ── */}
+      {!profile?.full_name && (
+        <section className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-100/40 via-transparent to-transparent" />
+          <div className="relative flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-amber-100 border-2 border-amber-300 flex items-center justify-center shrink-0">
+              <User className="w-6 h-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-bold text-amber-900 text-base">Complete your profile</p>
+              <p className="text-amber-700 text-sm mt-0.5">Add your name so we can personalise your experience and orders.</p>
+            </div>
+          </div>
+          <Link href="/account/profile" className="relative shrink-0">
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-6 shadow-md shadow-amber-200">
+              Set Up Profile <ArrowRight className="ml-2 w-4 h-4" />
+            </Button>
+          </Link>
+        </section>
+      )}
+
+
       <section className="relative overflow-hidden rounded-[2rem] bg-deep-forest p-8 md:p-12 text-white shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-raw-clay/10 rounded-full blur-3xl -mr-32 -mt-32" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl -ml-24 -mb-24" />

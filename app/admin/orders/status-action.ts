@@ -3,7 +3,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
-import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import {
+    sendOrderShippedWhatsApp,
+    sendOrderDeliveredWhatsApp,
+    sendOrderCancelledWhatsApp,
+    sendOutForDeliveryWhatsApp,
+} from '@/lib/whatsapp';
 
 export async function updateOrderStatus(orderId: string, status: string) {
     const supabase = await createClient() as any;
@@ -21,10 +26,10 @@ export async function updateOrderStatus(orderId: string, status: string) {
         return { error: 'Forbidden' };
     }
 
-    // Fetch current order to check current delivered_at and get user_id & order_number
+    // Fetch current order to get user_id, order_number, delivered_at
     const { data: order } = await supabase
         .from('orders')
-        .select('delivered_at, user_id, order_number')
+        .select('delivered_at, user_id, order_number, payment_method')
         .eq('id', orderId)
         .single();
 
@@ -33,7 +38,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
         updated_at: new Date().toISOString()
     };
 
-    // Auto-stamp delivered_at if status is changing to delivered and it hasn't been stamped yet
+    // Auto-stamp delivered_at when marking as delivered
     if (status === 'delivered' && !order?.delivered_at) {
         updatePayload.delivered_at = new Date().toISOString();
     }
@@ -48,26 +53,30 @@ export async function updateOrderStatus(orderId: string, status: string) {
         return { error: 'Failed to update order status' };
     }
 
-    // Send WhatsApp Notification for specific statuses
-    if (status === 'shipped' || status === 'delivered') {
-        if (order?.user_id) {
-            const { data: customerProfile } = await supabase
-                .from('profiles')
-                .select('phone, full_name')
-                .eq('id', order.user_id)
-                .single();
+    // Send appropriate WhatsApp notification based on new status
+    const notifyStatuses = ['shipped', 'out_for_delivery', 'delivered', 'cancelled'];
+    if (notifyStatuses.includes(status) && order?.user_id) {
+        const { data: customerProfile } = await supabase
+            .from('profiles')
+            .select('phone, full_name')
+            .eq('id', order.user_id)
+            .single();
 
-            if (customerProfile?.phone) {
-                const customerName = customerProfile.full_name?.split(' ')[0] || 'Customer';
-                let message = `Hi ${customerName}, your order #${order.order_number} has been updated.`;
+        const phone: string | null = customerProfile?.phone || null;
+        const customerName: string = customerProfile?.full_name || 'Customer';
+        const orderNumber: string = order.order_number;
 
-                if (status === 'shipped') {
-                    message = `Hi ${customerName}, good news! Your order #${order.order_number} has been shipped. Track your shipment on the Rootloom dashboard.`;
-                } else if (status === 'delivered') {
-                    message = `Hi ${customerName}, your order #${order.order_number} has been delivered. Thank you for shopping with Rootloom!`;
-                }
-
-                sendWhatsAppMessage(customerProfile.phone, message).catch(console.error);
+        if (phone) {
+            if (status === 'shipped') {
+                sendOrderShippedWhatsApp(phone, customerName, orderNumber).catch(console.error);
+            } else if (status === 'out_for_delivery') {
+                sendOutForDeliveryWhatsApp(phone, customerName, orderNumber).catch(console.error);
+            } else if (status === 'delivered') {
+                sendOrderDeliveredWhatsApp(phone, customerName, orderNumber).catch(console.error);
+            } else if (status === 'cancelled') {
+                const isCOD = order.payment_method === 'cod';
+                const refundNote = isCOD ? undefined : 'Your refund will be processed within 5–7 business days.';
+                sendOrderCancelledWhatsApp(phone, customerName, orderNumber, refundNote).catch(console.error);
             }
         }
     }

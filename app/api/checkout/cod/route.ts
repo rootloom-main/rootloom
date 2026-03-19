@@ -32,14 +32,18 @@ export async function POST(req: NextRequest) {
         }
 
         const {
-            address_id,
-            couponCode, // Receive coupon code
+            addressId,
+            couponCode,
+            selectedItemIds, // Added for partial checkout
         } = await req.json();
 
+        const address_id = addressId; // Maintain internal name for insertion
+
         // Secure Verification: Fetch Cart from DB
-        const { data: cartItemsDB } = await supabase
+        let query = supabase
             .from('cart_items')
             .select(`
+                id,
                 quantity,
                 product_id,
                 variant_id,
@@ -48,8 +52,15 @@ export async function POST(req: NextRequest) {
             `)
             .eq('user_id', user.id);
 
+        // If specific items are selected, only fetch/process those
+        if (selectedItemIds && Array.isArray(selectedItemIds) && selectedItemIds.length > 0) {
+            query = query.in('id', selectedItemIds);
+        }
+
+        const { data: cartItemsDB } = await query;
+
         if (!cartItemsDB || cartItemsDB.length === 0) {
-            return NextResponse.json({ success: false, message: 'Cart is empty' }, { status: 400 });
+            return NextResponse.json({ success: false, message: 'No selected items found in cart' }, { status: 400 });
         }
 
         const cartItems = cartItemsDB.map((item: any) => {
@@ -57,6 +68,7 @@ export async function POST(req: NextRequest) {
             const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
             const price = product.base_price + (variant?.price_adjustment || 0);
             return {
+                id: item.id, // Keep cart item ID for deletion
                 product_id: item.product_id,
                 variant_id: item.variant_id,
                 quantity: item.quantity,
@@ -144,8 +156,9 @@ export async function POST(req: NextRequest) {
             throw itemsError;
         }
 
-        // 4. Clear Cart in Database (Mandatory)
-        await supabase.from('cart_items').delete().eq('user_id', user.id);
+        // 4. Clear Only Selected Items from Cart in Database
+        const cartItemIds = cartItems.map((item: any) => item.id);
+        await supabase.from('cart_items').delete().in('id', cartItemIds);
 
         // Group Background Tasks (Non-blocking)
         const backgroundTasks = async () => {

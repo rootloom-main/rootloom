@@ -18,7 +18,7 @@ interface CategoryGridProps {
     categories: Category[];
 }
 
-export function CategoryGrid({ categories }: CategoryGridProps) {
+export default function CategoryGrid({ categories }: CategoryGridProps) {
     return (
         <section className="py-12 md:py-20 bg-stone-50/50">
             <div className="container mx-auto px-6">
