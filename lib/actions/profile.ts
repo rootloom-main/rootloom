@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ const profileSchema = z.object({
 
 export async function updateProfile(prevState: any, formData: FormData) {
     const supabase = await createClient() as any;
+    const adminSupabase = await createAdminClient() as any;
     const user = await getCurrentUser();
 
     if (!user) {
@@ -48,7 +49,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 
     // 1. Check for duplicate phone number
     if (phone && formData.has('phone')) {
-        const { data: existingPhoneProfile } = await supabase
+        const { data: existingPhoneProfile } = await adminSupabase
             .from('profiles')
             .select('id')
             .eq('phone', phone)
@@ -65,7 +66,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 
     // 2. Check for duplicate email
     if (email && formData.has('email')) {
-        const { data: existingEmailProfile } = await supabase
+        const { data: existingEmailProfile } = await adminSupabase
             .from('profiles')
             .select('id')
             .eq('email', email)
@@ -102,7 +103,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
         updateData.gender = gender || null;
     }
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await adminSupabase
         .from('profiles')
         .update(updateData)
         .eq('id', user.id);

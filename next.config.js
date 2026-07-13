@@ -108,6 +108,9 @@ module.exports = withSentryConfig(
     tunnelRoute: "/monitoring",
     hideSourceMaps: true,
     disableLogger: true,
+    // App Router only — prevents Sentry from looking for Pages Router _document.tsx
+    autoInstrumentMiddleware: false,
+    autoInstrumentServerFunctions: false,
   }
 );
 

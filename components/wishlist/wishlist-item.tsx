@@ -98,9 +98,9 @@ export function WishlistItem({ item }: WishlistItemProps) {
     };
 
     return (
-        <div className="group relative flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 bg-white rounded-xl border border-stone-100 hover:border-stone-200 hover:shadow-md transition-all duration-300">
+        <div className="group relative flex flex-row items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-white rounded-xl border border-stone-100 hover:border-stone-200 hover:shadow-md transition-all duration-300">
             {/* Image */}
-            <Link href={`/product/${product.slug}`} className="relative aspect-[3/4] sm:aspect-square w-full sm:w-24 md:w-32 rounded-lg overflow-hidden bg-stone-50 flex-shrink-0">
+            <Link href={`/product/${product.slug}`} className="relative aspect-[3/4] w-20 sm:w-24 md:w-32 rounded-lg overflow-hidden bg-stone-50 flex-shrink-0">
                 <Image
                     src={image}
                     alt={alt}
@@ -109,65 +109,63 @@ export function WishlistItem({ item }: WishlistItemProps) {
                 />
             </Link>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0 space-y-1">
-                <div className="flex justify-between items-start">
-                    <Link href={`/product/${product.slug}`} className="block">
-                        <h3 className="text-lg font-serif font-medium text-deep-forest hover:text-raw-clay transition-colors truncate pr-8">
-                            {product.name}
-                        </h3>
-                    </Link>
-                    {/* Remove Button (Desktop) */}
-                    <button
-                        onClick={handleRemove}
-                        className="hidden sm:flex text-slate-400 hover:text-red-500 transition-colors p-1"
-                        aria-label="Remove from wishlist"
+            {/* Content & Actions */}
+            <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch py-0.5">
+                <div className="space-y-1">
+                    <div className="flex justify-between items-start">
+                        <Link href={`/product/${product.slug}`} className="block flex-1 min-w-0">
+                            <h3 className="text-sm sm:text-base md:text-lg font-serif font-medium text-deep-forest hover:text-raw-clay transition-colors truncate pr-2">
+                                {product.name}
+                            </h3>
+                        </Link>
+                        {/* Remove Button */}
+                        <button
+                            onClick={handleRemove}
+                            disabled={isRemoving}
+                            className="text-slate-400 hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                            aria-label="Remove from wishlist"
+                        >
+                            {isRemoving ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <X size={18} className="sm:h-5 sm:w-5" />
+                            )}
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-slate-500">High Quality Cotton</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2">
+                    {/* Price and Stock */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm sm:text-base md:text-lg font-semibold text-deep-forest">
+                            ₹{displayPrice.toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-xs sm:text-sm text-stone-400 line-through">
+                            ₹{mrp.toLocaleString('en-IN')}
+                        </span>
+                        <span className="text-[10px] sm:text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            In Stock
+                        </span>
+                    </div>
+
+                    {/* Add to Cart Button */}
+                    <Button
+                        onClick={handleAddToCart}
+                        disabled={isAdding}
+                        className="bg-deep-forest hover:bg-deep-forest/90 text-white rounded-full h-8 sm:h-10 px-4 sm:px-6 text-xs sm:text-sm font-medium w-full sm:w-auto flex items-center justify-center"
                     >
-                        <X size={20} />
-                    </button>
+                        {isAdding ? (
+                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                        ) : (
+                            <>
+                                <ShoppingBag size={14} className="mr-1.5 sm:h-[16px] sm:w-[16px]" />
+                                Add to Cart
+                            </>
+                        )}
+                    </Button>
                 </div>
-
-                <p className="text-sm text-slate-500 mb-2">High Quality Cotton</p> {/* Placeholder category/desc */}
-
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
-                    <span className="text-lg font-semibold text-deep-forest">
-                        ₹{displayPrice.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-sm text-stone-400 line-through">
-                        ₹{mrp.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                        In Stock
-                    </span>
-                </div>
-            </div>
-
-            {/* Actions (Mobile & Desktop) */}
-            <div className="w-full sm:w-auto flex sm:flex-col gap-3 mt-4 sm:mt-0 sm:ml-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-dashed border-stone-200">
-                <Button
-                    onClick={handleAddToCart}
-                    disabled={isAdding}
-                    className="flex-1 sm:w-full bg-deep-forest hover:bg-deep-forest/90 text-white rounded-full h-11"
-                >
-                    {isAdding ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <>
-                            <ShoppingBag size={18} className="mr-2" />
-                            Add to Cart
-                        </>
-                    )}
-                </Button>
-
-                {/* Remove Button (Mobile) */}
-                <Button
-                    variant="outline"
-                    onClick={handleRemove}
-                    disabled={isRemoving}
-                    className="sm:hidden flex-1 border-stone-200 text-slate-500 hover:text-red-500 hover:border-red-200 rounded-full h-11"
-                >
-                    {isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Remove'}
-                </Button>
             </div>
         </div>
     );

@@ -59,7 +59,6 @@ export async function middleware(request: NextRequest) {
   // Protect sensitive mutations. Public auth page renders must stay reachable.
   const requiresRateLimit =
     (path.startsWith('/api/auth') && isMutationRequest) ||
-    (path.startsWith('/auth') && isMutationRequest) ||
     path.startsWith('/api/checkout') ||
     path.startsWith('/api/orders');
 

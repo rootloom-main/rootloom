@@ -1,0 +1,115 @@
+-- Upgraded Search Function with Tokenized Matching and Stock Calculation
+-- Supports: Category Filter, Price Range, Sorting, Pagination AND Stock Availability
+
+DROP FUNCTION IF EXISTS search_products(text, uuid, decimal, decimal, text, int, int);
+
+CREATE OR REPLACE FUNCTION search_products(
+  query_text text,
+  filter_category_id uuid DEFAULT NULL,
+  min_price decimal DEFAULT NULL,
+  max_price decimal DEFAULT NULL,
+  sort_by text DEFAULT 'relevance',
+  limit_count int DEFAULT 20,
+  offset_count int DEFAULT 0
+)
+RETURNS TABLE (
+  id uuid,
+  name text,
+  slug text,
+  image_url text,
+  base_price decimal,
+  category_name text,
+  similarity_score float,
+  average_rating numeric,
+  review_count bigint,
+  total_stock bigint,
+  total_count bigint
+) AS $$
+BEGIN
+  RETURN QUERY
+  WITH search_base AS (
+    SELECT
+      p.id,
+      p.name,
+      p.slug,
+      p.base_price,
+      p.created_at,
+      p.category_id,
+      c.name as category_name,
+      (
+        -- improved relevance calculation
+        CASE 
+          WHEN query_text IS NULL OR query_text = '' THEN 1.0
+          WHEN p.name ILIKE query_text THEN 1.0
+          WHEN p.name ILIKE query_text || '%' THEN 0.8
+          ELSE word_similarity(query_text, p.name)
+        END 
+        +
+        (CASE WHEN query_text IS NOT NULL AND query_text <> '' AND c.name ILIKE '%' || query_text || '%' THEN 0.2 ELSE 0 END)
+        +
+        (CASE WHEN query_text IS NOT NULL AND query_text <> '' AND p.description ILIKE '%' || query_text || '%' THEN 0.1 ELSE 0 END)
+        +
+        (CASE WHEN EXISTS (
+            SELECT 1 FROM product_variants pv 
+            WHERE pv.product_id = p.id 
+            AND query_text IS NOT NULL AND query_text <> ''
+            AND pv.color ILIKE '%' || query_text || '%'
+         ) THEN 0.3 ELSE 0 END)
+      ) as relevance
+    FROM products p
+    JOIN categories c ON p.category_id = c.id
+    WHERE
+      p.deleted_at IS NULL
+      AND p.status = 'active'
+      -- Tokenized Matching: Every word in query_text must match at least one of the product's attributes
+      AND (
+        query_text IS NULL OR query_text = '' OR
+        NOT EXISTS (
+          SELECT 1 
+          FROM unnest(string_to_array(trim(regexp_replace(query_text, '\s+', ' ', 'g')), ' ')) AS term
+          WHERE NOT (
+            p.name ILIKE '%' || term || '%' OR
+            p.description ILIKE '%' || term || '%' OR
+            c.name ILIKE '%' || term || '%' OR
+            EXISTS (
+                SELECT 1 FROM product_variants pv 
+                WHERE pv.product_id = p.id 
+                AND (pv.sku ILIKE '%' || term || '%' OR pv.color ILIKE '%' || term || '%' OR pv.size ILIKE '%' || term || '%')
+            )
+          )
+        )
+      )
+      -- Category Filter
+      AND (filter_category_id IS NULL OR p.category_id = filter_category_id)
+      -- Price Filter
+      AND (min_price IS NULL OR p.base_price >= min_price)
+      AND (max_price IS NULL OR p.base_price <= max_price)
+  ),
+  total_rows AS (
+    SELECT COUNT(*) as count FROM search_base WHERE relevance > 0.1
+  )
+  SELECT
+    sb.id,
+    sb.name,
+    sb.slug,
+    (SELECT pi.image_url FROM product_images pi WHERE pi.product_id = sb.id ORDER BY pi.display_order LIMIT 1) as image_url,
+    sb.base_price,
+    sb.category_name,
+    sb.relevance::float as similarity_score,
+    COALESCE(AVG(r.rating), 0) as average_rating,
+    COUNT(r.id) as review_count,
+    COALESCE((SELECT SUM(pv.stock) FROM product_variants pv WHERE pv.product_id = sb.id), 0) as total_stock,
+    (SELECT count FROM total_rows) as total_count
+  FROM search_base sb
+  LEFT JOIN reviews r ON sb.id = r.product_id
+  WHERE sb.relevance > 0.1
+  GROUP BY sb.id, sb.name, sb.slug, sb.base_price, sb.category_name, sb.relevance, sb.created_at
+  ORDER BY
+    CASE WHEN sort_by = 'price_asc' THEN sb.base_price END ASC,
+    CASE WHEN sort_by = 'price_desc' THEN sb.base_price END DESC,
+    CASE WHEN sort_by = 'newest' THEN sb.created_at END DESC,
+    CASE WHEN sort_by = 'relevance' THEN sb.relevance END DESC,
+    sb.relevance DESC -- Default fallback
+  LIMIT limit_count OFFSET offset_count;
+END;
+$$ LANGUAGE plpgsql;

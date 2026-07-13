@@ -1,13 +1,50 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin } from '@/lib/utils/auth';
-import { compileHtmlToReactPdf } from '@/lib/utils/html-to-pdf';
 import { compileInvoiceTemplate } from '@/lib/utils/invoice-compiler';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { Document, Page } from '@react-pdf/renderer';
-import React from 'react';
+import { spawn } from 'child_process';
+import path from 'path';
 
 export const runtime = 'nodejs';
+
+function runCliCompiler(html: string, printSettings: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const cliPath = path.join(process.cwd(), 'lib/utils/compile-pdf-cli.ts');
+        const topMargin = printSettings.margins?.top !== undefined ? Number(printSettings.margins.top) * 2.83 : 30;
+        const bottomMargin = printSettings.margins?.bottom !== undefined ? Number(printSettings.margins.bottom) * 2.83 : 30;
+        const leftMargin = printSettings.margins?.left !== undefined ? Number(printSettings.margins.left) * 2.83 : 30;
+        const rightMargin = printSettings.margins?.right !== undefined ? Number(printSettings.margins.right) * 2.83 : 30;
+
+        const child = spawn('npx', [
+            'tsx',
+            cliPath,
+            printSettings.paperSize || 'A4',
+            printSettings.orientation || 'portrait',
+            String(topMargin),
+            String(bottomMargin),
+            String(leftMargin),
+            String(rightMargin)
+        ], { shell: true });
+
+        const chunks: Buffer[] = [];
+        const errChunks: Buffer[] = [];
+
+        child.stdout.on('data', (chunk) => chunks.push(chunk));
+        child.stderr.on('data', (chunk) => errChunks.push(chunk));
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve(Buffer.concat(chunks));
+            } else {
+                const errMsg = Buffer.concat(errChunks).toString();
+                reject(new Error(`PDF compiler process failed (code ${code}): ${errMsg}`));
+            }
+        });
+
+        child.stdin.write(html);
+        child.stdin.end();
+    });
+}
 
 export async function GET(
     _req: Request,
@@ -21,7 +58,7 @@ export async function GET(
     const supabase = createAdminClient() as any;
     
     // 1. Fetch order details with joins
-    const { data: order, error: orderError } = await (supabase
+    const { data: order, error: orderError } = await supabase
         .from('orders')
         .select(`
             *,
@@ -34,7 +71,7 @@ export async function GET(
             )
         `)
         .eq('id', id)
-        .single() as any);
+        .single();
 
     if (orderError || !order) {
         return NextResponse.json({ error: 'Order not found' }, { status: 404 });
@@ -59,7 +96,7 @@ export async function GET(
                 )
             `)
             .eq('order_id', id)
-            .maybeSingle() as any;
+            .maybeSingle();
 
         if (existingInvoice) {
             htmlSnapshot = existingInvoice.html_snapshot;
@@ -84,7 +121,7 @@ export async function GET(
                     )
                 `)
                 .eq('is_default', true)
-                .maybeSingle() as any;
+                .maybeSingle();
 
             const activeVersion = defaultTemplate?.invoice_template_versions?.find(
                 (v: any) => v.status === 'active'
@@ -145,7 +182,6 @@ export async function GET(
             cssSnapshot = templateCss;
 
             // 4. Save invoice snapshot in db for history preservation
-            // Wrap in try-catch to prevent blocker in case of db permission glitches
             try {
                 await supabase.from('invoices').insert({
                     order_id: id,
@@ -164,27 +200,11 @@ export async function GET(
             }
         }
 
-        // 5. Build PDF document elements
-        const documentElement = React.createElement(Document, {}, 
-            React.createElement(Page, { 
-                size: printSettings.paperSize === 'Letter' ? 'LETTER' : 'A4',
-                orientation: printSettings.orientation === 'landscape' ? 'landscape' : 'portrait',
-                style: {
-                    paddingTop: printSettings.margins?.top !== undefined ? Number(printSettings.margins.top) * 2.83 : 30,
-                    paddingBottom: printSettings.margins?.bottom !== undefined ? Number(printSettings.margins.bottom) * 2.83 : 30,
-                    paddingLeft: printSettings.margins?.left !== undefined ? Number(printSettings.margins.left) * 2.83 : 30,
-                    paddingRight: printSettings.margins?.right !== undefined ? Number(printSettings.margins.right) * 2.83 : 30,
-                    backgroundColor: '#FFFFFF',
-                    fontFamily: 'Helvetica',
-                    fontSize: 10
-                }
-            }, ...compileHtmlToReactPdf(htmlSnapshot) as any)
-        );
-
-        const pdfBuffer = await renderToBuffer(documentElement as any);
+        // 5. Build PDF using CLI compiler process
+        const pdfBuffer = await runCliCompiler(htmlSnapshot, printSettings);
         const fileName = `invoice-${order.order_number}.pdf`;
 
-        return new NextResponse(pdfBuffer as any, {
+        return new NextResponse(pdfBuffer, {
             headers: {
                 'Content-Type': 'application/pdf',
                 'Content-Disposition': `attachment; filename="${fileName}"`,

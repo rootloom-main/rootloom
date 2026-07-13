@@ -51,6 +51,7 @@ const sidebarGroups = [
             { name: 'Collections', href: '/admin/marketing/collections', icon: Layers },
             { name: 'Banners', href: '/admin/marketing/banners', icon: Archive },
             { name: 'Coupons', href: '/admin/marketing/coupons', icon: Tag },
+            { name: 'Search Engine', href: '/admin/search-management', icon: Search },
             { name: 'Pages', href: '/admin/pages', icon: FileText },
             { name: 'Reviews', href: '/admin/reviews', icon: Star },
         ]

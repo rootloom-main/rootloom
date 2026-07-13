@@ -9,6 +9,15 @@ const DEFAULT_FROM = process.env.RESEND_FROM_ADDRESS || 'Root & Loom <orders@roo
 // In development, if no custom FROM is set, we might want to default to onboarding@resend.dev 
 // but ONLY if the user is testing. For simplicity, we'll keep the configured one but allow override.
 
+function emailErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return 'Email provider request failed';
+}
+
 interface OrderEmailProps {
   orderNumber: string;
   customerName: string;
@@ -297,13 +306,13 @@ export const sendOtpEmail = async (email: string, code: string) => {
 
     if (error) {
       console.error('Resend OTP error:', error);
-      return { success: false, error: (error as any).message || 'Unknown Resend error' };
+      return { success: false, error: emailErrorMessage(error) };
     }
 
     return { success: true, data };
   } catch (error) {
     console.error('Error sending OTP email:', error);
-    return { success: false, error };
+    return { success: false, error: emailErrorMessage(error) };
   }
 };
 

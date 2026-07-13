@@ -212,13 +212,13 @@ export function compileInvoiceTemplate(
 
         itemsHtml += `
         <tr>
-          <td style="padding: 6px; border-bottom: 1px solid #eee;">
+          <td style="padding: 6px; border-bottom: 1px solid #eee; width: 56%;">
             <strong style="color: #1c352d;">${itemName}</strong><br/>
             <span style="font-size: 8px; color: #666;">${variantStr}</span>
           </td>
-          <td style="text-align: center; padding: 6px; border-bottom: 1px solid #eee;">${item.quantity}</td>
-          <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee;">${formatCurrency(parseFloat(item.price), symbol, precision)}</td>
-          <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee;">${formatCurrency(itemTotal, symbol, precision)}</td>
+          <td style="text-align: center; padding: 6px; border-bottom: 1px solid #eee; width: 8%;">${item.quantity}</td>
+          <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee; width: 18%;">${formatCurrency(parseFloat(item.price), symbol, precision)}</td>
+          <td style="text-align: right; padding: 6px; border-bottom: 1px solid #eee; width: 18%;">${formatCurrency(itemTotal, symbol, precision)}</td>
         </tr>`;
     }
 

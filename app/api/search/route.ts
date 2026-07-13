@@ -59,6 +59,22 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
 
+    // Check for search redirects first (case-insensitive check)
+    try {
+        const { data: redirectRow } = await supabase
+            .from('search_redirects')
+            .select('redirect_url')
+            .eq('query_text', query.trim().toLowerCase())
+            .eq('is_active', true)
+            .maybeSingle();
+
+        if (redirectRow) {
+            return NextResponse.json({ redirect: redirectRow.redirect_url });
+        }
+    } catch (err) {
+        console.error('Redirect check error:', err);
+    }
+
     try {
         const { data: results, error } = await supabase.rpc('search_products', {
             query_text: query.trim(),

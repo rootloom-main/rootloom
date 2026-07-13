@@ -19,14 +19,19 @@ function normalizeIdentifier(identifier: string) {
 function getOtpHashSecret() {
     const secret = process.env.OTP_HASH_SECRET;
     if (!secret) {
-        throw new Error('OTP_HASH_SECRET environment variable is required but not set. Configure it in your environment to enable OTP-based authentication.');
+        return null;
     }
     return secret;
 }
 
 function hashOtp(email: string, token: string) {
+    const secret = getOtpHashSecret();
+    if (!secret) {
+        throw new Error('OTP_HASH_SECRET is not configured.');
+    }
+
     return crypto
-        .createHmac('sha256', getOtpHashSecret())
+        .createHmac('sha256', secret)
         .update(`${normalizeIdentifier(email)}:${token}`)
         .digest('hex');
 }
@@ -55,55 +60,73 @@ async function auditOtpEvent(adminSupabase: any, email: string, event: string, m
     });
 }
 
+function toErrorMessage(error: unknown) {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    if (error && typeof error === 'object' && 'message' in error) {
+        return String((error as { message?: unknown }).message);
+    }
+    return 'Unexpected authentication error. Please try again.';
+}
+
 export async function signInWithIdentifier(identifier: string) {
-    const headerList = await headers();
-    const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
+    try {
+        const headerList = await headers();
+        const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
 
-    const { success } = await checkRateLimit(ip);
-    if (!success) {
-        return { error: 'Too many requests. Please wait a minute.' };
+        const { success } = await checkRateLimit(ip);
+        if (!success) {
+            return { error: 'Too many requests. Please wait a minute.' };
+        }
+
+        const normalizedIdentifier = normalizeIdentifier(identifier);
+        const isEmail = normalizedIdentifier.includes('@');
+
+        if (!isEmail) {
+            return { error: 'Please enter a valid email address. Mobile login is coming in a future update.' };
+        }
+
+        if (!getOtpHashSecret()) {
+            console.error('OTP_HASH_SECRET is missing. OTP login is disabled.');
+            return { error: 'Login is temporarily unavailable. Please contact support.' };
+        }
+
+        // 1. Generate a 6-digit OTP
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // 2. Save to our custom auth_otps table
+        const adminSupabase = createAdminClient();
+        const { error: dbError } = await (adminSupabase as any)
+            .from('auth_otps')
+            .insert([
+                {
+                    email: normalizedIdentifier,
+                    code: '[hashed]',
+                    code_hash: hashOtp(normalizedIdentifier, otpCode),
+                    failed_attempts: 0,
+                    locked_until: null,
+                    expires_at: expiresAt.toISOString(),
+                }
+            ]);
+
+        if (dbError) {
+            console.error('Database error saving OTP:', dbError);
+            return { error: 'Failed to initialize verification. Please try again.' };
+        }
+
+        // 3. Send via Resend
+        const emailResult = await sendOtpEmail(identifier, otpCode);
+        if (!emailResult.success) {
+            return { error: `Email Error: ${toErrorMessage(emailResult.error)}` };
+        }
+        await auditOtpEvent(adminSupabase, normalizedIdentifier, 'otp_sent').catch(() => {});
+
+        return { success: true };
+    } catch (error) {
+        console.error('OTP sign-in failed:', error);
+        return { error: toErrorMessage(error) };
     }
-
-    const supabase = await createClient();
-    const normalizedIdentifier = normalizeIdentifier(identifier);
-    const isEmail = normalizedIdentifier.includes('@');
-
-    if (!isEmail) {
-        return { error: 'Please enter a valid email address. Mobile login is coming in a future update.' };
-    }
-
-    // 1. Generate a 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-    // 2. Save to our custom auth_otps table
-    const adminSupabase = createAdminClient();
-    const { error: dbError } = await (adminSupabase as any)
-        .from('auth_otps')
-        .insert([
-            {
-                email: normalizedIdentifier,
-                code: '[hashed]',
-                code_hash: hashOtp(normalizedIdentifier, otpCode),
-                failed_attempts: 0,
-                locked_until: null,
-                expires_at: expiresAt.toISOString(),
-            }
-        ]);
-
-    if (dbError) {
-        console.error('Database error saving OTP:', dbError);
-        return { error: 'Failed to initialize verification. Please try again.' };
-    }
-
-    // 3. Send via Resend
-    const emailResult = await sendOtpEmail(identifier, otpCode);
-    if (!emailResult.success) {
-        return { error: `Email Error: ${emailResult.error}` };
-    }
-    await auditOtpEvent(adminSupabase, normalizedIdentifier, 'otp_sent').catch(() => {});
-
-    return { success: true };
 }
 
 export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact: string, source?: string): Promise<{ 
@@ -113,17 +136,30 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
     isNewUser?: boolean; 
     user?: any; 
 }> {
-    const supabase = await createClient();
-    const formattedContact = type === 'sms' && !contact.startsWith('+') ? `+91${contact}` : normalizeIdentifier(contact);
+    try {
+        const headerList = await headers();
+        const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
+        const { success } = await checkRateLimit(`${ip}:verify`);
+        if (!success) {
+            return { error: 'Too many attempts. Please wait a minute.' };
+        }
 
-    let result;
-    if (type === 'sms') {
-        result = await supabase.auth.verifyOtp({
-            phone: formattedContact,
-            token,
-            type: 'sms',
-        });
-    } else {
+        const supabase = await createClient();
+        const formattedContact = type === 'sms' && !contact.startsWith('+') ? `+91${contact}` : normalizeIdentifier(contact);
+
+        let result;
+        if (type === 'sms') {
+            result = await supabase.auth.verifyOtp({
+                phone: formattedContact,
+                token,
+                type: 'sms',
+            });
+        } else {
+            if (!getOtpHashSecret()) {
+                console.error('OTP_HASH_SECRET is missing. OTP verification is disabled.');
+                return { error: 'Login is temporarily unavailable. Please contact support.' };
+            }
+
         // Custom Email OTP verification
         const adminSupabase = createAdminClient();
         
@@ -284,6 +320,10 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
         isNewUser: isNewUser,
         user: result.data.user
     };
+    } catch (error) {
+        console.error('OTP verification failed:', error);
+        return { error: toErrorMessage(error) };
+    }
 }
 
 export async function signOutEx() {

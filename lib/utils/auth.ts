@@ -51,12 +51,12 @@ export async function getUserProfile() {
 
   if (!user) return null;
 
-  const supabase = createAdminClient();
+  const supabase = createAdminClient() as any;
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single() as any;
+    .single();
 
   return profile;
 }

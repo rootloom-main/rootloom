@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Package, ExternalLink } from 'lucide-react';
 import { SuccessAnalytics } from './success-analytics';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export default async function CheckoutSuccessPage({
     searchParams,
@@ -14,6 +15,23 @@ export default async function CheckoutSuccessPage({
 
     if (!orderNumber) {
         redirect('/account/orders');
+    }
+
+    // Query order items to log conversion purchases
+    let productIds: string[] = [];
+    try {
+        const supabase = (await createAdminClient()) as any;
+        const { data: order } = await supabase
+            .from('orders')
+            .select('id, order_items(product_id)')
+            .eq('order_number', orderNumber)
+            .single();
+
+        if (order?.order_items) {
+            productIds = order.order_items.map((item: any) => item.product_id);
+        }
+    } catch (err) {
+        console.error('Error fetching order items for success analytics:', err);
     }
 
     const deliveryDate = new Date();
@@ -30,6 +48,7 @@ export default async function CheckoutSuccessPage({
             <SuccessAnalytics
                 recoveredVia={resolvedSearchParams.recovered_via}
                 retryCount={resolvedSearchParams.retry_count}
+                productIds={productIds}
             />
             <div className="mx-auto max-w-3xl">
                 <div className="overflow-hidden rounded-sm border-t-8 border-green-600 bg-white shadow-sm">

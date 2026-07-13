@@ -201,7 +201,7 @@ export function Header() {
 
             {/* Right: Icons */}
             <div className="flex items-center gap-0 flex-shrink-0">
-              <div className="hidden lg:block w-72 mr-2">
+              <div className="hidden lg:block w-52 xl:w-64 mr-2">
                 <SmartSearch />
               </div>
 

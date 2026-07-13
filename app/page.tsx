@@ -7,13 +7,26 @@ export const revalidate = 3600; // Cache for 1 hour in production
 import FAQSection from '@/components/home/faq-section';
 
 export default async function Home() {
-    // Fetch dynamic sections and initial data in parallel
-    const [sections, categories, featuredProducts, activeBanners] = await Promise.all([
-        HomeService.getSections(),
-        ProductService.getCategories(),
-        ProductService.getFeaturedProducts(8),
-        HomeService.getBanners(),
-    ]);
+    // Fetch dynamic sections and initial data in parallel with safe fallbacks
+    let sections: any[] = [];
+    let categories: any[] = [];
+    let featuredProducts: any[] = [];
+    let activeBanners: any[] = [];
+
+    try {
+        const [resSections, resCategories, resFeatured, resBanners] = await Promise.all([
+            HomeService.getSections().catch(err => { console.error('getSections error:', err); return []; }),
+            ProductService.getCategories().catch(err => { console.error('getCategories error:', err); return []; }),
+            ProductService.getFeaturedProducts(8).catch(err => { console.error('getFeaturedProducts error:', err); return []; }),
+            HomeService.getBanners().catch(err => { console.error('getBanners error:', err); return []; }),
+        ]);
+        sections = resSections || [];
+        categories = resCategories || [];
+        featuredProducts = resFeatured || [];
+        activeBanners = resBanners || [];
+    } catch (error) {
+        console.error('Home page data fetching failed:', error);
+    }
     
     // Preparation for standard sections
     const heroBanners = activeBanners.filter((b: any) => b.position === 'hero');

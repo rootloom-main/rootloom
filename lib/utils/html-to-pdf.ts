@@ -7,7 +7,7 @@ export function parseInlineStyle(styleStr: string): any {
     if (!styleStr) return {};
     const styles: any = {};
     const declarations = styleStr.split(';');
-    
+
     for (const decl of declarations) {
         const parts = decl.split(':');
         if (parts.length < 2) continue;
@@ -156,9 +156,26 @@ export function parseInlineStyle(styleStr: string): any {
         delete styles.borderRight;
     }
 
-    // Set font weight
-    if (styles.fontWeight === 'bold' || styles.fontWeight > 500) {
-        styles.fontFamily = styles.fontFamily || 'Helvetica-Bold';
+    // Set font weight and normalize font family to standard react-pdf fonts
+    const standardFonts = ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique', 'Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique', 'Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'];
+
+    const isBold = styles.fontWeight === 'bold' || Number(styles.fontWeight) > 500;
+
+    if (styles.fontFamily) {
+        const cleanedFont = styles.fontFamily.split(',')[0].trim().replace(/['"]/g, '');
+        const match = standardFonts.find(f => f.toLowerCase() === cleanedFont.toLowerCase());
+        if (match) {
+            styles.fontFamily = match;
+        } else {
+            styles.fontFamily = isBold ? 'Helvetica-Bold' : 'Helvetica';
+        }
+    } else if (isBold) {
+        styles.fontFamily = 'Helvetica-Bold';
+    }
+
+    // Map display: flex to flexDirection: 'row' if not specified
+    if (styles.display === 'flex' && !styles.flexDirection) {
+        styles.flexDirection = 'row';
     }
 
     // Remove non-standard properties for react-pdf
@@ -174,7 +191,18 @@ export function compileHtmlToReactPdf(htmlStr: string): React.ReactNode {
     if (!htmlStr) return null;
     const root = parse(htmlStr);
 
-    function renderNode(node: any, index: number): React.ReactNode {
+    function getInheritableStyles(styles: any): any {
+        const inheritable: any = {};
+        if (styles.color !== undefined) inheritable.color = styles.color;
+        if (styles.fontFamily !== undefined) inheritable.fontFamily = styles.fontFamily;
+        if (styles.fontSize !== undefined) inheritable.fontSize = styles.fontSize;
+        if (styles.fontWeight !== undefined) inheritable.fontWeight = styles.fontWeight;
+        if (styles.textAlign !== undefined) inheritable.textAlign = styles.textAlign;
+        if (styles.lineHeight !== undefined) inheritable.lineHeight = styles.lineHeight;
+        return inheritable;
+    }
+
+    function renderNode(node: any, index: number, parentStyle: any = {}): React.ReactNode {
         // Text node
         if (node.nodeType === 3) {
             const text = node.text;
@@ -185,20 +213,57 @@ export function compileHtmlToReactPdf(htmlStr: string): React.ReactNode {
         // Element node
         if (node.nodeType === 1) {
             const tagName = node.tagName.toLowerCase();
-            const inlineStyles = parseInlineStyle(node.getAttribute('style') || '');
+            const localStyle = parseInlineStyle(node.getAttribute('style') || '');
+
+            // Merge parent inheritable styles with local inline styles
+            const inlineStyles = {
+                ...parentStyle,
+                ...localStyle
+            };
 
             let component: any = View;
             const props: any = { key: index, style: inlineStyles };
 
-            if (['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th', 'strong', 'b', 'i', 'em'].includes(tagName)) {
+            if (tagName === 'table' || tagName === 'thead' || tagName === 'tbody') {
+                component = View;
+                inlineStyles.flexDirection = 'column';
+                inlineStyles.width = inlineStyles.width || '100%';
+            } else if (tagName === 'tr') {
+                component = View;
+                inlineStyles.flexDirection = 'row';
+                inlineStyles.width = inlineStyles.width || '100%';
+            } else if (tagName === 'td' || tagName === 'th') {
+                component = View;
+                inlineStyles.flexDirection = 'column';
+                if (tagName === 'th') {
+                    inlineStyles.fontWeight = 'bold';
+                    inlineStyles.fontFamily = inlineStyles.fontFamily || 'Helvetica-Bold';
+                }
+            } else if (tagName === 'div') {
+                component = View;
+                inlineStyles.flexDirection = inlineStyles.flexDirection || 'column';
+            } else if (['p', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'b', 'i', 'em'].includes(tagName)) {
                 component = Text;
-                if (['strong', 'b', 'th'].includes(tagName)) {
+                if (['strong', 'b'].includes(tagName)) {
                     inlineStyles.fontWeight = 'bold';
                     inlineStyles.fontFamily = inlineStyles.fontFamily || 'Helvetica-Bold';
                 }
             } else if (tagName === 'img') {
+                const src = node.getAttribute('src');
+                if (!src || src.trim() === '' || src.includes('{{') || src.includes('}}')) {
+                    return null;
+                }
+                const isBase64 = src.startsWith('data:image/');
+                const cleanSrc = src.split('?')[0].toLowerCase();
+                const hasValidExt = cleanSrc.endsWith('.png') || cleanSrc.endsWith('.jpg') || cleanSrc.endsWith('.jpeg');
+
+                if (!isBase64 && !hasValidExt) {
+                    console.warn('Skipping invalid image for PDF:', src);
+                    return null;
+                }
+
                 component = Image;
-                props.src = node.getAttribute('src');
+                props.src = src;
                 if (!inlineStyles.width && !inlineStyles.height) {
                     inlineStyles.width = 80;
                     inlineStyles.height = 'auto';
@@ -207,9 +272,10 @@ export function compileHtmlToReactPdf(htmlStr: string): React.ReactNode {
                 return React.createElement(Text, { key: index }, '\n');
             }
 
-            // Recursively render children
+            // Recursively render children with inheritable styles
+            const inheritable = getInheritableStyles(inlineStyles);
             const children = node.childNodes
-                .map((child: any, idx: number) => renderNode(child, idx))
+                .map((child: any, idx: number) => renderNode(child, idx, inheritable))
                 .filter(Boolean);
 
             if (component === Text) {
@@ -219,7 +285,16 @@ export function compileHtmlToReactPdf(htmlStr: string): React.ReactNode {
             // Ensure any direct text children inside a View are wrapped in Text nodes
             const processedChildren = children.map((c: any, cidx: number) => {
                 if (typeof c === 'string') {
-                    return React.createElement(Text, { key: `txt-${cidx}`, style: { fontSize: inlineStyles.fontSize || 10 } }, c);
+                    return React.createElement(Text, {
+                        key: `txt-${cidx}`,
+                        style: {
+                            fontSize: inlineStyles.fontSize || 10,
+                            fontFamily: inlineStyles.fontFamily || 'Helvetica',
+                            color: inlineStyles.color,
+                            fontWeight: inlineStyles.fontWeight,
+                            textAlign: inlineStyles.textAlign
+                        }
+                    }, c);
                 }
                 return c;
             });

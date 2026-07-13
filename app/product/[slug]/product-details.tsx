@@ -229,7 +229,6 @@ export function ProductDetails({
     } catch (e) {
       console.error('Failed to save recently viewed', e);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
   // Exit-Intent Micro Trigger
