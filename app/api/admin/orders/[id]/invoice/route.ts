@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdmin } from '@/lib/utils/auth';
+import { isAdmin, getCurrentUser } from '@/lib/utils/auth';
 import { compileInvoiceTemplate } from '@/lib/utils/invoice-compiler';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -51,11 +51,25 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
-    if (!(await isAdmin())) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const user = await getCurrentUser();
+    if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const supabase = createAdminClient() as any;
+    const userIsAdmin = await isAdmin();
+
+    if (!userIsAdmin) {
+        const { data: orderOwner, error: ownerError } = await supabase
+            .from('orders')
+            .select('user_id')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (ownerError || !orderOwner || orderOwner.user_id !== user.id) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+    }
     
     // 1. Fetch order details with joins
     const { data: order, error: orderError } = await supabase
