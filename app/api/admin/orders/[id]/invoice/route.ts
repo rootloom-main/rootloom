@@ -1,125 +1,27 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, getCurrentUser } from '@/lib/utils/auth';
-import { compileInvoiceTemplate } from '@/lib/utils/invoice-compiler';
-import { compileHtmlToReactPdf } from '@/lib/utils/html-to-pdf';
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import React from 'react';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 export const runtime = 'nodejs';
 
-async function renderPdf(html: string, printSettings: any): Promise<Buffer> {
-    const paperSize = printSettings.paperSize === 'Letter' ? 'LETTER' : 'A4';
-    const orientation = printSettings.orientation === 'landscape' ? 'landscape' : 'portrait';
-    const topMargin    = printSettings.margins?.top    !== undefined ? Number(printSettings.margins.top)    * 2.83 : 30;
-    const bottomMargin = printSettings.margins?.bottom !== undefined ? Number(printSettings.margins.bottom) * 2.83 : 30;
-    const leftMargin   = printSettings.margins?.left   !== undefined ? Number(printSettings.margins.left)   * 2.83 : 30;
-    const rightMargin  = printSettings.margins?.right  !== undefined ? Number(printSettings.margins.right)  * 2.83 : 30;
-
-    const reactElements = compileHtmlToReactPdf(html);
-    const children = Array.isArray(reactElements)
-        ? reactElements
-        : reactElements
-            ? [reactElements]
-            : [];
-
-    if (children.length === 0) {
-        throw new Error('Invoice template produced no PDF content');
-    }
-
-    const doc = React.createElement(
-        Document,
-        {},
-        React.createElement(
-            Page,
-            {
-                size: paperSize,
-                orientation,
-                style: {
-                    paddingTop: topMargin,
-                    paddingBottom: bottomMargin,
-                    paddingLeft: leftMargin,
-                    paddingRight: rightMargin,
-                    backgroundColor: '#FFFFFF',
-                    fontFamily: 'Helvetica',
-                    fontSize: 10,
-                },
-            },
-            ...(children as any)
-        )
-    );
-
-    return await renderToBuffer(doc as any);
-}
-
-function formatMoney(value: any) {
+function formatMoney(value: any): string {
     const amount = Number(value || 0);
     return `Rs. ${amount.toFixed(2)}`;
 }
 
-async function renderFallbackPdf(order: any): Promise<Buffer> {
-    const styles = StyleSheet.create({
-        page: {
-            padding: 32,
-            backgroundColor: '#FFFFFF',
-            fontFamily: 'Helvetica',
-            fontSize: 10,
-            color: '#222222',
-        },
-        header: {
-            borderBottomWidth: 1,
-            borderBottomColor: '#1c352d',
-            paddingBottom: 12,
-            marginBottom: 18,
-        },
-        title: {
-            fontSize: 22,
-            fontFamily: 'Helvetica-Bold',
-            color: '#1c352d',
-            marginBottom: 6,
-        },
-        section: {
-            marginBottom: 14,
-        },
-        label: {
-            fontFamily: 'Helvetica-Bold',
-            marginBottom: 4,
-        },
-        row: {
-            flexDirection: 'row',
-            borderBottomWidth: 1,
-            borderBottomColor: '#eeeeee',
-            paddingVertical: 6,
-        },
-        itemName: {
-            width: '55%',
-        },
-        qty: {
-            width: '15%',
-            textAlign: 'center',
-        },
-        amount: {
-            width: '30%',
-            textAlign: 'right',
-        },
-        total: {
-            marginTop: 12,
-            textAlign: 'right',
-            fontSize: 13,
-            fontFamily: 'Helvetica-Bold',
-            color: '#1c352d',
-        },
-        footer: {
-            marginTop: 24,
-            paddingTop: 10,
-            borderTopWidth: 1,
-            borderTopColor: '#eeeeee',
-            fontSize: 8,
-            color: '#666666',
-            textAlign: 'center',
-        },
-    });
+function getInvoiceNumber(order: any): string {
+    return order.order_number ? order.order_number.replace(/^ORD/, 'INV-') : `INV-${Date.now()}`;
+}
 
+function sanitizePdfText(value: any): string {
+    return String(value ?? '')
+        .replace(/[₹]/g, 'Rs.')
+        .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, '')
+        .trim();
+}
+
+function getShippingAddress(order: any): string {
     const shippingAddress = order.shipping_address
         ? [
             order.shipping_address.full_name,
@@ -132,53 +34,219 @@ async function renderFallbackPdf(order: any): Promise<Buffer> {
         ].filter(Boolean).join(', ')
         : 'No shipping address provided';
 
+    return sanitizePdfText(shippingAddress);
+}
+
+async function renderInvoicePdf(order: any): Promise<Buffer> {
+    const pdfDoc = await PDFDocument.create();
+    const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
+    const margin = 42;
+    const contentWidth = pageWidth - margin * 2;
+    const dark = rgb(0.11, 0.21, 0.18);
+    const muted = rgb(0.35, 0.35, 0.35);
+    const line = rgb(0.86, 0.86, 0.86);
+    const lightFill = rgb(0.96, 0.97, 0.96);
+
+    let page = pdfDoc.addPage([pageWidth, pageHeight]);
+    let y = pageHeight - margin;
+
+    const newPage = () => {
+        page = pdfDoc.addPage([pageWidth, pageHeight]);
+        y = pageHeight - margin;
+    };
+
+    const drawText = (
+        text: string,
+        x: number,
+        currentY: number,
+        size = 10,
+        options: { bold?: boolean; color?: any; maxWidth?: number } = {}
+    ) => {
+        page.drawText(sanitizePdfText(text), {
+            x,
+            y: currentY,
+            size,
+            font: options.bold ? boldFont : regularFont,
+            color: options.color || rgb(0.12, 0.12, 0.12),
+            maxWidth: options.maxWidth,
+        });
+    };
+
+    const wrapText = (text: string, maxWidth: number, size = 10, bold = false): string[] => {
+        const clean = sanitizePdfText(text);
+        const words = clean.split(/\s+/).filter(Boolean);
+        const font = bold ? boldFont : regularFont;
+        const lines: string[] = [];
+        let current = '';
+
+        for (const word of words) {
+            const candidate = current ? `${current} ${word}` : word;
+            if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+                current = candidate;
+            } else {
+                if (current) lines.push(current);
+                current = word;
+            }
+        }
+
+        if (current) lines.push(current);
+        return lines.length ? lines : [''];
+    };
+
+    const drawWrapped = (text: string, x: number, maxWidth: number, size = 10, bold = false, color = rgb(0.12, 0.12, 0.12)) => {
+        for (const lineText of wrapText(text, maxWidth, size, bold)) {
+            if (y < margin + 48) newPage();
+            drawText(lineText, x, y, size, { bold, color, maxWidth });
+            y -= size + 4;
+        }
+    };
+
+    const drawHorizontalLine = (currentY: number, color = line) => {
+        page.drawLine({
+            start: { x: margin, y: currentY },
+            end: { x: pageWidth - margin, y: currentY },
+            thickness: 1,
+            color,
+        });
+    };
+
+    const invoiceNumber = getInvoiceNumber(order);
+    const invoiceDate = new Date(order.created_at || Date.now()).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
     const items = order.order_items || [];
+    const subtotal = items.reduce((sum: number, item: any) => {
+        return sum + Number(item.price || 0) * Number(item.quantity || 0);
+    }, 0);
+    const shipping = Number(order.shipping_cost || 0);
+    const grandTotal = Number(order.total || subtotal + shipping);
+    const discount = Math.max(0, subtotal + shipping - grandTotal);
 
-    const doc = React.createElement(
-        Document,
-        {},
-        React.createElement(
-            Page,
-            { size: 'A4', style: styles.page },
-            React.createElement(
-                View,
-                { style: styles.header },
-                React.createElement(Text, { style: styles.title }, 'TAX INVOICE'),
-                React.createElement(Text, null, `Invoice No: ${order.order_number || order.id}`),
-                React.createElement(Text, null, `Date: ${new Date(order.created_at || Date.now()).toLocaleDateString('en-IN')}`)
-            ),
-            React.createElement(
-                View,
-                { style: styles.section },
-                React.createElement(Text, { style: styles.label }, 'Billed To'),
-                React.createElement(Text, null, shippingAddress),
-                React.createElement(Text, null, `Email: ${order.profiles?.email || 'N/A'}`),
-                React.createElement(Text, null, `Phone: ${order.shipping_address?.phone || order.profiles?.phone || 'N/A'}`)
-            ),
-            React.createElement(
-                View,
-                { style: styles.section },
-                React.createElement(
-                    View,
-                    { style: [styles.row, { fontFamily: 'Helvetica-Bold', backgroundColor: '#f7f7f7' }] },
-                    React.createElement(Text, { style: styles.itemName }, 'Item'),
-                    React.createElement(Text, { style: styles.qty }, 'Qty'),
-                    React.createElement(Text, { style: styles.amount }, 'Total')
-                ),
-                ...items.map((item: any, index: number) => React.createElement(
-                    View,
-                    { key: index, style: styles.row },
-                    React.createElement(Text, { style: styles.itemName }, item.product?.name || 'Item'),
-                    React.createElement(Text, { style: styles.qty }, String(item.quantity || 0)),
-                    React.createElement(Text, { style: styles.amount }, formatMoney(Number(item.price || 0) * Number(item.quantity || 0)))
-                ))
-            ),
-            React.createElement(Text, { style: styles.total }, `Grand Total: ${formatMoney(order.total)}`),
-            React.createElement(Text, { style: styles.footer }, 'This fallback invoice was generated because the saved invoice template could not be rendered.')
-        )
-    );
+    drawText('Root & Loom', margin, y, 18, { bold: true, color: dark });
+    drawText('TAX INVOICE', pageWidth - margin - 145, y, 20, { bold: true, color: dark });
+    y -= 26;
+    drawText('root@rootloom.in', margin, y, 9, { color: muted });
+    drawText(`Invoice No: ${invoiceNumber}`, pageWidth - margin - 145, y, 9, { color: muted });
+    y -= 14;
+    drawText('www.rootloom.in', margin, y, 9, { color: muted });
+    drawText(`Date: ${invoiceDate}`, pageWidth - margin - 145, y, 9, { color: muted });
+    y -= 18;
+    drawHorizontalLine(y, dark);
+    y -= 24;
 
-    return await renderToBuffer(doc as any);
+    drawText('Billed To', margin, y, 11, { bold: true, color: dark });
+    y -= 17;
+    drawWrapped(getShippingAddress(order), margin, contentWidth * 0.58, 9);
+    drawWrapped(`Email: ${order.profiles?.email || 'N/A'}`, margin, contentWidth * 0.58, 9);
+    drawWrapped(`Phone: ${order.shipping_address?.phone || order.profiles?.phone || 'N/A'}`, margin, contentWidth * 0.58, 9);
+
+    const paymentX = margin + contentWidth * 0.65;
+    const paymentTop = pageHeight - margin - 86;
+    drawText('Payment Details', paymentX, paymentTop, 11, { bold: true, color: dark });
+    drawText(`Method: ${order.payment_id ? 'Razorpay' : 'N/A'}`, paymentX, paymentTop - 17, 9);
+    drawText(`Status: ${order.payment_status || 'Pending'}`, paymentX, paymentTop - 31, 9);
+    drawText(`Order: ${order.order_number || order.id}`, paymentX, paymentTop - 45, 9, { maxWidth: contentWidth * 0.35 });
+
+    y -= 14;
+    page.drawRectangle({
+        x: margin,
+        y: y - 22,
+        width: contentWidth,
+        height: 24,
+        color: lightFill,
+        borderColor: line,
+        borderWidth: 1,
+    });
+    drawText('Item', margin + 8, y - 14, 9, { bold: true, color: dark });
+    drawText('Qty', margin + 328, y - 14, 9, { bold: true, color: dark });
+    drawText('Unit Price', margin + 382, y - 14, 9, { bold: true, color: dark });
+    drawText('Total', margin + 470, y - 14, 9, { bold: true, color: dark });
+    y -= 32;
+
+    if (items.length === 0) {
+        drawText('No line items found for this order.', margin + 8, y, 9, { color: muted });
+        y -= 18;
+    }
+
+    for (const item of items) {
+        if (y < margin + 92) newPage();
+        const productName = item.product?.name || 'Item';
+        const variant = [item.variant?.size, item.variant?.color].filter(Boolean).join(' / ');
+        const quantity = Number(item.quantity || 0);
+        const unitPrice = Number(item.price || 0);
+        const rowTop = y;
+        const itemLines = wrapText(variant ? `${productName} (${variant})` : productName, 300, 9);
+        const rowHeight = Math.max(24, itemLines.length * 13 + 8);
+
+        page.drawRectangle({
+            x: margin,
+            y: rowTop - rowHeight + 6,
+            width: contentWidth,
+            height: rowHeight,
+            borderColor: line,
+            borderWidth: 0.5,
+        });
+
+        let itemY = rowTop - 9;
+        for (const lineText of itemLines) {
+            drawText(lineText, margin + 8, itemY, 9, { maxWidth: 300 });
+            itemY -= 13;
+        }
+        drawText(String(quantity), margin + 333, rowTop - 9, 9);
+        drawText(formatMoney(unitPrice), margin + 382, rowTop - 9, 9);
+        drawText(formatMoney(unitPrice * quantity), margin + 470, rowTop - 9, 9);
+
+        y -= rowHeight;
+    }
+
+    y -= 12;
+    const totalsX = pageWidth - margin - 190;
+    const drawTotalLine = (label: string, value: string, bold = false) => {
+        if (y < margin + 60) newPage();
+        drawText(label, totalsX, y, 10, { bold, color: bold ? dark : rgb(0.12, 0.12, 0.12) });
+        drawText(value, totalsX + 105, y, 10, { bold, color: bold ? dark : rgb(0.12, 0.12, 0.12) });
+        y -= 16;
+    };
+
+    drawTotalLine('Subtotal', formatMoney(subtotal));
+    drawTotalLine('Shipping', shipping === 0 ? 'Free' : formatMoney(shipping));
+    if (discount > 0) drawTotalLine('Discount', `-${formatMoney(discount)}`);
+    drawHorizontalLine(y + 6);
+    drawTotalLine('Grand Total', formatMoney(grandTotal), true);
+
+    y = Math.max(y - 20, margin + 32);
+    drawHorizontalLine(y + 16);
+    drawWrapped('This is a computer generated invoice and does not require a physical signature.', margin, contentWidth, 8, false, muted);
+
+    const pdfBytes = await pdfDoc.save();
+    return Buffer.from(pdfBytes);
+}
+
+async function saveInvoiceSnapshot(supabase: any, order: any) {
+    const invoiceNumber = getInvoiceNumber(order);
+    const htmlSnapshot = `<p>Invoice ${invoiceNumber} generated from order ${order.order_number || order.id}</p>`;
+
+    try {
+        await supabase.from('invoices').upsert({
+            order_id: order.id,
+            invoice_number: invoiceNumber,
+            company_name: 'Root & Loom',
+            company_address: '',
+            company_details: {},
+            tax_config: { currencySymbol: 'Rs.' },
+            layout_config: [],
+            html_snapshot: htmlSnapshot,
+            css_snapshot: '',
+        }, { onConflict: 'order_id' });
+    } catch (dbErr) {
+        console.error('Failed to save invoice snapshot:', dbErr);
+    }
 }
 
 export async function GET(
@@ -228,127 +296,8 @@ export async function GET(
     }
 
     try {
-        let htmlSnapshot = '';
-        let cssSnapshot = '';
-        let printSettings: any = {
-            paperSize: 'A4',
-            orientation: 'portrait',
-            margins: { top: 10, left: 10, right: 10, bottom: 10 }
-        };
-
-        // 2. Check if invoice snapshot already exists
-        const { data: existingInvoice } = await supabase
-            .from('invoices')
-            .select(`
-                *,
-                template_version:invoice_template_versions (
-                    print_settings
-                )
-            `)
-            .eq('order_id', id)
-            .maybeSingle();
-
-        if (existingInvoice) {
-            htmlSnapshot = existingInvoice.html_snapshot;
-            cssSnapshot  = existingInvoice.css_snapshot || '';
-            printSettings = existingInvoice.template_version?.print_settings || printSettings;
-        } else {
-            // 3. Retrieve default active template
-            const { data: defaultTemplate } = await supabase
-                .from('invoice_templates')
-                .select(`
-                    id,
-                    invoice_template_versions (
-                        id, html, css, header, footer,
-                        tax_config, layout_config, print_settings, status
-                    )
-                `)
-                .eq('is_default', true)
-                .maybeSingle();
-
-            const activeVersion = defaultTemplate?.invoice_template_versions?.find(
-                (v: any) => v.status === 'active'
-            );
-
-            let versionId = null;
-            let templateHtml = '';
-            let templateCss  = '';
-            let header: any  = {};
-            let footer: any  = {};
-            let taxConfig: any   = {};
-            let layoutConfig: any[] = [];
-
-            if (activeVersion) {
-                versionId     = activeVersion.id;
-                templateHtml  = activeVersion.html;
-                templateCss   = activeVersion.css || '';
-                header        = activeVersion.header;
-                footer        = activeVersion.footer;
-                taxConfig     = activeVersion.tax_config;
-                layoutConfig  = activeVersion.layout_config;
-                printSettings = activeVersion.print_settings || printSettings;
-            } else {
-                // Fallback minimal template
-                templateHtml = `<div style="font-family: Arial, sans-serif; padding: 15px;">
-                    <h1 style="color: #1c352d;">TAX INVOICE</h1>
-                    <p>Invoice # {{invoiceNumber}}</p>
-                    <p>Date: {{invoiceDate}}</p>
-                    <p>Customer: {{customerName}}</p>
-                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                        <thead>
-                            <tr style="background-color: #f3f4f6;">
-                                <th style="text-align: left; padding: 6px;">Description</th>
-                                <th style="text-align: center; padding: 6px; width: 10%;">Qty</th>
-                                <th style="text-align: right; padding: 6px; width: 20%;">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>{{items}}</tbody>
-                    </table>
-                    <div style="text-align: right; margin-top: 15px; font-weight: bold;">Grand Total: {{grandTotal}}</div>
-                </div>`;
-                taxConfig = { invoicePrefix: 'INV-' };
-            }
-
-            const prefix        = taxConfig.invoicePrefix || 'INV-';
-            const invoiceNumber = order.order_number
-                ? order.order_number.replace('ORD', prefix)
-                : `${prefix}${Date.now().toString().slice(-6)}`;
-
-            htmlSnapshot = compileInvoiceTemplate(templateHtml, order, {
-                header,
-                footer,
-                tax_config: taxConfig,
-                layout_config: layoutConfig,
-            });
-            cssSnapshot = templateCss;
-
-            // 4. Save invoice snapshot for history
-            try {
-                await supabase.from('invoices').insert({
-                    order_id:            id,
-                    invoice_number:      invoiceNumber,
-                    template_version_id: versionId,
-                    company_name:        header.companyName || 'Root & Loom',
-                    company_address:     header.companyAddress || '',
-                    company_details:     header,
-                    tax_config:          taxConfig,
-                    layout_config:       layoutConfig,
-                    html_snapshot:       htmlSnapshot,
-                    css_snapshot:        cssSnapshot,
-                });
-            } catch (dbErr) {
-                console.error('Failed to save invoice snapshot:', dbErr);
-            }
-        }
-
-        // 5. Render PDF inline (works in both dev and Vercel serverless)
-        let pdfBuffer: Buffer;
-        try {
-            pdfBuffer = await renderPdf(htmlSnapshot, printSettings);
-        } catch (renderErr) {
-            console.error('Template invoice render failed, using fallback PDF:', renderErr);
-            pdfBuffer = await renderFallbackPdf(order);
-        }
+        const pdfBuffer = await renderInvoicePdf(order);
+        await saveInvoiceSnapshot(supabase, order);
         const fileName  = `invoice-${order.order_number}.pdf`;
 
         return new NextResponse(pdfBuffer, {
