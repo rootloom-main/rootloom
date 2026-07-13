@@ -2,48 +2,45 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, getCurrentUser } from '@/lib/utils/auth';
 import { compileInvoiceTemplate } from '@/lib/utils/invoice-compiler';
-import { spawn } from 'child_process';
-import path from 'path';
+import { compileHtmlToReactPdf } from '@/lib/utils/html-to-pdf';
+import { renderToBuffer, Document, Page } from '@react-pdf/renderer';
+import React from 'react';
 
 export const runtime = 'nodejs';
 
-function runCliCompiler(html: string, printSettings: any): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        const cliPath = path.join(process.cwd(), 'lib/utils/compile-pdf-cli.ts');
-        const topMargin = printSettings.margins?.top !== undefined ? Number(printSettings.margins.top) * 2.83 : 30;
-        const bottomMargin = printSettings.margins?.bottom !== undefined ? Number(printSettings.margins.bottom) * 2.83 : 30;
-        const leftMargin = printSettings.margins?.left !== undefined ? Number(printSettings.margins.left) * 2.83 : 30;
-        const rightMargin = printSettings.margins?.right !== undefined ? Number(printSettings.margins.right) * 2.83 : 30;
+async function renderPdf(html: string, printSettings: any): Promise<Buffer> {
+    const paperSize = printSettings.paperSize === 'Letter' ? 'LETTER' : 'A4';
+    const orientation = printSettings.orientation === 'landscape' ? 'landscape' : 'portrait';
+    const topMargin    = printSettings.margins?.top    !== undefined ? Number(printSettings.margins.top)    * 2.83 : 30;
+    const bottomMargin = printSettings.margins?.bottom !== undefined ? Number(printSettings.margins.bottom) * 2.83 : 30;
+    const leftMargin   = printSettings.margins?.left   !== undefined ? Number(printSettings.margins.left)   * 2.83 : 30;
+    const rightMargin  = printSettings.margins?.right  !== undefined ? Number(printSettings.margins.right)  * 2.83 : 30;
 
-        const child = spawn('npx', [
-            'tsx',
-            cliPath,
-            printSettings.paperSize || 'A4',
-            printSettings.orientation || 'portrait',
-            String(topMargin),
-            String(bottomMargin),
-            String(leftMargin),
-            String(rightMargin)
-        ], { shell: true });
+    const reactElements = compileHtmlToReactPdf(html);
 
-        const chunks: Buffer[] = [];
-        const errChunks: Buffer[] = [];
+    const doc = React.createElement(
+        Document,
+        {},
+        React.createElement(
+            Page,
+            {
+                size: paperSize,
+                orientation,
+                style: {
+                    paddingTop: topMargin,
+                    paddingBottom: bottomMargin,
+                    paddingLeft: leftMargin,
+                    paddingRight: rightMargin,
+                    backgroundColor: '#FFFFFF',
+                    fontFamily: 'Helvetica',
+                    fontSize: 10,
+                },
+            },
+            ...(reactElements as any)
+        )
+    );
 
-        child.stdout.on('data', (chunk) => chunks.push(chunk));
-        child.stderr.on('data', (chunk) => errChunks.push(chunk));
-
-        child.on('close', (code) => {
-            if (code === 0) {
-                resolve(Buffer.concat(chunks));
-            } else {
-                const errMsg = Buffer.concat(errChunks).toString();
-                reject(new Error(`PDF compiler process failed (code ${code}): ${errMsg}`));
-            }
-        });
-
-        child.stdin.write(html);
-        child.stdin.end();
-    });
+    return await renderToBuffer(doc as any);
 }
 
 export async function GET(
@@ -51,6 +48,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
+
     const user = await getCurrentUser();
     if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -70,8 +68,8 @@ export async function GET(
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
     }
-    
-    // 1. Fetch order details with joins
+
+    // 1. Fetch order details
     const { data: order, error: orderError } = await supabase
         .from('orders')
         .select(`
@@ -114,7 +112,7 @@ export async function GET(
 
         if (existingInvoice) {
             htmlSnapshot = existingInvoice.html_snapshot;
-            cssSnapshot = existingInvoice.css_snapshot || '';
+            cssSnapshot  = existingInvoice.css_snapshot || '';
             printSettings = existingInvoice.template_version?.print_settings || printSettings;
         } else {
             // 3. Retrieve default active template
@@ -123,15 +121,8 @@ export async function GET(
                 .select(`
                     id,
                     invoice_template_versions (
-                        id,
-                        html,
-                        css,
-                        header,
-                        footer,
-                        tax_config,
-                        layout_config,
-                        print_settings,
-                        status
+                        id, html, css, header, footer,
+                        tax_config, layout_config, print_settings, status
                     )
                 `)
                 .eq('is_default', true)
@@ -143,23 +134,23 @@ export async function GET(
 
             let versionId = null;
             let templateHtml = '';
-            let templateCss = '';
-            let header = {};
-            let footer = {};
-            let taxConfig: any = {};
-            let layoutConfig = [];
+            let templateCss  = '';
+            let header: any  = {};
+            let footer: any  = {};
+            let taxConfig: any   = {};
+            let layoutConfig: any[] = [];
 
             if (activeVersion) {
-                versionId = activeVersion.id;
-                templateHtml = activeVersion.html;
-                templateCss = activeVersion.css || '';
-                header = activeVersion.header;
-                footer = activeVersion.footer;
-                taxConfig = activeVersion.tax_config;
-                layoutConfig = activeVersion.layout_config;
+                versionId     = activeVersion.id;
+                templateHtml  = activeVersion.html;
+                templateCss   = activeVersion.css || '';
+                header        = activeVersion.header;
+                footer        = activeVersion.footer;
+                taxConfig     = activeVersion.tax_config;
+                layoutConfig  = activeVersion.layout_config;
                 printSettings = activeVersion.print_settings || printSettings;
             } else {
-                // Fallback hardcoded defaults if no active template is found in DB
+                // Fallback minimal template
                 templateHtml = `<div style="font-family: Arial, sans-serif; padding: 15px;">
                     <h1 style="color: #1c352d;">TAX INVOICE</h1>
                     <p>Invoice # {{invoiceNumber}}</p>
@@ -180,54 +171,55 @@ export async function GET(
                 taxConfig = { invoicePrefix: 'INV-' };
             }
 
-            // Generate invoice number
-            const prefix = taxConfig.invoicePrefix || 'INV-';
-            const invoiceNumber = order.order_number 
-                ? order.order_number.replace('ORD', prefix) 
+            const prefix        = taxConfig.invoicePrefix || 'INV-';
+            const invoiceNumber = order.order_number
+                ? order.order_number.replace('ORD', prefix)
                 : `${prefix}${Date.now().toString().slice(-6)}`;
 
-            // Compile template
             htmlSnapshot = compileInvoiceTemplate(templateHtml, order, {
                 header,
                 footer,
                 tax_config: taxConfig,
-                layout_config: layoutConfig
+                layout_config: layoutConfig,
             });
             cssSnapshot = templateCss;
 
-            // 4. Save invoice snapshot in db for history preservation
+            // 4. Save invoice snapshot for history
             try {
                 await supabase.from('invoices').insert({
-                    order_id: id,
-                    invoice_number: invoiceNumber,
+                    order_id:            id,
+                    invoice_number:      invoiceNumber,
                     template_version_id: versionId,
-                    company_name: (header as any).companyName || 'Root & Loom',
-                    company_address: (header as any).companyAddress || '',
-                    company_details: header,
-                    tax_config: taxConfig,
-                    layout_config: layoutConfig,
-                    html_snapshot: htmlSnapshot,
-                    css_snapshot: cssSnapshot
+                    company_name:        header.companyName || 'Root & Loom',
+                    company_address:     header.companyAddress || '',
+                    company_details:     header,
+                    tax_config:          taxConfig,
+                    layout_config:       layoutConfig,
+                    html_snapshot:       htmlSnapshot,
+                    css_snapshot:        cssSnapshot,
                 });
             } catch (dbErr) {
-                console.error('Failed to save invoice snapshot in db:', dbErr);
+                console.error('Failed to save invoice snapshot:', dbErr);
             }
         }
 
-        // 5. Build PDF using CLI compiler process
-        const pdfBuffer = await runCliCompiler(htmlSnapshot, printSettings);
-        const fileName = `invoice-${order.order_number}.pdf`;
+        // 5. Render PDF inline (works in both dev and Vercel serverless)
+        const pdfBuffer = await renderPdf(htmlSnapshot, printSettings);
+        const fileName  = `invoice-${order.order_number}.pdf`;
 
         return new NextResponse(pdfBuffer, {
             headers: {
-                'Content-Type': 'application/pdf',
+                'Content-Type':        'application/pdf',
                 'Content-Disposition': `attachment; filename="${fileName}"`,
-                'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+                'Cache-Control':       'private, no-store, max-age=0, must-revalidate',
             },
         });
 
     } catch (err: any) {
-        console.error('Error compiling PDF invoice:', err);
-        return NextResponse.json({ error: 'Failed to generate PDF: ' + err.message }, { status: 500 });
+        console.error('Error generating PDF invoice:', err);
+        return NextResponse.json(
+            { error: 'Failed to generate PDF: ' + err.message },
+            { status: 500 }
+        );
     }
 }
