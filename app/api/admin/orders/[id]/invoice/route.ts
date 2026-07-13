@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, getCurrentUser } from '@/lib/utils/auth';
+import { compileInvoiceTemplate } from '@/lib/utils/invoice-compiler';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { existsSync } from 'fs';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+type InvoiceRenderData = {
+    html: string;
+    css: string;
+    printSettings: any;
+};
 
 function formatMoney(value: any): string {
     const amount = Number(value || 0);
@@ -35,6 +44,196 @@ function getShippingAddress(order: any): string {
         : 'No shipping address provided';
 
     return sanitizePdfText(shippingAddress);
+}
+
+function getLocalChromePath(): string | undefined {
+    const candidates = [
+        process.env.CHROME_PATH,
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+    ].filter(Boolean) as string[];
+
+    return candidates.find((path) => existsSync(path));
+}
+
+function getPdfMargins(printSettings: any) {
+    const margins = printSettings?.margins || {};
+    return {
+        top: `${Number(margins.top ?? 10)}mm`,
+        right: `${Number(margins.right ?? 10)}mm`,
+        bottom: `${Number(margins.bottom ?? 10)}mm`,
+        left: `${Number(margins.left ?? 10)}mm`,
+    };
+}
+
+function buildPrintableHtml(html: string, css: string, printSettings: any): string {
+    const paperSize = printSettings?.paperSize === 'Letter' ? 'Letter' : 'A4';
+    const orientation = printSettings?.orientation === 'landscape' ? 'landscape' : 'portrait';
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <base href="https://www.rootloom.in/" />
+  <style>
+    @page { size: ${paperSize} ${orientation}; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: #222222;
+      font-family: Arial, Helvetica, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    img { max-width: 100%; }
+    table { width: 100%; border-collapse: collapse; }
+    ${css || ''}
+  </style>
+</head>
+<body>
+  ${html || ''}
+</body>
+</html>`;
+}
+
+async function renderTemplatePdf(data: InvoiceRenderData): Promise<Buffer> {
+    const puppeteer = await import('puppeteer-core');
+    const chromium = (await import('@sparticuz/chromium')).default;
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const executablePath = isServerless
+        ? await chromium.executablePath()
+        : getLocalChromePath() || await chromium.executablePath();
+
+    const browser = await puppeteer.launch({
+        args: isServerless ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
+        defaultViewport: { width: 1280, height: 960 },
+        executablePath,
+        headless: true,
+    });
+
+    try {
+        const page = await browser.newPage();
+        page.setDefaultNavigationTimeout(20000);
+        page.setDefaultTimeout(20000);
+        await page.setContent(buildPrintableHtml(data.html, data.css, data.printSettings), {
+            waitUntil: 'load',
+            timeout: 20000,
+        });
+        await page.waitForNetworkIdle({ idleTime: 500, timeout: 5000 }).catch(() => undefined);
+
+        const pdf = await page.pdf({
+            format: data.printSettings?.paperSize === 'Letter' ? 'letter' : 'a4',
+            landscape: data.printSettings?.orientation === 'landscape',
+            printBackground: true,
+            margin: getPdfMargins(data.printSettings),
+            preferCSSPageSize: false,
+        });
+
+        return Buffer.from(pdf);
+    } finally {
+        await browser.close();
+    }
+}
+
+async function getInvoiceRenderData(supabase: any, order: any): Promise<InvoiceRenderData> {
+    const defaultPrintSettings = {
+        paperSize: 'A4',
+        orientation: 'portrait',
+        margins: { top: 10, left: 10, right: 10, bottom: 10 },
+    };
+
+    const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select(`
+            *,
+            template_version:invoice_template_versions (
+                print_settings
+            )
+        `)
+        .eq('order_id', order.id)
+        .maybeSingle();
+
+    if (existingInvoice?.html_snapshot) {
+        return {
+            html: existingInvoice.html_snapshot,
+            css: existingInvoice.css_snapshot || '',
+            printSettings: existingInvoice.template_version?.print_settings || defaultPrintSettings,
+        };
+    }
+
+    const { data: defaultTemplate } = await supabase
+        .from('invoice_templates')
+        .select(`
+            id,
+            invoice_template_versions (
+                id, html, css, header, footer,
+                tax_config, layout_config, print_settings, status
+            )
+        `)
+        .eq('is_default', true)
+        .maybeSingle();
+
+    const activeVersion = defaultTemplate?.invoice_template_versions?.find(
+        (version: any) => version.status === 'active'
+    );
+
+    const header = activeVersion?.header || {};
+    const footer = activeVersion?.footer || {};
+    const taxConfig = activeVersion?.tax_config || { invoicePrefix: 'INV-' };
+    const layoutConfig = activeVersion?.layout_config || [];
+    const templateHtml = activeVersion?.html || `<div style="font-family: Arial, sans-serif; padding: 15px;">
+        <h1 style="color: #1c352d;">TAX INVOICE</h1>
+        <p>Invoice # {{invoiceNumber}}</p>
+        <p>Date: {{invoiceDate}}</p>
+        <p>Customer: {{customerName}}</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="background-color: #f3f4f6;">
+                    <th style="text-align: left; padding: 6px;">Description</th>
+                    <th style="text-align: center; padding: 6px; width: 10%;">Qty</th>
+                    <th style="text-align: right; padding: 6px; width: 20%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>{{items}}</tbody>
+        </table>
+        <div style="text-align: right; margin-top: 15px; font-weight: bold;">Grand Total: {{grandTotal}}</div>
+    </div>`;
+    const css = activeVersion?.css || '';
+    const printSettings = activeVersion?.print_settings || defaultPrintSettings;
+    const html = compileInvoiceTemplate(templateHtml, order, {
+        header,
+        footer,
+        tax_config: taxConfig,
+        layout_config: layoutConfig,
+    });
+    const invoiceNumber = order.order_number
+        ? order.order_number.replace(/^ORD/, taxConfig.invoicePrefix || 'INV-')
+        : `${taxConfig.invoicePrefix || 'INV-'}${Date.now().toString().slice(-6)}`;
+
+    try {
+        await supabase.from('invoices').insert({
+            order_id: order.id,
+            invoice_number: invoiceNumber,
+            template_version_id: activeVersion?.id || null,
+            company_name: header.companyName || 'Root & Loom',
+            company_address: header.companyAddress || '',
+            company_details: header,
+            tax_config: taxConfig,
+            layout_config: layoutConfig,
+            html_snapshot: html,
+            css_snapshot: css,
+        });
+    } catch (dbErr) {
+        console.error('Failed to save invoice snapshot:', dbErr);
+    }
+
+    return { html, css, printSettings };
 }
 
 async function renderInvoicePdf(order: any): Promise<Buffer> {
@@ -228,27 +427,6 @@ async function renderInvoicePdf(order: any): Promise<Buffer> {
     return Buffer.from(pdfBytes);
 }
 
-async function saveInvoiceSnapshot(supabase: any, order: any) {
-    const invoiceNumber = getInvoiceNumber(order);
-    const htmlSnapshot = `<p>Invoice ${invoiceNumber} generated from order ${order.order_number || order.id}</p>`;
-
-    try {
-        await supabase.from('invoices').upsert({
-            order_id: order.id,
-            invoice_number: invoiceNumber,
-            company_name: 'Root & Loom',
-            company_address: '',
-            company_details: {},
-            tax_config: { currencySymbol: 'Rs.' },
-            layout_config: [],
-            html_snapshot: htmlSnapshot,
-            css_snapshot: '',
-        }, { onConflict: 'order_id' });
-    } catch (dbErr) {
-        console.error('Failed to save invoice snapshot:', dbErr);
-    }
-}
-
 export async function GET(
     _req: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -296,8 +474,16 @@ export async function GET(
     }
 
     try {
-        const pdfBuffer = await renderInvoicePdf(order);
-        await saveInvoiceSnapshot(supabase, order);
+        let pdfBuffer: Buffer;
+
+        try {
+            const invoiceRenderData = await getInvoiceRenderData(supabase, order);
+            pdfBuffer = await renderTemplatePdf(invoiceRenderData);
+        } catch (templateErr) {
+            console.error('Template invoice render failed, using direct PDF fallback:', templateErr);
+            pdfBuffer = await renderInvoicePdf(order);
+        }
+
         const fileName  = `invoice-${order.order_number}.pdf`;
 
         return new NextResponse(pdfBuffer, {
