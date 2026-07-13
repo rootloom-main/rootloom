@@ -1,4 +1,4 @@
-import { Redis } from '@upstash/redis/cloudflare';
+import { Redis } from '@upstash/redis';
 import { logger } from './logger';
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL;

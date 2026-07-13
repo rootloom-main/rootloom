@@ -13,9 +13,6 @@ export function validateServerEnvironment() {
 
     if (missing.length > 0) {
         const message = `Missing production server env vars: ${missing.join(', ')}`;
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error(message);
-        }
-        console.warn(`[EnvValidation] ${message}`);
+        console.error(`[EnvValidation] CRITICAL ERROR: ${message}. Admin routes and cron jobs will fail.`);
     }
 }
