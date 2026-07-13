@@ -178,10 +178,38 @@ export function parseInlineStyle(styleStr: string): any {
         styles.flexDirection = 'row';
     }
 
-    // Remove non-standard properties for react-pdf
+    // Remove browser-only or unsupported properties before react-pdf renders.
+    // Saved templates are authored as HTML/CSS, but react-pdf only supports a
+    // smaller React Native style subset. Passing through raw browser CSS can
+    // turn invoice downloads into 500s.
     delete styles.display;
     delete styles.borderCollapse;
     delete styles.float;
+    delete styles.filter;
+    delete styles.boxShadow;
+    delete styles.overflow;
+    delete styles.textTransform;
+    delete styles.letterSpacing;
+    delete styles.gap;
+    delete styles.position;
+    delete styles.zIndex;
+    delete styles.left;
+    delete styles.right;
+    delete styles.top;
+    delete styles.bottom;
+    delete styles.maxWidth;
+    delete styles.maxHeight;
+
+    for (const [key, value] of Object.entries(styles)) {
+        if (
+            value === undefined ||
+            value === null ||
+            value === '' ||
+            (typeof value === 'number' && !Number.isFinite(value))
+        ) {
+            delete styles[key];
+        }
+    }
 
     return styles;
 }
@@ -259,6 +287,11 @@ export function compileHtmlToReactPdf(htmlStr: string): React.ReactNode {
 
                 if (!isBase64 && !hasValidExt) {
                     console.warn('Skipping invalid image for PDF:', src);
+                    return null;
+                }
+
+                if (src.startsWith('http://') || src.startsWith('https://')) {
+                    console.warn('Skipping remote image for PDF to keep invoice rendering reliable:', src);
                     return null;
                 }
 
