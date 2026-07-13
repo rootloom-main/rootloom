@@ -18,6 +18,12 @@ export interface Database {
           role: 'user' | 'admin' | 'superadmin';
           created_at: string;
           updated_at: string;
+          avatar_url: string | null;
+          signup_source: string | null;
+          last_login: string | null;
+          last_checkout: string | null;
+          dob: string | null;
+          gender: string | null;
         };
         Insert: {
           id: string;
@@ -27,6 +33,12 @@ export interface Database {
           role?: 'user' | 'admin' | 'superadmin';
           created_at?: string;
           updated_at?: string;
+          avatar_url?: string | null;
+          signup_source?: string | null;
+          last_login?: string | null;
+          last_checkout?: string | null;
+          dob?: string | null;
+          gender?: string | null;
         };
         Update: {
           id?: string;
@@ -36,6 +48,12 @@ export interface Database {
           role?: 'user' | 'admin' | 'superadmin';
           created_at?: string;
           updated_at?: string;
+          avatar_url?: string | null;
+          signup_source?: string | null;
+          last_login?: string | null;
+          last_checkout?: string | null;
+          dob?: string | null;
+          gender?: string | null;
         };
         Relationships: [];
       };
@@ -407,6 +425,7 @@ export interface Database {
           is_default: boolean;
           created_at: string;
           updated_at: string;
+          type: string;
         };
         Insert: {
           id?: string;
@@ -422,6 +441,7 @@ export interface Database {
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;
+          type?: string;
         };
         Update: {
           id?: string;
@@ -437,6 +457,7 @@ export interface Database {
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;
+          type?: string;
         };
         Relationships: [
           {

@@ -349,6 +349,7 @@ export function ReturnForm({ order }: ReturnFormProps) {
                 {previewUrl && (
                     <div className="relative mt-1 rounded-xl overflow-hidden border border-stone-200 bg-stone-50 p-2 animate-in fade-in zoom-in duration-300">
                         <div className="relative aspect-video w-full rounded-lg overflow-hidden border border-stone-200 shadow-inner bg-white">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={previewUrl}
                                 alt="Preview"

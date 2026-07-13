@@ -1,4 +1,5 @@
 import twilio from 'twilio';
+import { recordOpsEvent } from '@/lib/ops-events';
 
 const BRAND = 'Root & Loom';
 const SUPPORT_REPLY = 'Reply to this message for support — our team is here to help.';
@@ -51,25 +52,46 @@ export function formatWhatsAppNumber(phone: string): string | null {
 export async function sendWhatsAppMessage(
     to: string | null | undefined,
     body: string,
-    mediaUrl?: string
+    mediaUrl?: string,
+    metadata: Record<string, any> = {}
 ): Promise<boolean> {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromPhoneNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
     if (!accountSid || !authToken) {
-        console.warn('[WhatsApp] Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN — message skipped.');
+        console.warn('[WhatsApp] Missing TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN - message skipped.');
+        await recordOpsEvent({
+            eventType: 'messaging.whatsapp',
+            status: 'skipped',
+            channel: 'whatsapp',
+            reference: to || null,
+            metadata: { reason: 'missing_twilio_credentials', ...metadata },
+        });
         return false;
     }
 
     if (!to) {
         console.warn('[WhatsApp] No recipient phone number provided.');
+        await recordOpsEvent({
+            eventType: 'messaging.whatsapp',
+            status: 'skipped',
+            channel: 'whatsapp',
+            metadata: { reason: 'missing_recipient', ...metadata },
+        });
         return false;
     }
 
     const formattedTo = formatWhatsAppNumber(to);
     if (!formattedTo) {
-        console.warn(`[WhatsApp] Invalid phone number: "${to}" — could not format to E.164.`);
+        console.warn('[WhatsApp] Invalid phone number - could not format to E.164.');
+        await recordOpsEvent({
+            eventType: 'messaging.whatsapp',
+            status: 'failed',
+            channel: 'whatsapp',
+            reference: to,
+            metadata: { reason: 'invalid_phone', ...metadata },
+        });
         return false;
     }
 
@@ -82,27 +104,80 @@ export async function sendWhatsAppMessage(
             to: formattedTo,
         };
 
-        // Attach media image if URL is provided (must be a public HTTPS URL)
         if (mediaUrl) {
             messageOptions.mediaUrl = [mediaUrl];
         }
 
         const result = await client.messages.create(messageOptions as any);
-        console.log(`[WhatsApp] ✓ Sent to ${formattedTo} | SID: ${result.sid}`);
+        console.info('[WhatsApp] Message sent successfully');
+        await recordOpsEvent({
+            eventType: 'messaging.whatsapp',
+            status: 'success',
+            channel: 'whatsapp',
+            reference: formattedTo,
+            metadata: { sid: result.sid, ...metadata },
+        });
         return true;
-    } catch (error: any) {
-        console.error(`[WhatsApp] ✗ Failed to ${formattedTo}: ${error.message}`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown_error';
+        console.error('[WhatsApp] Failed to ' + formattedTo + ': ' + message);
+        await recordOpsEvent({
+            eventType: 'messaging.whatsapp',
+            status: 'failed',
+            channel: 'whatsapp',
+            reference: formattedTo,
+            metadata: { error: message, ...metadata },
+        });
+        await sendSmsFallback(to, body, metadata);
         return false;
     }
 }
 
-// ─────────────────────────────────────────────
-//  ORDER CONFIRMED (Prepaid / COD)
-// ─────────────────────────────────────────────
-/**
- * @param productImageUrl - Optional CDN URL of the first product in the order.
- *                          Falls back to brand logo if not provided.
- */
+async function sendSmsFallback(
+    to: string | null | undefined,
+    body: string,
+    metadata: Record<string, any> = {}
+) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const fromPhoneNumber = process.env.TWILIO_SMS_NUMBER;
+
+    if (!accountSid || !authToken || !fromPhoneNumber || !to) {
+        return false;
+    }
+
+    const smsTo = formatWhatsAppNumber(to)?.replace('whatsapp:', '');
+    if (!smsTo) {
+        return false;
+    }
+
+    try {
+        const client = twilio(accountSid, authToken);
+        const result = await client.messages.create({
+            body,
+            from: fromPhoneNumber,
+            to: smsTo,
+        } as any);
+        await recordOpsEvent({
+            eventType: 'messaging.sms_fallback',
+            status: 'success',
+            channel: 'sms',
+            reference: smsTo,
+            metadata: { sid: result.sid, ...metadata },
+        });
+        return true;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown_error';
+        await recordOpsEvent({
+            eventType: 'messaging.sms_fallback',
+            status: 'failed',
+            channel: 'sms',
+            reference: smsTo,
+            metadata: { error: message, ...metadata },
+        });
+        return false;
+    }
+}
 export async function sendOrderConfirmationWhatsApp(
     phone: string,
     customerName: string,
@@ -147,14 +222,17 @@ export async function sendOrderShippedWhatsApp(
     customerName: string,
     orderNumber: string,
     trackingId?: string,
-    courier?: string
+    trackingUrl?: string
 ) {
     const firstName = customerName.split(' ')[0] || 'there';
     const ordersUrl = `${getSiteUrl()}/account/orders`;
 
     const trackingLine = trackingId
-        ? `🔎 *Tracking #:* ${trackingId}${courier ? ` via ${courier}` : ''}`
-        : `🔎 Track your shipment from our website below.`;
+        ? `🔎 *Tracking ID:* ${trackingId}`
+        : `🔎 Tracking ID will be available on your order page.`;
+    const trackingUrlLine = trackingUrl
+        ? `🔗 *Tracking Link:* ${trackingUrl}`
+        : `🔗 View shipment details: ${ordersUrl}`;
 
     const body = [
         `🚚 *Your Order Has Shipped — ${BRAND}*`,
@@ -163,16 +241,17 @@ export async function sendOrderShippedWhatsApp(
         ``,
         `📦 *Order:* #${orderNumber}`,
         trackingLine,
+        trackingUrlLine,
         ``,
         `Most orders arrive within *3–5 business days*.`,
         ``,
-        `🔗 View shipment details: ${ordersUrl}`,
+        `Order details: ${ordersUrl}`,
         ``,
         SUPPORT_REPLY,
         `— ${BRAND} Team`,
     ].join('\n');
 
-    return sendWhatsAppMessage(phone, body, getBrandLogoUrl());
+    return sendWhatsAppMessage(phone, body, getBrandLogoUrl(), { template: 'payment_recovery' });
 }
 
 // ─────────────────────────────────────────────
@@ -198,7 +277,30 @@ export async function sendOutForDeliveryWhatsApp(
         `— ${BRAND} Team`,
     ].join('\n');
 
-    return sendWhatsAppMessage(phone, body, getBrandLogoUrl());
+    return sendWhatsAppMessage(phone, body, getBrandLogoUrl(), { template: 'coupon_expiry' });
+}
+
+export async function sendRestockAlertWhatsApp(
+    phone: string,
+    customerName: string,
+    productName: string,
+    productUrl: string
+) {
+    const firstName = customerName.split(' ')[0] || 'there';
+    const body = [
+        `*Back in stock - ${BRAND}*`,
+        ``,
+        `Hi ${firstName}, *${productName}* is back in stock.`,
+        ``,
+        `Shop now: ${productUrl}`,
+        ``,
+        `- ${BRAND} Team`,
+    ].join('\n');
+
+    return sendWhatsAppMessage(phone, body, getBrandLogoUrl(), {
+        template: 'restock_alert',
+        product_name: productName,
+    });
 }
 
 // ─────────────────────────────────────────────
@@ -296,6 +398,30 @@ export async function sendReturnInitiatedWhatsApp(
     return sendWhatsAppMessage(phone, body, getBrandLogoUrl());
 }
 
+export async function sendReturnApprovedWhatsApp(
+    phone: string,
+    customerName: string,
+    orderNumber: string
+) {
+    const firstName = customerName.split(' ')[0] || 'there';
+    const returnsUrl = `${getSiteUrl()}/account/orders`;
+
+    const body = [
+        `*Return Approved - ${BRAND}*`,
+        ``,
+        `Hi ${firstName}, your return request for order *#${orderNumber}* has been approved.`,
+        ``,
+        `We will share pickup details soon. Please keep the item unused with tags and packaging ready.`,
+        ``,
+        `Track your return: ${returnsUrl}`,
+        ``,
+        SUPPORT_REPLY,
+        `- ${BRAND} Team`,
+    ].join('\n');
+
+    return sendWhatsAppMessage(phone, body, getBrandLogoUrl());
+}
+
 // ─────────────────────────────────────────────
 //  ABANDONED CART RECOVERY
 // ─────────────────────────────────────────────
@@ -320,6 +446,34 @@ export async function sendPaymentRecoveryNotification(
         ``,
         SUPPORT_REPLY,
         `— ${BRAND} Team`,
+    ].join('\n');
+
+    return sendWhatsAppMessage(phone, body, getBrandLogoUrl());
+}
+
+export async function sendCouponExpiryNudgeWhatsApp(
+    phone: string,
+    customerName: string,
+    couponCode: string,
+    expiresAt: string
+) {
+    const firstName = customerName.split(' ')[0] || 'there';
+    const shopUrl = `${getSiteUrl()}/shop`;
+    const expiryDate = new Date(expiresAt).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+    });
+
+    const body = [
+        `*Your Root & Loom offer ends soon*`,
+        ``,
+        `Hi ${firstName}, coupon *${couponCode}* expires on *${expiryDate}*.`,
+        ``,
+        `Use it before the window closes.`,
+        ``,
+        `Shop now: ${shopUrl}`,
+        ``,
+        `- ${BRAND} Team`,
     ].join('\n');
 
     return sendWhatsAppMessage(phone, body, getBrandLogoUrl());

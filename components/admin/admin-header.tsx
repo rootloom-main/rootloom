@@ -1,8 +1,16 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Search, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { NotificationPanel } from './notification-panel';
+
+const NotificationPanel = dynamic(
+    () => import('./notification-panel').then((mod) => mod.NotificationPanel),
+    {
+        ssr: false,
+        loading: () => <div className="h-10 w-10" aria-hidden="true" />,
+    }
+);
 
 export function AdminHeader() {
     return (

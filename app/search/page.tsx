@@ -24,14 +24,14 @@ export const metadata = {
 };
 
 type SearchPageProps = {
-    searchParams: {
+    searchParams: Promise<{
         q?: string;
         category?: string;
         minPrice?: string;
         maxPrice?: string;
         sort?: string;
         page?: string;
-    };
+    }>;
 };
 
 interface SearchResult {
@@ -45,12 +45,13 @@ interface SearchResult {
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-    const query = searchParams.q || '';
-    const categoryFilter = searchParams.category;
-    const minPrice = searchParams.minPrice ? parseFloat(searchParams.minPrice) : null;
-    const maxPrice = searchParams.maxPrice ? parseFloat(searchParams.maxPrice) : null;
-    const sortBy = searchParams.sort || 'relevance';
-    const page = parseInt(searchParams.page || '1');
+    const resolvedSearchParams = await searchParams;
+    const query = resolvedSearchParams.q || '';
+    const categoryFilter = resolvedSearchParams.category;
+    const minPrice = resolvedSearchParams.minPrice ? parseFloat(resolvedSearchParams.minPrice) : null;
+    const maxPrice = resolvedSearchParams.maxPrice ? parseFloat(resolvedSearchParams.maxPrice) : null;
+    const sortBy = resolvedSearchParams.sort || 'relevance';
+    const page = parseInt(resolvedSearchParams.page || '1');
     const limit = 20;
     const offset = (page - 1) * limit;
 

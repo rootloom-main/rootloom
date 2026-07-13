@@ -52,6 +52,7 @@ export function SectionForm({ initialData }: { initialData?: any }) {
             if (data) setCollections(data);
         };
         fetchCollections();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {

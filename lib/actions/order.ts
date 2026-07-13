@@ -8,17 +8,14 @@ export async function cancelOrder(orderId: string) {
     const supabase = await createClient() as any;
     const adminSupabase = await createAdminClient() as any;
 
-    // Verify user is authenticated
     const user = await getCurrentUser();
-
     if (!user) {
         return { success: false, message: 'Unauthorized' };
     }
 
-    // Fetch order to verify ownership and status
     const { data: order, error: fetchError } = await adminSupabase
         .from('orders')
-        .select('user_id, status, payment_id, payment_status, total, refund_status')
+        .select('user_id, status')
         .eq('id', orderId)
         .single();
 
@@ -26,65 +23,41 @@ export async function cancelOrder(orderId: string) {
         return { success: false, message: 'Order not found' };
     }
 
-    // Check if user is admin
     const { isAdmin } = await import('@/lib/utils/auth');
     const isUserAdmin = await isAdmin();
 
-    // Verify user owns this order OR is admin
     if (order.user_id !== user.id && !isUserAdmin) {
         return { success: false, message: 'Unauthorized' };
     }
 
-    // Check if order can be cancelled
-    if (order.status === 'shipped' || order.status === 'delivered') {
-        return { success: false, message: 'Cannot cancel shipped or delivered orders' };
-    }
+    try {
+        const { data, error } = await adminSupabase.rpc('cancel_order_atomic', {
+            p_order_id: orderId,
+            p_actor_id: user.id,
+            p_is_admin: isUserAdmin,
+        } as any);
 
-    if (order.status === 'cancelled') {
-        return { success: false, message: 'Order is already cancelled' };
-    }
-
-    // 1. Restock Inventory
-    const { data: orderItems, error: itemsError } = await adminSupabase
-        .from('order_items')
-        .select('variant_id, quantity')
-        .eq('order_id', orderId);
-
-    if (itemsError) {
-        console.error('Error fetching order items for cancellation:', itemsError);
-        return { success: false, message: 'Failed to fetch order items' };
-    }
-
-    if (orderItems && orderItems.length > 0) {
-        for (const item of orderItems) {
-            const { error: stockError } = await adminSupabase.rpc('increment_stock', {
-                variant_id: item.variant_id,
-                qty: item.quantity
-            });
-            if (stockError) {
-                console.error(`Error restocking variant ${item.variant_id}:`, stockError);
-                // Continue with other items or fail? Better to log and continue or use a transaction if possible.
-                // For now, logging.
-            }
+        if (error) {
+            throw error;
         }
-    }
 
-    // 3. Update order status to cancelled
-    const updateData: any = { status: 'cancelled', updated_at: new Date().toISOString() };
+        if (data?.already_cancelled) {
+            return { success: false, message: 'Order is already cancelled' };
+        }
+    } catch (error: any) {
+        const message = error?.message || 'Failed to cancel order';
+        if (message.includes('Cannot cancel shipped or delivered orders')) {
+            return { success: false, message: 'Cannot cancel shipped or delivered orders' };
+        }
+        if (message.includes('Unauthorized')) {
+            return { success: false, message: 'Unauthorized' };
+        }
+        if (message.includes('Order not found')) {
+            return { success: false, message: 'Order not found' };
+        }
 
-    // 2. Manual Refund Handling: 
-    // If paid, we mark refund_status as 'requested' so admin can manually process it.
-    if (order.payment_status === 'completed' && order.refund_status !== 'processed') {
-        updateData.refund_status = 'requested';
-    }
-    const { error: updateError } = await adminSupabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
-
-    if (updateError) {
-        console.error('Error cancelling order:', updateError);
-        return { success: false, message: 'Cancellation completed but failed to update status' };
+        console.error('Error cancelling order:', error);
+        return { success: false, message };
     }
 
     revalidatePath('/account/orders');

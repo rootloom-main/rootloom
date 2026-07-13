@@ -1,0 +1,295 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, ArrowRight, ChevronLeft, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { signInWithIdentifier, verifyOtpEx } from '@/app/auth/actions';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useRouter } from 'next/navigation';
+import { sanitizeRedirectPath } from '@/lib/utils/redirect';
+
+interface LoginModalProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  nextUrl?: string;
+  source?: string; // 'product' | 'checkout' | 'profile'
+  onSuccess?: () => void;
+  refreshSession: () => Promise<void>;
+}
+
+export function LoginModal({ 
+  isOpen, 
+  onOpenChange, 
+  nextUrl = '/', 
+  source = 'profile',
+  onSuccess, 
+  refreshSession 
+}: LoginModalProps) {
+  const router = useRouter();
+  const safeNextUrl = sanitizeRedirectPath(nextUrl, '/');
+  const [step, setStep] = useState<'identifier' | 'otp' | 'welcome'>('identifier');
+  const [loading, setLoading] = useState(false);
+  const [identifier, setIdentifier] = useState('');
+  const [otp, setOtp] = useState('');
+  const [timer, setTimer] = useState(0);
+
+  // Timer logic for resend
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  // Reset steps when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      // Small timeout to prevent UI jump during closing animation
+      const t = setTimeout(() => {
+        setStep('identifier');
+        setOtp('');
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
+
+  const handleIdentifierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identifier) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(identifier.trim())) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await signInWithIdentifier(identifier.trim());
+      if (result.error) throw new Error(result.error);
+
+      setStep('otp');
+      setTimer(30); // 30s resend timer
+      toast.success('Secure verification code sent to your inbox.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (submittedOtp?: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const code = submittedOtp ?? otp;
+    if (loading || code.length !== 6) return;
+
+    setLoading(true);
+    try {
+      const result = await verifyOtpEx(code, 'email', identifier.trim(), source);
+      if (result.error) throw new Error(result.error);
+
+      // Force session sync on the client context
+      await refreshSession();
+
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      if (result.isNewUser) {
+        // Transition to First Login Experience view
+        setStep('welcome');
+      } else {
+        toast.success('Welcome back!');
+        onOpenChange(false);
+        router.refresh();
+        setTimeout(() => {
+          window.location.href = safeNextUrl;
+        }, 100);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid or expired code');
+      setOtp('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToEmail = () => {
+    setStep('identifier');
+    setOtp('');
+  };
+
+  const handleWelcomeRedirect = () => {
+    onOpenChange(false);
+    router.refresh();
+    setTimeout(() => {
+      window.location.href = safeNextUrl;
+    }, 100);
+  };
+
+  const isCheckoutPath = safeNextUrl.includes('checkout');
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[400px] rounded-3xl p-6 bg-white border border-stone-100 shadow-2xl font-sans">
+        
+        {step !== 'welcome' ? (
+          <>
+            <DialogHeader className="space-y-3 text-left">
+              <DialogTitle className="text-2xl font-bold tracking-tight text-stone-900 font-serif">
+                {step === 'identifier' ? 'Welcome 👋' : 'Verify Account'}
+              </DialogTitle>
+              <DialogDescription className="text-stone-500 text-sm">
+                {step === 'identifier' 
+                  ? 'Enter your email address to continue.' 
+                  : `We've sent a 6-digit verification code to `}
+                {step === 'otp' && (
+                  <span className="text-stone-950 font-bold break-all">{identifier}</span>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+
+            {step === 'identifier' ? (
+              <form onSubmit={handleIdentifierSubmit} className="space-y-6 mt-4">
+                <div className="space-y-4">
+                  <Input
+                    type="email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    className="h-12 px-4 text-base rounded-xl bg-stone-50 border-stone-200 focus:ring-deep-forest focus:border-deep-forest transition-all"
+                    placeholder="Enter your email address"
+                    required
+                    autoFocus
+                    disabled={loading}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || !identifier}
+                  className="w-full h-12 bg-deep-forest hover:bg-slate-900 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 uppercase tracking-wider"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      Continue
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </span>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={(e) => handleVerifyOtp(undefined, e)} className="space-y-6 mt-4 flex flex-col items-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otp}
+                  onChange={(value) => {
+                    setOtp(value);
+                    if (value.length === 6) {
+                      void handleVerifyOtp(value);
+                    }
+                  }}
+                  autoFocus
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((i) => (
+                      <InputOTPSlot 
+                        key={i} 
+                        index={i} 
+                        className="h-12 w-10 sm:w-11 sm:h-12 text-lg rounded-lg border border-stone-200 shadow-sm focus:ring-2 focus:ring-deep-forest" 
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+
+                <div className="w-full space-y-4">
+                  <Button
+                    type="submit"
+                    disabled={loading || otp.length < 6}
+                    className="w-full h-12 bg-deep-forest hover:bg-slate-900 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-300 uppercase tracking-wider"
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Verifying...
+                      </span>
+                    ) : 'Confirm and Log In'}
+                  </Button>
+
+                  <div className="flex items-center justify-between text-xs px-1">
+                    <button
+                      type="button"
+                      onClick={handleBackToEmail}
+                      className="text-stone-500 font-bold hover:text-stone-900 flex items-center gap-1 transition-colors"
+                      disabled={loading}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Change Email
+                    </button>
+
+                    {timer > 0 ? (
+                      <span className="text-stone-400 font-bold uppercase tracking-wider">Resend OTP ({timer}s)</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleIdentifierSubmit}
+                        className="text-deep-forest font-bold uppercase tracking-wider hover:underline"
+                        disabled={loading}
+                      >
+                        Resend OTP
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </form>
+            )}
+          </>
+        ) : (
+          /* First Login Experience View */
+          <div className="text-center py-6 space-y-6">
+            <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center border border-amber-200/50 shadow-inner animate-bounce">
+              <Sparkles className="h-8 w-8 text-amber-500 fill-amber-100" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold font-serif text-stone-900">🎉 Welcome!</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                Your account has been successfully created.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleWelcomeRedirect}
+              className="w-full h-12 bg-deep-forest hover:bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-deep-forest/10 hover:shadow-xl transition-all duration-300 uppercase tracking-wider"
+            >
+              {isCheckoutPath ? (
+                <span className="flex items-center justify-center">
+                  Continue Checkout
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </span>
+              ) : (
+                <span className="flex items-center justify-center">
+                  Continue Shopping
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </span>
+              )}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

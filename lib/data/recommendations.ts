@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCache, setCache } from '@/lib/redis';
+import { profileAsync } from '@/lib/observability';
 
 export async function getRelatedProducts(productId: string, categoryId: string | null) {
     if (!categoryId) return [];
@@ -8,9 +9,11 @@ export async function getRelatedProducts(productId: string, categoryId: string |
     const cached = await getCache<any[]>(cacheKey);
     if (cached) return cached;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    const { data: products, error } = await supabase
+    const { data: products, error } = await profileAsync<any>(
+        'recommendations.related',
+        async () => supabase
         .from('products')
         .select(`
             id,
@@ -21,7 +24,11 @@ export async function getRelatedProducts(productId: string, categoryId: string |
         `)
         .eq('category_id', categoryId)
         .neq('id', productId)
-        .limit(4);
+        .eq('status', 'active')
+        .is('deleted_at', null)
+        .limit(4),
+        { cache_key: cacheKey, category_id: categoryId }
+    );
 
     if (error) {
         console.error('Related Products Error:', error);

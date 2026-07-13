@@ -98,7 +98,7 @@ export function AdminProductsTable({ products = [], collections = [] }: AdminPro
                                 <TableCell colSpan={6} className="text-center py-12 text-gray-500">
                                     <div className="flex flex-col items-center justify-center space-y-2 text-stone-400">
                                         <Search className="h-8 w-8 opacity-50" />
-                                        <p>No products found matching "{searchQuery}".</p>
+                                        <p>No products found matching &quot;{searchQuery}&quot;.</p>
                                     </div>
                                 </TableCell>
                             </TableRow>

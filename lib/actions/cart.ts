@@ -33,6 +33,7 @@ export async function getCart() {
         `
         )
         .eq('user_id', user.id)
+        .is('products.deleted_at', null)
         .order('created_at', { ascending: false });
 
     if (error) {

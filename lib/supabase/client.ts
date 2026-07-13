@@ -8,7 +8,6 @@ type SupabaseBrowserClient = ReturnType<typeof createBrowserClient<Database>>;
 // each file save invalidates the module and resets module-level variables,
 // creating multiple Supabase instances that compete for the same browser lock.
 declare global {
-  // eslint-disable-next-line no-var
   var __supabaseBrowserClient: SupabaseBrowserClient | undefined;
 }
 

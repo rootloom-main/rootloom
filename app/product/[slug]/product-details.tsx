@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart } from '@/components/providers/cart-provider';
-import { usePostHog } from 'posthog-js/react';
+import { captureEvent } from '@/lib/analytics/capture';
 import { formatPrice } from '@/lib/utils/format';
+import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { getProductPrice, calculateMRP, calculateDiscountPercentage } from '@/lib/utils/pricing';
 import {
   Minus, Plus, ShoppingCart, ChevronLeft, Truck, ShieldCheck,
@@ -95,10 +96,10 @@ export function ProductDetails({
   averageRating?: number;
   totalReviews?: number;
 }) {
+  const { user, openLoginModal } = useAuth();
   const router = useRouter();
   const { addToCart } = useCart();
   const supabase = createClient();
-  const posthog = usePostHog();
 
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('');
@@ -107,15 +108,110 @@ export function ProductDetails({
   const [activeTab, setActiveTab] = useState<Tab>('Description');
   const [isBuying, setIsBuying] = useState(false);
 
+  const sizeContainerRef = useRef<HTMLDivElement>(null);
+  const [highlightSize, setHighlightSize] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'BUY_NOW' | 'ADD_TO_CART' | null>(null);
+
+  // Pre-select first available in-stock variant color on load, keeping size unselected
   useEffect(() => {
-    if (posthog) {
-      posthog.capture('product_viewed', {
-        product_id: product.id,
-        product_name: product.name,
-        price: product.base_price,
-        category: product.category?.name
-      });
+    if (product.product_variants.length > 0) {
+      const firstInStock = product.product_variants.find(v => v.stock > 0);
+      if (firstInStock) {
+        setSelectedSize('');
+        setSelectedColor(firstInStock.color);
+      } else {
+        setSelectedSize('');
+        setSelectedColor(product.product_variants[0].color);
+      }
     }
+  }, [product]);
+
+  // Helper to trigger pending cart/buy action when size is selected
+  const triggerPendingAction = (size: string, color: string) => {
+    if (!pendingAction) return;
+
+    const variant = product.product_variants.find(
+      (v) => v.size.toLowerCase() === size.toLowerCase() && 
+             v.color.toLowerCase() === color.toLowerCase()
+    );
+
+    if (!variant) {
+      toast.error('Selected variant not available');
+      setPendingAction(null);
+      return;
+    }
+
+    if (variant.stock < quantity) {
+      toast.error('Not enough stock available');
+      setPendingAction(null);
+      return;
+    }
+
+    const action = pendingAction;
+    setPendingAction(null); // Clear it first
+
+    if (action === 'ADD_TO_CART') {
+      executeAddToCart(variant, size, color);
+    } else if (action === 'BUY_NOW') {
+      executeBuyNow(variant, size, color);
+    }
+  };
+
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    
+    // Check if the current selectedSize is available and in stock for the new color
+    const lowerColor = color.toLowerCase();
+    const colorVariants = product.product_variants.filter(
+      v => v.color.toLowerCase() === lowerColor
+    );
+    
+    const currentSizeAvailable = colorVariants.find(
+      v => v.size.toLowerCase() === selectedSize.toLowerCase() && v.stock > 0
+    );
+    
+    // If not available in the new color, reset size to unselected
+    if (!currentSizeAvailable) {
+      setSelectedSize('');
+    }
+  };
+
+  const handleSizeChange = (size: string) => {
+    setSelectedSize(size);
+    
+    // Check if selectedColor is available for this new size
+    const lowerSize = size.toLowerCase();
+    const sizeVariants = product.product_variants.filter(
+      v => v.size.toLowerCase() === lowerSize
+    );
+    
+    const currentColorAvailable = sizeVariants.find(
+      v => v.color.toLowerCase() === selectedColor.toLowerCase() && v.stock > 0
+    );
+    
+    let targetColor = selectedColor;
+    if (!currentColorAvailable && sizeVariants.length > 0) {
+      // Find first in-stock color for this size
+      const firstInStockColor = sizeVariants.find(v => v.stock > 0);
+      if (firstInStockColor) {
+        setSelectedColor(firstInStockColor.color);
+        targetColor = firstInStockColor.color;
+      } else {
+        setSelectedColor(sizeVariants[0].color);
+        targetColor = sizeVariants[0].color;
+      }
+    }
+    
+    triggerPendingAction(size, targetColor);
+  };
+
+  useEffect(() => {
+    captureEvent('product_viewed', {
+      product_id: product.id,
+      product_name: product.name,
+      price: product.base_price,
+      category: product.category?.name
+    });
     try {
       const stored = localStorage.getItem('recentlyViewed');
       let viewedProducts = stored ? JSON.parse(stored) : [];
@@ -133,6 +229,7 @@ export function ProductDetails({
     } catch (e) {
       console.error('Failed to save recently viewed', e);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product]);
 
   // Exit-Intent Micro Trigger
@@ -161,37 +258,132 @@ export function ProductDetails({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const uniqueSizes = Array.from(new Set(product.product_variants.map((v) => v.size)));
-  const uniqueColors = Array.from(new Set(product.product_variants.map((v) => v.color)));
+  // De-duplicate colors and sizes case-insensitively while preserving original casing
+  const uniqueColors = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const v of product.product_variants) {
+      const lower = v.color.trim().toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(v.color.trim());
+      }
+    }
+    return result;
+  }, [product.product_variants]);
 
-  const availableColors = selectedSize
-    ? Array.from(new Set(product.product_variants.filter((v) => v.size === selectedSize && v.stock > 0).map((v) => v.color)))
-    : uniqueColors;
+  const uniqueSizes = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const v of product.product_variants) {
+      const lower = v.size.trim().toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(v.size.trim());
+      }
+    }
+    
+    return result.sort((a, b) => {
+      const sizeOrder: Record<string, number> = {
+        'xxs': 1, 'xs': 2, 's': 3, 'm': 4, 'l': 5, 'xl': 6,
+        'xxl': 7, '2xl': 7, 'xxxl': 8, '3xl': 8, '4xl': 9, '5xl': 10
+      };
 
-  const availableSizes = selectedColor
-    ? Array.from(new Set(product.product_variants.filter((v) => v.color === selectedColor && v.stock > 0).map((v) => v.size)))
-    : uniqueSizes;
+      const aClean = a.trim().toLowerCase();
+      const bClean = b.trim().toLowerCase();
 
-  const selectedVariant = product.product_variants.find(
-    (v) => v.size === selectedSize && v.color === selectedColor
-  );
+      const aNum = Number(aClean);
+      const bNum = Number(bClean);
+
+      const isANum = !isNaN(aNum) && aClean !== '';
+      const isBNum = !isNaN(bNum) && bClean !== '';
+
+      if (isANum && isBNum) {
+        return aNum - bNum;
+      }
+
+      if (isANum) return -1;
+      if (isBNum) return 1;
+
+      const aWeight = sizeOrder[aClean];
+      const bWeight = sizeOrder[bClean];
+
+      if (aWeight !== undefined && bWeight !== undefined) {
+        return aWeight - bWeight;
+      }
+
+      return aClean.localeCompare(bClean);
+    });
+  }, [product.product_variants]);
+
+  const availableColors = useMemo(() => {
+    if (!selectedSize) return uniqueColors;
+    const lowerSize = selectedSize.toLowerCase();
+    const matches = product.product_variants
+      .filter((v) => v.size.toLowerCase() === lowerSize && v.stock > 0)
+      .map((v) => v.color.toLowerCase());
+    return uniqueColors.filter(c => matches.includes(c.toLowerCase()));
+  }, [selectedSize, uniqueColors, product.product_variants]);
+
+  const availableSizes = useMemo(() => {
+    if (!selectedColor) return uniqueSizes;
+    const lowerColor = selectedColor.toLowerCase();
+    const matches = product.product_variants
+      .filter((v) => v.color.toLowerCase() === lowerColor && v.stock > 0)
+      .map((v) => v.size.toLowerCase());
+    return uniqueSizes.filter(s => matches.includes(s.toLowerCase()));
+  }, [selectedColor, uniqueSizes, product.product_variants]);
+
+  const selectedVariant = useMemo(() => {
+    return product.product_variants.find(
+      (v) => v.size.toLowerCase() === selectedSize.toLowerCase() && 
+             v.color.toLowerCase() === selectedColor.toLowerCase()
+    );
+  }, [selectedSize, selectedColor, product.product_variants]);
 
   const finalPrice = getProductPrice(product, selectedVariant);
   const mrp = calculateMRP(finalPrice);
   const discount = calculateDiscountPercentage(finalPrice, mrp);
 
-  const handleAddToCart = async () => {
-    if (!selectedSize || !selectedColor) { toast.error('Please select size and color'); return; }
-    if (!selectedVariant) { toast.error('Selected variant not available'); return; }
-    if (selectedVariant.stock < quantity) { toast.error('Not enough stock available'); return; }
+  // Filter images based on selected color matching alt text
+  const filteredImages = useMemo(() => {
+    if (!selectedColor) return product.product_images;
+    const lowerColor = selectedColor.trim().toLowerCase();
+    const matches = product.product_images.filter((img) => {
+      const alt = (img.alt_text || '').toLowerCase();
+      return alt.includes(lowerColor);
+    });
+    return matches.length > 0 ? matches : product.product_images;
+  }, [product.product_images, selectedColor]);
 
+  const isOutOfStockGlobally = useMemo(() => {
+    return product.product_variants.every((v) => v.stock === 0);
+  }, [product.product_variants]);
+
+  const isButtonDisabled = isBuying || isAdding || isOutOfStockGlobally || (
+    !!selectedSize && !!selectedColor && !!selectedVariant && selectedVariant.stock === 0
+  );
+
+  const buyNowText = isBuying
+    ? 'Processing...'
+    : (isOutOfStockGlobally || (!!selectedSize && selectedVariant?.stock === 0))
+      ? 'OUT OF STOCK'
+      : '⚡ BUY NOW';
+
+  const addToCartText = isAdding
+    ? 'Adding...'
+    : (isOutOfStockGlobally || (!!selectedSize && selectedVariant?.stock === 0))
+      ? 'OUT OF STOCK'
+      : 'ADD TO CART';
+
+  const executeAddToCart = async (variant: any, size: string, color: string) => {
     setIsAdding(true);
     try {
-      if (posthog) posthog.capture('added_to_cart', { product_id: product.id, product_name: product.name, variant_id: selectedVariant.id, size: selectedSize, color: selectedColor, price: finalPrice, quantity });
+      captureEvent('added_to_cart', { product_id: product.id, product_name: product.name, variant_id: variant.id, size: size, color: color, price: finalPrice, quantity });
 
       await addToCart({
         productId: product.id,
-        variantId: selectedVariant.id,
+        variantId: variant.id,
         quantity,
         productData: {
           name: product.name,
@@ -200,10 +392,10 @@ export function ProductDetails({
           product_images: product.product_images
         },
         variantData: {
-          size: selectedSize,
-          color: selectedColor,
-          price_adjustment: selectedVariant.price_adjustment,
-          stock: selectedVariant.stock
+          size: size,
+          color: color,
+          price_adjustment: variant.price_adjustment,
+          stock: variant.stock
         }
       });
     } finally {
@@ -211,11 +403,98 @@ export function ProductDetails({
     }
   };
 
-  const handleBuyNow = async () => {
+  const executeBuyNow = async (variant: any, size: string, color: string) => {
     setIsBuying(true);
-    await handleAddToCart();
-    setIsBuying(false);
-    router.push('/checkout');
+    try {
+      const price = product.base_price + (variant.price_adjustment || 0);
+      const buyNowItem = {
+        productId: product.id,
+        variantId: variant.id,
+        quantity,
+        price,
+        name: product.name,
+        image: product.product_images?.[0]?.image_url || '',
+        size,
+        color,
+      };
+      sessionStorage.setItem('rootloom_buy_now_item', JSON.stringify(buyNowItem));
+      router.push('/checkout?source=BUY_NOW');
+    } finally {
+      setIsBuying(false);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!selectedColor) {
+      toast.error('Please select a color.');
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.error('Please select your size.');
+      setPendingAction('ADD_TO_CART');
+      setHighlightSize(true);
+      setTimeout(() => setHighlightSize(false), 1200);
+      sizeContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    if (!selectedVariant) {
+      toast.error('Selected variant not available');
+      return;
+    }
+
+    if (selectedVariant.stock < quantity) {
+      toast.error('Not enough stock available');
+      return;
+    }
+
+    await executeAddToCart(selectedVariant, selectedSize, selectedColor);
+  };
+
+  const handleBuyNow = async () => {
+    if (!selectedColor) {
+      toast.error('Please select a color.');
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.error('Please select your size to continue.');
+      setPendingAction('BUY_NOW');
+      setHighlightSize(true);
+      setTimeout(() => setHighlightSize(false), 1200);
+      sizeContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    if (!selectedVariant) {
+      toast.error('Selected variant not available');
+      return;
+    }
+
+    if (selectedVariant.stock < quantity) {
+      toast.error('Not enough stock available');
+      return;
+    }
+
+    if (!user) {
+      const price = product.base_price + (selectedVariant.price_adjustment || 0);
+      const buyNowItem = {
+        productId: product.id,
+        variantId: selectedVariant.id,
+        quantity,
+        price,
+        name: product.name,
+        image: product.product_images?.[0]?.image_url || '',
+        size: selectedSize,
+        color: selectedColor,
+      };
+      sessionStorage.setItem('rootloom_buy_now_item', JSON.stringify(buyNowItem));
+      openLoginModal(`/checkout?source=BUY_NOW`, undefined, 'product');
+      return;
+    }
+
+    await executeBuyNow(selectedVariant, selectedSize, selectedColor);
   };
 
   return (
@@ -232,7 +511,7 @@ export function ProductDetails({
           {/* Left: Image Gallery */}
           <div className="lg:sticky lg:top-24 lg:self-start">
             <ImageGallery
-              images={product.product_images}
+              images={filteredImages}
               productName={product.name}
               productId={product.id}
               isWishlisted={isWishlisted}
@@ -325,51 +604,79 @@ export function ProductDetails({
             {/* Color & Size Selectors */}
             <div className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm space-y-5">
               {/* Color */}
-              <div>
-                <Label className="mb-3 flex items-center gap-2 text-sm font-bold text-stone-700">
-                  Color:
-                  {selectedColor && (
-                    <span className="font-semibold text-deep-forest bg-stone-100 px-2.5 py-0.5 rounded-full text-xs">
-                      {selectedColor}
+              {uniqueColors.length > 1 ? (
+                <div>
+                  <Label className="mb-3 flex items-center gap-2 text-sm font-bold text-stone-700">
+                    Color:
+                    {selectedColor && (
+                      <span className="font-semibold text-deep-forest bg-stone-100 px-2.5 py-0.5 rounded-full text-xs">
+                        {selectedColor}
+                      </span>
+                    )}
+                  </Label>
+                  <RadioGroup value={selectedColor} onValueChange={handleColorChange}>
+                    <div className="flex gap-2.5 flex-wrap">
+                      {uniqueColors.map((color) => {
+                        const isAvailable = availableColors.includes(color);
+                        const colorHex = getColorDot(color);
+                        return (
+                          <div key={color}>
+                            <RadioGroupItem value={color} id={`color-${color}`} className="peer sr-only" disabled={!isAvailable} />
+                            <Label
+                              htmlFor={`color-${color}`}
+                              className={cn(
+                                'flex items-center gap-2 px-3.5 py-2 border-2 rounded-xl cursor-pointer text-xs font-semibold transition-all duration-200',
+                                selectedColor === color
+                                  ? 'border-deep-forest bg-deep-forest/5 text-deep-forest shadow-sm'
+                                  : isAvailable
+                                    ? 'border-stone-200 hover:border-stone-400 text-stone-600 hover:bg-stone-50'
+                                    : 'opacity-40 cursor-not-allowed border-stone-100 text-stone-300 line-through'
+                              )}
+                            >
+                              {colorHex && (
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-stone-300 inline-block flex-shrink-0"
+                                  style={{ backgroundColor: colorHex }}
+                                />
+                              )}
+                              {color}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </RadioGroup>
+                </div>
+              ) : uniqueColors.length === 1 ? (
+                <div>
+                  <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-stone-700">
+                    Color:
+                  </Label>
+                  <div className="flex">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 border border-stone-200 bg-stone-50/70 text-stone-700 rounded-xl text-xs font-bold uppercase tracking-wider select-none">
+                      {getColorDot(uniqueColors[0]) && (
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-stone-300 inline-block flex-shrink-0"
+                          style={{ backgroundColor: getColorDot(uniqueColors[0]) || undefined }}
+                        />
+                      )}
+                      {uniqueColors[0]}
                     </span>
-                  )}
-                </Label>
-                <RadioGroup value={selectedColor} onValueChange={setSelectedColor}>
-                  <div className="flex gap-2.5 flex-wrap">
-                    {uniqueColors.map((color) => {
-                      const isAvailable = availableColors.includes(color);
-                      const colorHex = getColorDot(color);
-                      return (
-                        <div key={color}>
-                          <RadioGroupItem value={color} id={`color-${color}`} className="peer sr-only" disabled={!isAvailable} />
-                          <Label
-                            htmlFor={`color-${color}`}
-                            className={cn(
-                              'flex items-center gap-2 px-3.5 py-2 border-2 rounded-xl cursor-pointer text-xs font-semibold transition-all duration-200',
-                              selectedColor === color
-                                ? 'border-deep-forest bg-deep-forest/5 text-deep-forest shadow-sm'
-                                : isAvailable
-                                  ? 'border-stone-200 hover:border-stone-400 text-stone-600 hover:bg-stone-50'
-                                  : 'opacity-40 cursor-not-allowed border-stone-100 text-stone-300 line-through'
-                            )}
-                          >
-                            {colorHex && (
-                              <span
-                                className="w-3.5 h-3.5 rounded-full border border-stone-300 inline-block flex-shrink-0"
-                                style={{ backgroundColor: colorHex }}
-                              />
-                            )}
-                            {color}
-                          </Label>
-                        </div>
-                      );
-                    })}
                   </div>
-                </RadioGroup>
-              </div>
+                </div>
+              ) : null}
 
               {/* Size */}
-              <div id="size-selector" className="transition-all duration-300 p-1 -m-1">
+              <div 
+                id="size-selector"
+                ref={sizeContainerRef}
+                className={cn(
+                  "transition-all duration-300 p-3 rounded-2xl border-2",
+                  highlightSize 
+                    ? "border-red-500 bg-red-50/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse scale-102"
+                    : "border-transparent"
+                )}
+              >
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-sm font-bold text-stone-700 flex items-center gap-2">
                     Size:
@@ -379,7 +686,7 @@ export function ProductDetails({
                   </Label>
                   <SizeGuide />
                 </div>
-                <RadioGroup value={selectedSize} onValueChange={setSelectedSize}>
+                <RadioGroup value={selectedSize} onValueChange={handleSizeChange}>
                   <div className="flex gap-2.5 flex-wrap">
                     {uniqueSizes.map((size) => {
                       const isAvailable = availableSizes.includes(size);
@@ -389,15 +696,18 @@ export function ProductDetails({
                           <Label
                             htmlFor={`size-${size}`}
                             className={cn(
-                              'flex items-center justify-center w-12 h-12 border-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200',
+                              'flex items-center justify-center min-w-12 h-12 px-3 border-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 select-none relative group active:scale-95 peer-focus-visible:ring-2 peer-focus-visible:ring-deep-forest peer-focus-visible:ring-offset-2',
                               selectedSize === size
                                 ? 'border-deep-forest bg-deep-forest text-white shadow-md scale-105'
                                 : isAvailable
-                                  ? 'border-stone-200 hover:border-deep-forest text-stone-700 hover:bg-stone-50'
-                                  : 'opacity-35 cursor-not-allowed border-stone-100 text-stone-300'
+                                  ? 'border-stone-200 hover:border-deep-forest text-stone-700 hover:bg-stone-50 hover:scale-102'
+                                  : 'opacity-35 cursor-not-allowed border-stone-100 bg-stone-50/50 text-stone-300'
                             )}
                           >
-                            {size}
+                            <span>{size}</span>
+                            {selectedSize === size && (
+                              <span className="ml-1 text-xs font-black text-white bg-white/20 rounded-full px-1.5 py-0.5">✓</span>
+                            )}
                           </Label>
                         </div>
                       );
@@ -475,18 +785,18 @@ export function ProductDetails({
                   size="lg"
                   className="flex-1 bg-deep-forest hover:bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-deep-forest/20 hover:shadow-deep-forest/30 transition-all duration-300 text-xl h-16 uppercase tracking-widest border-2 border-transparent"
                   onClick={handleBuyNow}
-                  disabled={!selectedVariant || selectedVariant.stock === 0 || isBuying || isAdding}
+                  disabled={isButtonDisabled}
                 >
-                  {isBuying ? 'Processing...' : '⚡ BUY NOW'}
+                  {buyNowText}
                 </Button>
                 <Button
                   size="lg"
                   className="flex-1 bg-raw-clay hover:bg-[#7a4e3c] text-white font-black rounded-xl shadow-lg shadow-raw-clay/20 hover:shadow-raw-clay/30 transition-all duration-300 text-xl h-16 uppercase tracking-widest"
                   onClick={handleAddToCart}
-                  disabled={!selectedVariant || selectedVariant.stock === 0 || isAdding || isBuying}
+                  disabled={isButtonDisabled}
                 >
                   <ShoppingCart className="h-5 w-5 mr-2 flex-shrink-0" />
-                  {isAdding ? 'Adding...' : 'ADD TO CART'}
+                  {addToCartText}
                 </Button>
               </div>
 
@@ -683,8 +993,10 @@ export function ProductDetails({
       <StickyAddToCart
         product={product}
         selectedVariant={selectedVariant}
+        quantity={quantity}
         isAdding={isAdding}
         onAddToCart={handleAddToCart}
+        onBuyNow={handleBuyNow}
       />
     </div>
   );

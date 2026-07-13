@@ -42,7 +42,7 @@ export default async function AdminOrdersPage() {
     <div className="container mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Orders</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Orders ({orders?.length || 0})</h1>
           <p className="text-gray-500">Manage and fulfill customer orders.</p>
         </div>
       </div>

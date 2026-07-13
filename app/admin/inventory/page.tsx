@@ -32,15 +32,13 @@ export default async function AdminInventoryPage() {
     `)
         .order('stock', { ascending: true }); // Show low stock first
 
-    if (error) {
-        console.error('Error fetching inventory:', error);
-    }
+    const totalItems = variants?.reduce((acc: number, v: any) => acc + (v.stock || 0), 0) || 0;
 
     return (
         <div className="container mx-auto px-6 py-8">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Inventory</h1>
-                <p className="text-gray-500">Monitor stock levels and search across all product variants.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Inventory ({variants?.length || 0})</h1>
+                <p className="text-gray-500">Monitor stock levels and search across all product variants. Total variants: {variants?.length || 0} ({totalItems} total units in stock).</p>
             </div>
 
             <AdminInventoryTable variants={variants || []} />

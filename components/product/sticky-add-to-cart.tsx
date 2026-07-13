@@ -11,11 +11,13 @@ import { ShoppingCart } from 'lucide-react';
 interface StickyAddToCartProps {
     product: any;
     selectedVariant: any;
+    quantity?: number;
     isAdding: boolean;
     onAddToCart: () => void;
+    onBuyNow: () => void;
 }
 
-export function StickyAddToCart({ product, selectedVariant, isAdding, onAddToCart }: StickyAddToCartProps) {
+export function StickyAddToCart({ product, selectedVariant, quantity = 1, isAdding, onAddToCart, onBuyNow }: StickyAddToCartProps) {
     const [isVisible, setIsVisible] = useState(false);
     const router = useRouter();
 
@@ -35,19 +37,17 @@ export function StickyAddToCart({ product, selectedVariant, isAdding, onAddToCar
         ? product.base_price + selectedVariant.price_adjustment
         : product.base_price;
 
-    const handleBuyNow = async () => {
-        await onAddToCart();
-        router.push('/checkout');
-    };
-
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-bottom-full duration-300">
+        <div
+            className="fixed bottom-0 left-0 right-0 z-[45] bg-white/98 backdrop-blur-md border-t border-stone-200 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] animate-in slide-in-from-bottom-full duration-300"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
             <div className="container mx-auto px-4 max-w-screen-xl py-3 flex items-center gap-4">
                 {/* Product thumbnail + info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 border border-stone-200">
                         <Image
-                            src={product.product_images[0]?.image_url || '/placeholder.png'}
+                             src={product.product_images[0]?.image_url || '/placeholder.png'}
                             alt={product.name}
                             fill
                             className="object-cover"
@@ -67,63 +67,35 @@ export function StickyAddToCart({ product, selectedVariant, isAdding, onAddToCar
                 {/* Action buttons */}
                 <div className="flex items-center gap-2.5 flex-shrink-0">
                     <Button
-                        onClick={(e) => {
-                            if (!selectedVariant) {
-                                e.preventDefault();
-                                const el = document.getElementById('size-selector');
-                                if (el) {
-                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    el.classList.add('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse');
-                                    setTimeout(() => el.classList.remove('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse'), 1500);
-                                }
-                            } else {
-                                onAddToCart();
-                            }
-                        }}
+                        onClick={onAddToCart}
                         disabled={isAdding || (selectedVariant && selectedVariant.stock === 0)}
                         className={cn(
                             'rounded-xl font-bold text-xs md:text-sm px-4 h-12 md:h-11 transition-all shadow-sm flex-1 md:flex-none',
-                            (!selectedVariant)
-                                ? 'bg-deep-forest text-white'
-                                : (selectedVariant.stock === 0)
-                                    ? 'bg-stone-100 text-stone-300'
-                                    : 'bg-raw-clay text-white hover:bg-[#7a4e3c]'
+                            (selectedVariant && selectedVariant.stock === 0)
+                                ? 'bg-stone-100 text-stone-300'
+                                : 'bg-raw-clay text-white hover:bg-[#7a4e3c]'
                         )}
                     >
                         <ShoppingCart className="w-4 h-4 mr-1.5" />
-                        <span className="hidden min-[380px]:inline">{!selectedVariant ? 'Select Size' : isAdding ? 'Adding...' : 'Add to Cart'}</span>
-                        <span className="min-[380px]:hidden">{!selectedVariant ? 'Size' : 'Cart'}</span>
+                        <span className="hidden min-[380px]:inline">{isAdding ? 'Adding...' : 'Add to Cart'}</span>
+                        <span className="min-[380px]:hidden">Cart</span>
                     </Button>
 
                     <Button
-                        onClick={(e) => {
-                            if (!selectedVariant) {
-                                e.preventDefault();
-                                const el = document.getElementById('size-selector');
-                                if (el) {
-                                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    el.classList.add('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse');
-                                    setTimeout(() => el.classList.remove('ring-2', 'ring-deep-forest', 'ring-offset-4', 'rounded-xl', 'animate-pulse'), 1500);
-                                }
-                            } else {
-                                handleBuyNow();
-                            }
-                        }}
+                        onClick={onBuyNow}
                         disabled={isAdding || (selectedVariant && selectedVariant.stock === 0)}
                         className={cn(
                             'rounded-xl font-bold text-xs md:text-sm px-5 h-12 md:h-11 transition-all shadow-md flex-1 md:flex-none uppercase tracking-wider',
-                            (!selectedVariant)
-                                ? 'bg-stone-50 text-deep-forest border border-deep-forest/20'
-                                : (selectedVariant.stock === 0)
-                                    ? 'bg-stone-200 text-stone-400 shadow-none'
-                                    : 'bg-deep-forest text-white hover:bg-slate-900 shadow-deep-forest/10 hover:shadow-lg hover:shadow-deep-forest/20'
+                            (selectedVariant && selectedVariant.stock === 0)
+                                ? 'bg-stone-200 text-stone-400 shadow-none'
+                                : 'bg-deep-forest text-white hover:bg-slate-900 shadow-deep-forest/10 hover:shadow-lg hover:shadow-deep-forest/20'
                         )}
                     >
                         <span
                             key={selectedVariant?.id || 'empty'}
                             className={cn('inline-block', selectedVariant ? 'animate-micro-bounce' : '')}
                         >
-                            {!selectedVariant ? 'Buy Now' : isAdding ? '...' : `⚡ Buy Now`}
+                            {isAdding ? '...' : `⚡ Buy Now`}
                         </span>
                     </Button>
                 </div>

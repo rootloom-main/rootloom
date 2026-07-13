@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, ArrowRight, Package, Home, Clock, Truck, RefreshCcw } from 'lucide-react';
 
-export default function ReturnSuccessPage({ params }: { params: { id: string } }) {
+export default async function ReturnSuccessPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     return (
         <div className="container mx-auto px-4 py-12 md:py-20 max-w-4xl">
             {/* Header Section */}
@@ -15,7 +16,7 @@ export default function ReturnSuccessPage({ params }: { params: { id: string } }
                     Request Submitted!
                 </h1>
                 <p className="text-lg text-stone-500 max-w-xl mx-auto leading-relaxed">
-                    We've received your request for order <span className="font-bold text-deep-forest">#{params.id.slice(0, 8).toUpperCase()}</span>.
+                    We&apos;ve received your request for order <span className="font-bold text-deep-forest">#{id.slice(0, 8).toUpperCase()}</span>.
                     Our team is on it and will update you shortly.
                 </p>
             </div>
@@ -77,14 +78,14 @@ export default function ReturnSuccessPage({ params }: { params: { id: string } }
 
                 <div className="mt-12 bg-stone-50 rounded-2xl p-6 text-sm text-stone-600 border border-stone-100">
                     <p className="font-medium text-deep-forest mb-2">💡 Quick Tip:</p>
-                    <p>Please keep the item in its original condition with all tags and packaging intact while you wait for the pickup. You'll receive an email as soon as the review is complete.</p>
+                    <p>Please keep the item in its original condition with all tags and packaging intact while you wait for the pickup. You&apos;ll receive an email as soon as the review is complete.</p>
                 </div>
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Button asChild className="w-full sm:w-auto h-14 px-8 bg-deep-forest hover:bg-deep-forest/90 text-white font-bold tracking-wide rounded-xl shadow-lg transition-all group">
-                    <Link href={`/account/orders/${params.id}`}>
+                    <Link href={`/account/orders/${id}`}>
                         <Package className="mr-2 h-5 w-5" />
                         TRACK ORDER DETAILS
                         <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />

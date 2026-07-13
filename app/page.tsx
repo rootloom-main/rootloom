@@ -38,8 +38,8 @@ export default async function Home() {
                 <h1>Root & Loom: The Premier Online Destination for Aesthetic Streetwear and Sustainable Fashion</h1>
                 <p>
                     Root & Loom is a digital-first conscious fashion brand weaving traditional craftsmanship with modern Gen Z aesthetics. 
-                    Specializing in oversized hoodies, premium graphic tees, and ethical denim, we bring "Main Character Energy" to every drop. 
-                    Whether you're looking for Y2K revival styles, eco-friendly luxury, or the latest viral streetwear trends, our curated 
+                    Specializing in oversized hoodies, premium graphic tees, and ethical denim, we bring &quot;Main Character Energy&quot; to every drop. 
+                    Whether you&apos;re looking for Y2K revival styles, eco-friendly luxury, or the latest viral streetwear trends, our curated 
                     collections are loomed for the journey. Shop the best in sustainable luxury clothes, aesthetic drip, and ethical streetwear 
                     delivered with fast shipping across India.
                 </p>

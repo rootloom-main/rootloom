@@ -20,7 +20,8 @@ import {
     ChevronDown,
     RefreshCcw,
     Layers,
-    Menu // Assuming hamburger for mobile later, but keeping simple for now
+    Menu,
+    Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,7 @@ const sidebarGroups = [
             { name: 'Messages', href: '/admin/messages', icon: FileText },
             { name: 'Products', href: '/admin/products', icon: ShoppingBag },
             { name: 'Orders', href: '/admin/orders', icon: Package },
+            { name: 'Invoices', href: '/admin/invoice-management', icon: Receipt },
             { name: 'Returns', href: '/admin/returns', icon: RefreshCcw },
             { name: 'Inventory', href: '/admin/inventory', icon: Archive },
             { name: 'Customers', href: '/admin/customers', icon: Users },

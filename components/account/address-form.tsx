@@ -18,17 +18,19 @@ import { addAddress, updateAddress, AddressFormData } from '@/lib/actions/addres
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { cn } from '@/lib/utils';
 
 const addressSchema = z.object({
     full_name: z.string().min(1, 'Full name is required'),
     phone: z.string().min(10, 'Phone number must be at least 10 digits'),
     address_line1: z.string().min(1, 'Address Line 1 is required'),
-    address_line2: z.string().optional(),
+    address_line2: z.string().optional().or(z.literal('')),
     city: z.string().min(1, 'City is required'),
     state: z.string().min(1, 'State is required'),
     postal_code: z.string().min(1, 'Postal code is required'),
     country: z.string().default('India'),
     is_default: z.boolean().default(false),
+    type: z.string().default('Home'),
 });
 
 interface AddressFormProps {
@@ -41,7 +43,11 @@ export function AddressForm({ initialData }: AddressFormProps) {
 
     const form = useForm<AddressFormData>({
         resolver: zodResolver(addressSchema),
-        defaultValues: initialData || {
+        defaultValues: initialData ? {
+            ...initialData,
+            address_line2: initialData.address_line2 || '',
+            type: initialData.type || 'Home',
+        } : {
             full_name: '',
             phone: '',
             address_line1: '',
@@ -51,13 +57,13 @@ export function AddressForm({ initialData }: AddressFormProps) {
             postal_code: '',
             country: 'India',
             is_default: false,
+            type: 'Home',
         },
     });
 
     const [isFetchingPincode, setIsFetchingPincode] = useState(false);
 
     const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Only allow numbers
         const value = e.target.value.replace(/\D/g, '');
         form.setValue('postal_code', value);
 
@@ -99,17 +105,51 @@ export function AddressForm({ initialData }: AddressFormProps) {
                 router.refresh();
             } else {
                 toast.error(result.message);
-                if (result.errors) {
-                    console.error(result.errors);
-                }
             }
         });
     };
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl bg-white p-6 md:p-8 rounded-xl border border-stone-200 shadow-sm">
-                <div className="grid md:grid-cols-2 gap-5">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl bg-white p-6 md:p-8 rounded-2xl border border-stone-200 shadow-sm font-sans">
+                
+                {/* Address Type Selection */}
+                <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                        <FormItem className="space-y-2">
+                            <FormLabel className="text-stone-700 font-semibold">Address Type</FormLabel>
+                            <FormControl>
+                                <div className="flex flex-wrap gap-3">
+                                    {['Home', 'Work', 'Other'].map((t) => {
+                                        const emoji = t === 'Home' ? '🏠' : t === 'Work' ? '💼' : '📍';
+                                        const isSelected = field.value === t;
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => field.onChange(t)}
+                                                className={cn(
+                                                    "flex items-center gap-2 px-5 h-11 border rounded-xl text-sm font-bold transition-all duration-300 shadow-sm",
+                                                    isSelected 
+                                                        ? "bg-deep-forest border-deep-forest text-white" 
+                                                        : "bg-white border-stone-200 text-stone-600 hover:bg-stone-50"
+                                                )}
+                                            >
+                                                <span className="text-base">{emoji}</span>
+                                                <span>{t}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <div className="grid md:grid-cols-2 gap-5 border-t border-stone-100 pt-5">
                     <FormField
                         control={form.control}
                         name="full_name"
@@ -117,7 +157,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold">Full Name</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Samir Pandey" className="focus-visible:ring-moss-olive h-11" {...field} />
+                                    <Input placeholder="Samir Pandey" className="focus-visible:ring-deep-forest h-11 rounded-xl" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -130,7 +170,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold">Phone Number</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="+91 1234567890" className="focus-visible:ring-moss-olive h-11" {...field} />
+                                    <Input placeholder="+91 1234567890" className="focus-visible:ring-deep-forest h-11 rounded-xl" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -146,12 +186,12 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold flex items-center justify-between">
                                     Postal Code
-                                    {isFetchingPincode && <span className="text-xs text-moss-olive font-normal animate-pulse">Fetching...</span>}
+                                    {isFetchingPincode && <span className="text-xs text-deep-forest font-normal animate-pulse">Fetching...</span>}
                                 </FormLabel>
                                 <FormControl>
                                     <Input
                                         placeholder="110001"
-                                        className="focus-visible:ring-moss-olive h-11 font-mono tracking-wide"
+                                        className="focus-visible:ring-deep-forest h-11 rounded-xl font-mono tracking-wide"
                                         {...field}
                                         onChange={handlePincodeChange}
                                         maxLength={6}
@@ -168,7 +208,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold">City</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Mumbai" className="focus-visible:ring-moss-olive h-11 bg-stone-50" {...field} />
+                                    <Input placeholder="Mumbai" className="focus-visible:ring-deep-forest h-11 rounded-xl bg-stone-50" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -181,7 +221,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                             <FormItem>
                                 <FormLabel className="text-stone-700 font-semibold">State</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="Maharashtra" className="focus-visible:ring-moss-olive h-11 bg-stone-50" {...field} />
+                                    <Input placeholder="Maharashtra" className="focus-visible:ring-deep-forest h-11 rounded-xl bg-stone-50" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -193,10 +233,10 @@ export function AddressForm({ initialData }: AddressFormProps) {
                     control={form.control}
                     name="address_line1"
                     render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="border-t border-stone-100 pt-5">
                             <FormLabel className="text-stone-700 font-semibold">Address Line 1</FormLabel>
                             <FormControl>
-                                <Input placeholder="Flat No, Building, Street" className="focus-visible:ring-moss-olive h-11" {...field} />
+                                <Input placeholder="Flat No, Building, Street" className="focus-visible:ring-deep-forest h-11 rounded-xl" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -210,7 +250,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                         <FormItem>
                             <FormLabel className="text-stone-700 font-semibold">Address Line 2 (Optional)</FormLabel>
                             <FormControl>
-                                <Input placeholder="Landmark, Area" className="focus-visible:ring-moss-olive h-11" {...field} />
+                                <Input placeholder="Landmark, Area" className="focus-visible:ring-deep-forest h-11 rounded-xl" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -221,7 +261,7 @@ export function AddressForm({ initialData }: AddressFormProps) {
                     control={form.control}
                     name="is_default"
                     render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border border-stone-200 bg-stone-50 p-4">
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-2xl border border-stone-200 bg-stone-50 p-4">
                             <FormControl>
                                 <Checkbox
                                     checked={field.value}
@@ -230,20 +270,20 @@ export function AddressForm({ initialData }: AddressFormProps) {
                                 />
                             </FormControl>
                             <div className="space-y-1 leading-none">
-                                <FormLabel className="font-semibold text-deep-forest cursor-pointer">
+                                <FormLabel className="font-bold text-deep-forest cursor-pointer text-sm">
                                     Set as Default Address
                                 </FormLabel>
-                                <p className="text-xs text-stone-500">This address will be pre-selected during checkout.</p>
+                                <p className="text-xs text-stone-500 font-medium">This address will be pre-selected during checkout.</p>
                             </div>
                         </FormItem>
                     )}
                 />
 
-                <div className="flex gap-4 pt-4 border-t border-stone-100">
-                    <Button type="submit" disabled={isPending} className="bg-deep-forest hover:bg-deep-forest/90 text-white h-11 px-8">
+                <div className="flex gap-4 pt-5 border-t border-stone-100">
+                    <Button type="submit" disabled={isPending} className="bg-deep-forest hover:bg-slate-900 text-white h-11 px-8 rounded-xl font-bold uppercase tracking-wider text-xs shadow-md">
                         {isPending ? 'Saving...' : initialData?.id ? 'Update Address' : 'Save Address'}
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => router.back()} className="h-11">
+                    <Button type="button" variant="outline" onClick={() => router.back()} className="h-11 rounded-xl font-bold uppercase tracking-wider text-xs border-stone-200 text-stone-600">
                         Cancel
                     </Button>
                 </div>

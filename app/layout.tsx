@@ -1,28 +1,14 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { MobileNav } from '@/components/layout/mobile-nav';
 import { SupabaseAuthProvider } from '@/components/auth/supabase-auth-provider';
 import { CartProvider } from '@/components/providers/cart-provider';
 import { WishlistProvider } from '@/components/providers/wishlist-provider';
-import QueryProvider from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { Suspense } from 'react';
-import { ScrollLockFixer } from '@/components/utils/scroll-lock-fixer';
-
-
-const inter = Inter({
-	subsets: ['latin'],
-	variable: '--font-sans',
-	display: 'swap',
-});
-
-const playfair = Playfair_Display({
-	subsets: ['latin'],
-	variable: '--font-serif',
-	display: 'swap',
-});
+import { ServiceWorkerCleanup } from '@/components/utils/service-worker-cleanup';
 
 export const metadata: Metadata = {
 	metadataBase: new URL('https://rootloom.in'),
@@ -66,17 +52,18 @@ export const metadata: Metadata = {
 	alternates: {
 		canonical: 'https://rootloom.in',
 	},
+	manifest: '/manifest.json',
+};
+
+export const viewport = {
 	themeColor: [
 		{ media: '(prefers-color-scheme: light)', color: '#ffffff' },
 		{ media: '(prefers-color-scheme: dark)', color: '#000000' },
 	],
-	viewport: {
-		width: 'device-width',
-		initialScale: 1,
-		maximumScale: 5,
-		userScalable: true,
-	},
-	manifest: '/manifest.json',
+	width: 'device-width',
+	initialScale: 1,
+	maximumScale: 5,
+	userScalable: true,
 };
 
 const jsonLd = {
@@ -137,15 +124,13 @@ const websiteJsonLd = {
 	},
 };
 
-import { PHProvider } from '@/lib/analytics/posthog';
-
 export default function RootLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
 	return (
-		<html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<script
 					type="application/ld+json"
@@ -161,14 +146,13 @@ export default function RootLayout({
 				/>
 			</head>
 			<body className="min-h-screen bg-background font-sans antialiased">
-				<PHProvider>
-					<QueryProvider>
-						<SupabaseAuthProvider>
+				<ServiceWorkerCleanup />
+				<SupabaseAuthProvider>
 							<WishlistProvider>
 								<CartProvider>
 									<div className="relative flex min-h-screen flex-col">
-										<div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase">
-											⚡ Rooted in Vibes. Loomed for the Journey. | Free Shipping over ₹999 ⚡
+										<div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.15em] uppercase overflow-hidden whitespace-nowrap text-ellipsis">
+											⚡ Free Shipping over ₹999 | Root &amp; Loom ⚡
 										</div>
 										<Suspense fallback={
 											<header className="sticky top-0 z-50 w-full h-16 md:h-20 bg-transparent border-b border-transparent">
@@ -177,17 +161,16 @@ export default function RootLayout({
 										}>
 											<Header />
 										</Suspense>
-										<main className="flex-1">
+										<main className="flex-1 pb-bottom-nav md:pb-0">
 											{children}
 										</main>
 										<Footer />
+										<MobileNav />
 									</div>
 									<Toaster position="top-center" />
 								</CartProvider>
 							</WishlistProvider>
 						</SupabaseAuthProvider>
-					</QueryProvider>
-				</PHProvider>
 			</body>
 		</html>
 	);

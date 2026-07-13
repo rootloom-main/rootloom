@@ -51,6 +51,7 @@ export function MediaLibrary({ bucketName, onSelect, currentUrl, trigger }: Medi
             console.log('MediaLibrary: Dialog opened for bucket:', bucketName);
             fetchFiles();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, bucketName]);
 
     useEffect(() => {

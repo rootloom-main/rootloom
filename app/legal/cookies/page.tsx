@@ -26,7 +26,7 @@ export default function CookiePolicyPage() {
                     Cookies can be used to recognize you when you visit Root & Loom, remember your preferences, and give you a personalized experience that is in line with your settings. Cookies also make your interactions with Root & Loom faster and more secure. 
                 </p>
                 <ul className="list-disc pl-6 space-y-2">
-                    <li><strong>Authentication:</strong> If you're signed in to Root & Loom, cookies help us show you the right information and personalize your experience.</li>
+                    <li><strong>Authentication:</strong> If you&apos;re signed in to Root & Loom, cookies help us show you the right information and personalize your experience.</li>
                     <li><strong>Security:</strong> We use cookies to enable and support our security features, and to help us detect malicious activity.</li>
                     <li><strong>Preferences:</strong> Cookies can tell us which language you prefer and what your communications preferences are.</li>
                     <li><strong>Performance:</strong> We use cookies to help us learn how well our site performs in different locations and for analyzing how users interact with our features.</li>

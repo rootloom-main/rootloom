@@ -2,13 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { createSSRClient } from '@/lib/utils/auth';
 import { getCurrentUser } from '@/lib/utils/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
-import { DashboardMetrics } from '@/components/admin/dashboard-metrics';
-import { SalesChart } from '@/components/admin/analytics/sales-chart';
-import { CategoryPieChart } from '@/components/admin/analytics/category-pie-chart';
-import { SizeDemandChart } from '@/components/admin/analytics/size-demand-chart';
-import { CustomerGrowthChart } from '@/components/admin/analytics/customer-growth-chart';
-import { AdminAnalyticsHeader } from '@/components/admin/analytics/admin-analytics-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
     Table,
@@ -33,15 +28,24 @@ import {
     Activity,
     Package,
     ShoppingBag,
-    Megaphone
+    Megaphone,
+    MessageCircle,
+    Smartphone,
+    TicketPercent,
+    Users2,
+    ShieldCheck
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { SalesChart } from '@/components/admin/analytics/sales-chart';
+import { CategoryPieChart } from '@/components/admin/analytics/category-pie-chart';
+import { AdminAnalyticsHeader } from '@/components/admin/analytics/admin-analytics-header';
 
 export default async function AdminAnalyticsPage() {
     const supabase = await createSSRClient();
+    const adminSupabase = createAdminClient();
     const user = await getCurrentUser();
 
     if (!user) {
@@ -59,19 +63,19 @@ export default async function AdminAnalyticsPage() {
     }
 
     // 1. Fetch all orders for metrics and breakdown
-    const { data: allOrders } = await supabase
+    const { data: allOrders } = await adminSupabase
         .from('orders')
         .select('total, created_at, status') as { data: any[] | null };
 
     const orders = allOrders?.filter(o => o.status !== 'cancelled') || [];
 
     // 2. Fetch order items for top products
-    const { data: orderItems } = await supabase
+    const { data: orderItems } = await adminSupabase
         .from('order_items')
         .select('quantity, price, product:products(name)') as { data: any[] | null };
 
     // 3. Fetch Recent Orders with Customer Info
-    const { data: recentOrders } = await supabase
+    const { data: recentOrders } = await adminSupabase
         .from('orders')
         .select(`
             id,
@@ -84,7 +88,7 @@ export default async function AdminAnalyticsPage() {
         .limit(8) as { data: any[] | null };
 
     // 4. Fetch Inventory Alerts (Low stock < 10)
-    const { data: inventoryAlerts } = await supabase
+    const { data: inventoryAlerts } = await adminSupabase
         .from('product_variants')
         .select(`
             id,
@@ -103,32 +107,76 @@ export default async function AdminAnalyticsPage() {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    const { data: currentWeekOrders } = await supabase
+    const { data: currentWeekOrders } = await adminSupabase
         .from('orders')
         .select('total')
         .gte('created_at', sevenDaysAgo.toISOString())
         .neq('status', 'cancelled');
 
-    const { data: previousWeekOrders } = await supabase
+    const { data: previousWeekOrders } = await adminSupabase
         .from('orders')
         .select('total')
         .gte('created_at', fourteenDaysAgo.toISOString())
         .lt('created_at', sevenDaysAgo.toISOString())
         .neq('status', 'cancelled');
 
-    const { count: totalCustomers } = await supabase
+    const { count: totalCustomers } = await adminSupabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
     // 6. Fetch Abandoned Cart Count
     // For simplicity, we count unique user IDs in cart_items table
-    const { data: abandonedData } = await (supabase.from('cart_items') as any).select('user_id');
+    const { data: abandonedData } = await (adminSupabase.from('cart_items') as any).select('user_id');
     const abandonedCartCount = new Set(abandonedData?.map((item: any) => item.user_id)).size;
 
     // 7. Fetch active campaigns
-    const { count: activeCampaigns } = await (supabase.from('marketing_campaigns') as any)
+    const { count: activeCampaigns } = await ((adminSupabase.from('marketing_campaigns' as any) as any)
         .select('*', { count: 'exact', head: true })
-        .in('status', ['processing', 'scheduled']);
+        .in('status', ['processing', 'scheduled'])) as any;
+
+    const { data: payments7d } = await (adminSupabase
+        .from('payments' as any)
+        .select('id, status, created_at, amount, coupon_code, metadata')
+        .gte('created_at', sevenDaysAgo.toISOString())) as any;
+
+    const { data: opsEvents7d } = await (adminSupabase
+        .from('ops_events' as any)
+        .select('event_type, status, channel, created_at, metadata')
+        .gte('created_at', sevenDaysAgo.toISOString())) as any;
+
+    const { data: otpEvents7d } = await (adminSupabase
+        .from('auth_otp_audit_log' as any)
+        .select('event, created_at')
+        .gte('created_at', sevenDaysAgo.toISOString())) as any;
+
+    const { count: pendingWaitlistCount } = await (adminSupabase
+        .from('product_waitlist' as any)
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')) as any;
+
+    const { count: totalReturns } = await adminSupabase
+        .from('returns')
+        .select('*', { count: 'exact', head: true });
+
+    const { count: couponOrderCount } = await adminSupabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .not('coupon_code', 'is', null);
+
+    const { count: referralOrderCount } = await adminSupabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .ilike('coupon_code', 'REF-%');
+
+    const { count: codOrderCount } = await adminSupabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .ilike('payment_id', 'COD_%');
+
+    const { data: inventoryAnomalies } = await (adminSupabase
+        .from('inventory_reservation_reconciliation' as any)
+        .select('variant_id, reserved_quantity_delta')
+        .limit(10)) as any;
 
     // Calculate Metrics
     const totalRevenue = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
@@ -187,13 +235,40 @@ export default async function AdminAnalyticsPage() {
     });
 
     // Category Distribution
-    const { data: categoryItems } = await supabase.from('order_items').select('quantity, price, product:products(categories(name))') as { data: any[] | null };
+    const { data: categoryItems } = await adminSupabase.from('order_items').select('quantity, price, product:products(categories(name))') as { data: any[] | null };
     const categorySales: Record<string, number> = {};
     categoryItems?.forEach((item: any) => {
         const catName = item.product?.categories?.name || 'Uncategorized';
         categorySales[catName] = (categorySales[catName] || 0) + (item.quantity * item.price);
     });
     const pieChartData = Object.entries(categorySales).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+
+    const totalPayments = payments7d?.length || 0;
+    const successfulPayments = payments7d?.filter((payment: any) => payment.status === 'success').length || 0;
+    const paymentSuccessRate = totalPayments > 0 ? (successfulPayments / totalPayments) * 100 : 0;
+    const couponConversions = couponOrderCount || 0;
+    const referralConversions = referralOrderCount || 0;
+    const whatsappEvents = (opsEvents7d || []).filter((event: any) => event.channel === 'whatsapp');
+    const smsFallbackEvents = (opsEvents7d || []).filter((event: any) => event.channel === 'sms');
+    const whatsappDeliveryRate = whatsappEvents.length
+        ? (whatsappEvents.filter((event: any) => event.status === 'success').length / whatsappEvents.length) * 100
+        : 0;
+    const smsFallbackRate = (whatsappEvents.length + smsFallbackEvents.length) > 0
+        ? (smsFallbackEvents.filter((event: any) => event.status === 'success').length / (whatsappEvents.length + smsFallbackEvents.length)) * 100
+        : 0;
+    const otpFailures = (otpEvents7d || []).filter((event: any) => String(event.event || '').includes('failed') || String(event.event || '').includes('locked')).length;
+    const otpFailureRate = (otpEvents7d?.length || 0) > 0 ? (otpFailures / (otpEvents7d?.length || 1)) * 100 : 0;
+    const webhookRetryQueue = (payments7d || []).filter((payment: any) => payment.status === 'pending').length;
+    const recoveredOrders = (payments7d || []).filter((payment: any) => ['retry', 'browser_switch'].includes(String(payment.metadata?.recovered_via || ''))).length;
+    const abandonedRecoveryEvents = (opsEvents7d || []).filter((event: any) => event.event_type === 'growth.abandoned_cart_recovery');
+    const abandonedRecoveryRate = abandonedRecoveryEvents.length
+        ? (abandonedRecoveryEvents.filter((event: any) => event.status === 'sent').length / abandonedRecoveryEvents.length) * 100
+        : 0;
+    const couponConversionRate = totalOrders > 0 ? (couponConversions / totalOrders) * 100 : 0;
+    const referralConversionRate = totalOrders > 0 ? (referralConversions / totalOrders) * 100 : 0;
+    const codConfirmationRate = totalOrders > 0 ? ((codOrderCount || 0) / totalOrders) * 100 : 0;
+    const returnRate = totalOrders > 0 ? ((totalReturns || 0) / totalOrders) * 100 : 0;
+    const inventoryAnomalyCount = inventoryAnomalies?.length || 0;
 
     return (
         <div className="min-h-screen bg-stone-50/50">
@@ -208,7 +283,7 @@ export default async function AdminAnalyticsPage() {
                             Welcome back, Samir Pandey
                         </h1>
                         <p className="text-stone-500 font-medium text-lg italic">
-                            "Luxury is in each detail." — Your empire's performance at a glance.
+                            &quot;Luxury is in each detail.&quot; - Your empire&apos;s performance at a glance.
                         </p>
                     </div>
                     <AdminAnalyticsHeader
@@ -316,6 +391,42 @@ export default async function AdminAnalyticsPage() {
                                 </Link>
                             </CardContent>
                         </Card>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-8 bg-deep-forest rounded-full" />
+                        <h2 className="text-xl font-bold text-deep-forest uppercase tracking-tighter">Launch Console</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        {[
+                            { label: 'Payment Success', value: `${paymentSuccessRate.toFixed(1)}%`, icon: ShieldCheck, tone: 'bg-emerald-50 text-emerald-700' },
+                            { label: 'Webhook Retry Queue', value: webhookRetryQueue, icon: RefreshCcw, tone: 'bg-amber-50 text-amber-700' },
+                            { label: 'Abandoned Recovery', value: `${abandonedRecoveryRate.toFixed(1)}%`, icon: ShoppingBag, tone: 'bg-amber-50 text-amber-700' },
+                            { label: 'Coupon Conversion', value: `${couponConversionRate.toFixed(1)}%`, icon: TicketPercent, tone: 'bg-blue-50 text-blue-700' },
+                            { label: 'Referral Conversion', value: `${referralConversionRate.toFixed(1)}%`, icon: Users2, tone: 'bg-purple-50 text-purple-700' },
+                            { label: 'COD Confirmation', value: `${codConfirmationRate.toFixed(1)}%`, icon: Package, tone: 'bg-orange-50 text-orange-700' },
+                            { label: 'Return Rate', value: `${returnRate.toFixed(1)}%`, icon: RefreshCcw, tone: 'bg-rose-50 text-rose-700' },
+                            { label: 'WhatsApp Delivery', value: `${whatsappDeliveryRate.toFixed(1)}%`, icon: MessageCircle, tone: 'bg-emerald-50 text-emerald-700' },
+                            { label: 'SMS Fallback', value: `${smsFallbackRate.toFixed(1)}%`, icon: Smartphone, tone: 'bg-stone-100 text-stone-700' },
+                            { label: 'OTP Failure', value: `${otpFailureRate.toFixed(1)}%`, icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700' },
+                            { label: 'Recovered Payments', value: recoveredOrders, icon: Activity, tone: 'bg-cyan-50 text-cyan-700' },
+                            { label: 'Waitlist Leads', value: pendingWaitlistCount || 0, icon: ShoppingBag, tone: 'bg-indigo-50 text-indigo-700' },
+                            { label: 'Inventory Anomalies', value: inventoryAnomalyCount, icon: AlertTriangle, tone: inventoryAnomalyCount > 0 ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' },
+                        ].map((metric) => (
+                            <Card key={metric.label} className="border-stone-100 shadow-sm rounded-xl">
+                                <CardContent className="p-4 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-[0.2em] text-stone-400 font-bold">{metric.label}</p>
+                                        <p className="mt-2 text-2xl font-bold text-deep-forest">{metric.value}</p>
+                                    </div>
+                                    <div className={cn('p-2 rounded-lg', metric.tone)}>
+                                        <metric.icon className="w-4 h-4" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 </div>
 

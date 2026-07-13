@@ -73,8 +73,8 @@ export default function CartPage() {
   }
 
   return (
-    <div className="bg-stone-50 min-h-screen pb-24 lg:pb-12">
-      <div className="container mx-auto px-4 py-8">
+    <div className="bg-stone-50 min-h-screen pb-bottom-nav lg:pb-12">
+      <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <h1 className="text-3xl font-serif font-bold text-deep-forest">Your Collection ({cartCount})</h1>
           
@@ -111,7 +111,10 @@ export default function CartPage() {
       </div>
 
       {/* Mobile Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-between items-center z-50">
+      <div
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-between items-center z-[45]"
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <div>
           <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1">Total ({selectedCartCount})</p>
           <p className="text-xl font-bold text-deep-forest leading-none">{formatPrice(total)}</p>
@@ -121,7 +124,7 @@ export default function CartPage() {
           onClick={handleCheckout}
           disabled={selectedCartCount === 0}
         >
-          {selectedCartCount === 0 ? "Select Items" : "Checkout Now"}
+          {selectedCartCount === 0 ? 'Select Items' : 'Checkout Now'}
         </Button>
       </div>
     </div>

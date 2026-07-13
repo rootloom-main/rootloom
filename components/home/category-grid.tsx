@@ -1,11 +1,6 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
-import { FadeIn, FadeInStagger, fadeInItemVariants } from '@/components/ui/fade-in';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { ArrowRight } from 'lucide-react';
 
 interface Category {
     id: string;
@@ -22,25 +17,21 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
     return (
         <section className="py-12 md:py-20 bg-stone-50/50">
             <div className="container mx-auto px-6">
-                <FadeIn>
-                    <div className="text-center mb-10 md:mb-12">
-                        <span className="text-[10px] font-bold tracking-[0.4em] text-slate-400 uppercase mb-2 block">
-                            Collections
-                        </span>
-                        <h2 className="text-3xl md:text-4xl font-serif text-deep-forest mb-4">
-                            Shop by Category
-                        </h2>
-                        <div className="w-12 h-0.5 bg-raw-clay/30 mx-auto rounded-full"></div>
-                    </div>
-                </FadeIn>
+                <div className="text-center mb-10 md:mb-12">
+                    <span className="text-[10px] font-bold tracking-[0.4em] text-slate-400 uppercase mb-2 block">
+                        Collections
+                    </span>
+                    <h2 className="text-3xl md:text-4xl font-serif text-deep-forest mb-4">
+                        Shop by Category
+                    </h2>
+                    <div className="w-12 h-0.5 bg-raw-clay/30 mx-auto rounded-full"></div>
+                </div>
 
-                <FadeInStagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
                     {categories?.map((category) => (
-                        <motion.div
+                        <div
                             key={category.id}
-                            variants={fadeInItemVariants}
-                            whileHover={{ y: -8 }}
-                            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                            className="transition-transform duration-300 hover:-translate-y-2"
                         >
                             <Link
                                 href={`/shop?category=${category.slug}`}
@@ -72,9 +63,9 @@ export default function CategoryGrid({ categories }: CategoryGridProps) {
                                     </div>
                                 </div>
                             </Link>
-                        </motion.div>
+                        </div>
                     ))}
-                </FadeInStagger>
+                </div>
             </div>
         </section>
     );

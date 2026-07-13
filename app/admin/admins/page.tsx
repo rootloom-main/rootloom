@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { updateUserRole } from './actions';
 import {
     Table,
     TableBody,
@@ -99,19 +100,17 @@ export default function AdminManagementPage() {
     const handleUpdateRole = async (userId: string, newRole: 'user' | 'admin') => {
         setActionLoading(true);
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({ role: newRole })
-                .eq('id', userId);
-
-            if (error) throw error;
+            const result = await updateUserRole(userId, newRole);
+            if (!result.success) {
+                throw new Error(result.message);
+            }
 
             toast.success(`User role updated to ${newRole}`);
             setSelectedUser(null);
             fetchProfiles(); // Refresh list
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error updating role:', error);
-            toast.error('Failed to update role');
+            toast.error(error.message || 'Failed to update role');
         } finally {
             setActionLoading(false);
         }

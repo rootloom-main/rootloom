@@ -34,6 +34,11 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
         setMounted(true);
     }, []);
 
+    // Reset index to 0 when filtered images array changes
+    useEffect(() => {
+        setSelectedIndex(0);
+    }, [images]);
+
     const mainImageRef = useRef<HTMLDivElement>(null);
     const thumbnailsRef = useRef<HTMLDivElement>(null);
     const touchStartX = useRef<number | null>(null);
@@ -195,17 +200,17 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
                         <>
                             <button
                                 onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-                                className="absolute left-2.5 top-1/2 -translate-y-1/2 z-20 bg-white/85 hover:bg-white backdrop-blur-sm w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-105 active:scale-95"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/85 hover:bg-white backdrop-blur-sm w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-105 active:scale-95"
                                 aria-label="Previous image"
                             >
-                                <ChevronLeft className="h-4 w-4 text-stone-700" />
+                                <ChevronLeft className="h-5 w-5 text-stone-700" />
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleNext(); }}
-                                className="absolute right-2.5 top-1/2 -translate-y-1/2 z-20 bg-white/85 hover:bg-white backdrop-blur-sm w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-105 active:scale-95"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/85 hover:bg-white backdrop-blur-sm w-11 h-11 rounded-full flex items-center justify-center shadow-md transition-all hover:scale-105 active:scale-95"
                                 aria-label="Next image"
                             >
-                                <ChevronRight className="h-4 w-4 text-stone-700" />
+                                <ChevronRight className="h-5 w-5 text-stone-700" />
                             </button>
                         </>
                     )}

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { formatPrice } from '@/lib/utils/format';
 import { getProductPrice, calculateMRP, calculateDiscountPercentage } from '@/lib/utils/pricing';
-import { Star, Eye, ShoppingCart } from 'lucide-react';
+import { Star, Eye, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WishlistButton } from '@/components/product/wishlist-button';
@@ -39,14 +39,29 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const imageUrl =
-    product.product_images?.[0]?.image_url ||
-    'https://images.unsplash.com/photo-1560769625-ed5974877ebc?w=500&h=500&fit=crop';
+  const images = product.product_images?.length > 0
+    ? product.product_images
+    : [{ image_url: 'https://images.unsplash.com/photo-1560769625-ed5974877ebc?w=500&h=500&fit=crop', alt_text: null }];
+  
+  const currentImage = images[currentImageIndex];
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   // Mock rating for visual consistency
   const rating = 4.5;
@@ -91,13 +106,51 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
       >
         <Link href={`/product/${product.slug}`} className="block relative aspect-[4/5] overflow-hidden bg-stone-100">
           <Image
-            src={imageUrl}
+            src={currentImage.image_url}
             alt={`${product.name} - Aesthetic Streetwear Drop | Root & Loom`}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             priority={priority}
           />
+
+          {/* Navigation Controls inside listing card */}
+          {images.length > 1 && (
+            <>
+              {/* Prev Button — always visible on mobile, hover-only on desktop */}
+              <button
+                onClick={handlePrevImage}
+                className="absolute left-1.5 top-1/2 -translate-y-1/2 z-20 bg-white/80 hover:bg-white text-stone-800 p-1.5 rounded-full shadow-md transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:scale-110 active:scale-95"
+                aria-label="Previous image"
+                style={{ minWidth: 32, minHeight: 32 }}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Next Button */}
+              <button
+                onClick={handleNextImage}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 bg-white/80 hover:bg-white text-stone-800 p-1.5 rounded-full shadow-md transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 hover:scale-110 active:scale-95"
+                aria-label="Next image"
+                style={{ minWidth: 32, minHeight: 32 }}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+
+              {/* Dot Indicators */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 bg-black/30 backdrop-blur-md px-2.5 py-1.5 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                {images.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full transition-all duration-200",
+                      idx === currentImageIndex ? "bg-white w-3" : "bg-white/50"
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-2 z-10">
@@ -174,7 +227,13 @@ export function ProductCard({ product, highlight, priority }: ProductCardProps) 
           {/* Mobile Add to Cart (visible only on mobile) */}
           {mounted && (
             <div className="md:hidden mt-3 gap-2 flex">
-              <Button variant="outline" size="sm" className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-11 font-semibold" onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/product/${product.slug}`); }}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-stone-200 text-deep-forest hover:bg-stone-50 h-11 font-semibold text-xs"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/product/${product.slug}`); }}
+                style={{ minHeight: 44 }}
+              >
                 View Details
               </Button>
             </div>

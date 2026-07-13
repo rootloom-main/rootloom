@@ -9,12 +9,13 @@ const addressSchema = z.object({
     full_name: z.string().min(1, 'Full name is required'),
     phone: z.string().min(10, 'Phone number must be at least 10 digits'),
     address_line1: z.string().min(1, 'Address Line 1 is required'),
-    address_line2: z.string().optional(),
+    address_line2: z.string().optional().or(z.literal('')),
     city: z.string().min(1, 'City is required'),
     state: z.string().min(1, 'State is required'),
     postal_code: z.string().min(1, 'Postal code is required'),
     country: z.string().default('India'),
     is_default: z.boolean().default(false),
+    type: z.string().default('Home'),
 });
 
 export type AddressFormData = z.infer<typeof addressSchema>;
@@ -64,6 +65,7 @@ export async function addAddress(data: AddressFormData) {
         .from('addresses')
         .insert({
             ...data,
+            address_line2: data.address_line2 || null,
             user_id: user.id
         })
         .select()
@@ -75,6 +77,7 @@ export async function addAddress(data: AddressFormData) {
     }
 
     revalidatePath('/account/addresses');
+    revalidatePath('/account');
     return { success: true, message: 'Address added successfully', data: newAddress };
 }
 
@@ -101,7 +104,11 @@ export async function updateAddress(id: string, data: AddressFormData) {
 
     const { data: updatedAddress, error } = await supabase
         .from('addresses')
-        .update(data)
+        .update({
+            ...data,
+            address_line2: data.address_line2 || null,
+            updated_at: new Date().toISOString()
+        })
         .eq('id', id)
         .eq('user_id', user.id)
         .select()
@@ -113,6 +120,7 @@ export async function updateAddress(id: string, data: AddressFormData) {
     }
 
     revalidatePath('/account/addresses');
+    revalidatePath('/account');
     return { success: true, message: 'Address updated successfully', data: updatedAddress };
 }
 
@@ -136,6 +144,7 @@ export async function deleteAddress(id: string) {
     }
 
     revalidatePath('/account/addresses');
+    revalidatePath('/account');
     return { success: true, message: 'Address deleted successfully' };
 }
 
@@ -147,16 +156,16 @@ export async function setDefaultAddress(id: string) {
         return { success: false, message: 'Unauthorized' };
     }
 
-    // 1. Unset all
+    // Unset all first
     await supabase
         .from('addresses')
         .update({ is_default: false })
         .eq('user_id', user.id);
 
-    // 2. Set new default
+    // Set target as default
     const { error } = await supabase
         .from('addresses')
-        .update({ is_default: true })
+        .update({ is_default: true, updated_at: new Date().toISOString() })
         .eq('id', id)
         .eq('user_id', user.id);
 
@@ -166,5 +175,6 @@ export async function setDefaultAddress(id: string) {
     }
 
     revalidatePath('/account/addresses');
-    return { success: true, message: 'Default address updated' };
+    revalidatePath('/account');
+    return { success: true, message: 'Default address updated successfully' };
 }

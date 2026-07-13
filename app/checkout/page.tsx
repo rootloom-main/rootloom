@@ -11,17 +11,14 @@ import { getProductPrice } from '@/lib/utils/pricing';
 import { toast } from 'sonner';
 import { Loader2, Check, Plus, ShieldCheck, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { Checkbox } from '@/components/ui/checkbox';
 import { addAddress, updateAddress, getAddresses, deleteAddress, setDefaultAddress } from '@/lib/actions/address';
-import { usePostHog } from 'posthog-js/react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { PaymentMethodCard } from '@/components/checkout/payment-method-card';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+import Link from 'next/link';
+import { CheckoutProgressIndicator } from '@/components/checkout/checkout-progress-indicator';
+import { openRazorpayCheckout } from '@/lib/payments/client';
 
 interface Address {
   id?: string;
@@ -34,6 +31,7 @@ interface Address {
   postal_code: string;
   country: string;
   is_default: boolean;
+  type?: string | null;
 }
 
 type CheckoutStep = 'address' | 'summary' | 'payment';
@@ -41,30 +39,106 @@ type CheckoutStep = 'address' | 'summary' | 'payment';
 export default function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { cart, cartCount, clearCart, selectedItemIds, refreshCart } = useCart();
-  const { user, loading: authLoading } = useAuth();
-  const posthog = usePostHog();
-  const rzpInstance = useRef<any>(null);
+  const { cart, cartCount, clearCart, selectedItemIds, refreshCart, isLoading, setCheckoutLocked } = useCart();
+  const { user, loading: authLoading, openLoginModal } = useAuth();
+  const rzpInstance = useRef<{ open: () => void; on: (event: string, callback: (response: any) => void) => void; close: () => void } | null>(null);
 
-  // Filter cart to only selected items
-  const selectedCart = useMemo(() => 
-    cart.filter(item => selectedItemIds.includes(item.id)), 
+  // ── Checkout source: BUY_NOW vs CART ──────────────────────────────────
+  const [checkoutSource, setCheckoutSource] = useState<'BUY_NOW' | 'CART'>('CART');
+  const [isCheckoutSourceReady, setIsCheckoutSourceReady] = useState(false);
+  const [buyNowItem, setBuyNowItem] = useState<{
+    productId: string;
+    variantId: string;
+    quantity: number;
+    price: number;
+    name: string;
+    image: string;
+    size: string;
+    color: string;
+  } | null>(null);
+
+  // Filter cart to only selected items (used for CART source only)
+  const selectedCart = useMemo(() =>
+    cart.filter(item => selectedItemIds.includes(item.id)),
     [cart, selectedItemIds]
   );
 
+  const [retryOrder, setRetryOrder] = useState<any>(null);
+  const [retryOrderError, setRetryOrderError] = useState<string | null>(null);
+  const retryOrderId = searchParams?.get('order_id');
+  const isRetryCheckout = searchParams?.get('retry') === 'true';
+  const recoveredVia = searchParams?.get('recovered_via');
+  const retryCount = Number(searchParams?.get('retry_count') || '0');
+
+  const displayItems = useMemo(() => {
+    if (retryOrder) {
+      return retryOrder.order_items.map((item: any) => ({
+        id: item.id,
+        quantity: item.quantity,
+        price: Number(item.price),
+        product: {
+          name: item.product?.name || 'Product',
+          product_images: item.product?.product_images || [],
+        },
+        variant: {
+          size: item.variant?.size,
+          color: item.variant?.color,
+        }
+      }));
+    }
+    // BUY_NOW: show only the single buy-now item
+    if (checkoutSource === 'BUY_NOW' && buyNowItem) {
+      return [{
+        id: 'buy_now',
+        quantity: buyNowItem.quantity,
+        price: buyNowItem.price,
+        product: {
+          name: buyNowItem.name,
+          product_images: buyNowItem.image ? [{ image_url: buyNowItem.image }] : [],
+        },
+        variant: {
+          size: buyNowItem.size,
+          color: buyNowItem.color,
+        }
+      }];
+    }
+    // CART: show selected cart items
+    return selectedCart.map((item: any) => ({
+      id: item.id,
+      quantity: item.quantity,
+      price: getProductPrice(item.product, item.variant),
+      product: {
+        name: item.product?.name || 'Product',
+        product_images: item.product?.product_images || [],
+      },
+      variant: {
+        size: item.variant?.size,
+        color: item.variant?.color,
+      }
+    }));
+  }, [retryOrder, checkoutSource, buyNowItem, selectedCart]);
+
   const [loading, setLoading] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<'online_connecting' | 'cod_processing' | null>(null);
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('address');
   const [completedSteps, setCompletedSteps] = useState({
     address: false,
     summary: false,
   });
 
-  const paymentHasFailed = useRef(false);
+  const checkoutSnapshotRef = useRef<{
+    selectedItemIds: string[];
+    addressId: string | undefined;
+    couponCode: string | undefined;
+    subtotal: number;
+    shipping: number;
+    total: number;
+  } | null>(null);
 
-  const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
   const [isAddingNewAddress, setIsAddingNewAddress] = useState(false);
+  const [saveToProfile, setSaveToProfile] = useState(true);
 
   const [address, setAddress] = useState<Address>({
     full_name: '',
@@ -80,76 +154,126 @@ export default function CheckoutPage() {
 
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [hasLoadedAddresses, setHasLoadedAddresses] = useState(false);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
 
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; id: string } | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
-  // Totals - Using selectedCart
-  const subtotal = useMemo(() => selectedCart.reduce((total, item) => {
-    const price = getProductPrice(item.product, item.variant);
-    return total + price * item.quantity;
-  }, 0), [selectedCart]);
+  // Totals — computed from the active source only
+  const subtotal = useMemo(() => {
+    if (checkoutSource === 'BUY_NOW' && buyNowItem) {
+      return buyNowItem.price * buyNowItem.quantity;
+    }
+    return selectedCart.reduce((total, item) => {
+      const price = getProductPrice(item.product, item.variant);
+      return total + price * item.quantity;
+    }, 0);
+  }, [checkoutSource, buyNowItem, selectedCart]);
 
   const shipping = subtotal > 999 ? 0 : 50;
   const total = Math.round(Math.max(0, subtotal + shipping - discount));
 
-  // Protected Count
-  const selectedCount = selectedCart.reduce((total, item) => total + item.quantity, 0);
+  const selectedCount = checkoutSource === 'BUY_NOW' && buyNowItem
+    ? buyNowItem.quantity
+    : selectedCart.reduce((total, item) => total + item.quantity, 0);
+
+  const displaySubtotal = retryOrder ? Number(retryOrder.subtotal) : subtotal;
+  const displayShipping = retryOrder ? Number(retryOrder.shipping_cost) : shipping;
+  const displayDiscount = retryOrder ? Number(retryOrder.discount_amount) : discount;
+  const displayTotal = retryOrder ? Number(retryOrder.total) : total;
+  const displayCount = retryOrder
+    ? retryOrder.order_items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+    : selectedCount;
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login?next=/checkout');
-    }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (!authLoading && user && selectedCount === 0 && !isProcessingPayment) {
-      router.push('/cart');
-      toast.error('Please select items to checkout');
-    }
-  }, [user, authLoading, selectedCount, router, isProcessingPayment]);
-
-  useEffect(() => {
-    // If Razorpay is already loaded (e.g. navigating back), mark ready immediately
-    if (window.Razorpay) {
-      setScriptLoaded(true);
-    } else {
-      // Only inject script once — check if already in DOM
-      const existing = document.querySelector('script[src*="checkout.razorpay.com"]');
-      if (existing) {
-        // Script tag exists — listen in case it's still loading
-        existing.addEventListener('load', () => setScriptLoaded(true));
-      } else {
-        const script = document.createElement('script');
-        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-        script.async = true;
-        script.onload = () => setScriptLoaded(true);
-        document.body.appendChild(script);
+    // Read Buy Now item from sessionStorage before locking checkout
+    const source = searchParams?.get('source');
+    const shouldLockCart = source !== 'BUY_NOW';
+    if (source === 'BUY_NOW') {
+      try {
+        const stored = sessionStorage.getItem('rootloom_buy_now_item');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (
+            !parsed?.productId ||
+            !parsed?.variantId ||
+            !Number.isFinite(Number(parsed?.quantity)) ||
+            Number(parsed.quantity) <= 0 ||
+            !Number.isFinite(Number(parsed?.price))
+          ) {
+            throw new Error('Invalid Buy Now item');
+          }
+          setBuyNowItem(parsed);
+          setCheckoutSource('BUY_NOW');
+          sessionStorage.removeItem('rootloom_buy_now_item');
+        } else {
+          // No item in storage — redirect back
+          toast.error('Your Buy Now session expired. Please try again.');
+          router.push('/cart');
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to read Buy Now item', e);
+        sessionStorage.removeItem('rootloom_buy_now_item');
+        toast.error('Unable to start Buy Now checkout. Please try again.');
+        router.push('/cart');
+        return;
       }
+    } else {
+      setCheckoutSource('CART');
     }
 
-    // Handle retry deep-linking
-    const isRetry = searchParams?.get('retry') === 'true';
-    if (isRetry && !authLoading && user && cartCount > 0) {
-      setCompletedSteps({ address: true, summary: true });
-      setCheckoutStep('payment');
+    setIsCheckoutSourceReady(true);
+
+    if (shouldLockCart) {
+      setCheckoutLocked(true);
     }
+
+    // Preload Razorpay SDK script in background
+    import('@/lib/payments/client').then(({ loadRazorpaySdk }) => {
+      loadRazorpaySdk().catch((err) => console.error('Failed to preload Razorpay SDK:', err));
+    }).catch(() => {});
 
     return () => {
+      if (shouldLockCart) {
+        setCheckoutLocked(false);
+      }
       if (rzpInstance.current) {
         try {
           rzpInstance.current.close();
-        } catch (e) {}
+        } catch (e) {
+          console.error('Failed to close Razorpay instance on unmount:', e);
+        }
       }
     };
-  }, [searchParams, authLoading, user, cartCount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Load saved address
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const currentUrl = window.location.pathname + window.location.search;
+      openLoginModal(currentUrl, undefined, 'checkout');
+    }
+  }, [user, authLoading, openLoginModal]);
+
+  // Guard: CART checkout with no items → redirect to cart
+  // Guard: BUY_NOW with no buyNowItem is handled in the sessionStorage useEffect above
+  useEffect(() => {
+    if (!retryOrderId && isCheckoutSourceReady && !authLoading && !isLoading && user && !isProcessingPayment) {
+      if (checkoutSource === 'CART' && selectedCount === 0) {
+        router.push('/cart');
+        toast.error('Please select items to checkout');
+      }
+    }
+  }, [user, authLoading, isLoading, selectedCount, router, isProcessingPayment, retryOrderId, checkoutSource, isCheckoutSourceReady]);
+
+  // Load saved addresses
   useEffect(() => {
     const fetchAddresses = async () => {
-      if (user) {
+      if (user && user.id !== loadedUserId) {
         const data = await getAddresses();
         if (data && data.length > 0) {
           setSavedAddresses(data);
@@ -158,13 +282,68 @@ export default function CheckoutPage() {
           setAddress(defaultAddr);
         } else {
           setIsAddingNewAddress(true);
+          // Prefill from user profile / user metadata
+          const profileName = user.user_metadata?.full_name || '';
+          const profilePhone = user.phone || user.user_metadata?.phone || '';
+          const cleanPhone = profilePhone.replace(/\D/g, '').slice(-10);
+          setAddress(prev => ({
+            ...prev,
+            full_name: prev.full_name || profileName,
+            phone: prev.phone || cleanPhone
+          }));
         }
+        setLoadedUserId(user.id);
+        setHasLoadedAddresses(true);
       }
-    }
-    if (!authLoading && user) {
+    };
+    if (!authLoading && user && user.id !== loadedUserId) {
       fetchAddresses();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, loadedUserId]);
+
+  // Load retry order if ID is provided
+  useEffect(() => {
+    if (retryOrderId) {
+      setLoading(true);
+      (async () => {
+        try {
+          const { getOrderForRetry } = await import('./actions');
+          const result = await getOrderForRetry(retryOrderId);
+          if (result.success && result.order) {
+            setRetryOrder(result.order);
+            if (result.order.shipping_address) {
+              setAddress({
+                ...result.order.shipping_address,
+                address_line2: result.order.shipping_address.address_line2 || ''
+              });
+              setSelectedAddressId(result.order.shipping_address.id);
+            }
+            setCompletedSteps({ address: true, summary: true });
+            setCheckoutStep('payment');
+          } else {
+            setRetryOrderError(result.message || 'Failed to load order for retry');
+          }
+        } catch (e) {
+          setRetryOrderError('Failed to load order details');
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [retryOrderId]);
+
+  useEffect(() => {
+    const isCodRetry = searchParams?.get('cod') === 'true';
+    if (!authLoading && user && hasLoadedAddresses && (retryOrderId || cartCount > 0)) {
+      if (isCodRetry) {
+        setPaymentMethod('cod');
+      }
+      if ((isRetryCheckout || isCodRetry) && address.id) {
+        setCompletedSteps({ address: true, summary: true });
+        setCheckoutStep('payment');
+      }
+    }
+  }, [searchParams, authLoading, user, hasLoadedAddresses, cartCount, address.id, retryOrderId, isRetryCheckout]);
 
   const handleSelectSavedAddress = (addr: any) => {
     setSelectedAddressId(addr.id);
@@ -192,12 +371,14 @@ export default function CheckoutPage() {
 
   const saveOrUpdateAddress = async () => {
     if (address.id && !isAddingNewAddress) {
-      return address; // Already saved
+      return address;
     }
-
     if (address.id && isAddingNewAddress) {
-      // Editing an existing address
-      const res = await updateAddress(address.id, address);
+      const res = await updateAddress(address.id, {
+        ...address,
+        type: address.type || 'Home',
+        address_line2: address.address_line2 || '',
+      });
       if (res.success && res.data) {
         setSavedAddresses(savedAddresses.map(a => a.id === address.id ? res.data : a));
         setIsAddingNewAddress(false);
@@ -207,9 +388,11 @@ export default function CheckoutPage() {
       if (res.message) toast.error(res.message);
       return null;
     }
-
-    // Adding a brand new address
-    const res = await addAddress(address);
+    const res = await addAddress({
+      ...address,
+      type: address.type || 'Home',
+      address_line2: address.address_line2 || '',
+    });
     if (res.success && res.data) {
       setSavedAddresses([...savedAddresses, res.data]);
       setIsAddingNewAddress(false);
@@ -256,19 +439,30 @@ export default function CheckoutPage() {
 
   const handleDeliverHere = async () => {
     if (isAddingNewAddress && !validateForm()) return;
-
     setLoading(true);
     const savedAddr = await saveOrUpdateAddress();
-    setLoading(false);
-
     if (savedAddr) {
+      // Auto-save name and phone to user profile if checkbox is checked (only when adding/editing)
+      if (isAddingNewAddress && saveToProfile) {
+        try {
+          const { updateProfile } = await import('@/lib/actions/profile');
+          const pData = new FormData();
+          pData.append('fullName', savedAddr.full_name);
+          pData.append('phone', savedAddr.phone);
+          await updateProfile(null, pData);
+        } catch (err) {
+          console.error('Failed to auto-save profile details:', err);
+        }
+      }
+
       setAddress(savedAddr);
       setCompletedSteps(prev => ({ ...prev, address: true }));
       setCheckoutStep('summary');
-      toast.success("Delivery address saved");
+      toast.success('Delivery address saved');
     } else {
-      toast.error("Failed to save address details");
+      toast.error('Failed to save address details');
     }
+    setLoading(false);
   };
 
   const handleApplyCoupon = async () => {
@@ -287,7 +481,7 @@ export default function CheckoutPage() {
         toast.error(result.message || 'Invalid coupon');
       }
     } catch (err) {
-      toast.error("Failed to apply coupon");
+      toast.error('Failed to apply coupon');
     } finally {
       setCouponLoading(false);
     }
@@ -299,148 +493,263 @@ export default function CheckoutPage() {
   };
 
   const processPayment = async () => {
-    setLoading(true);
-    setIsProcessingPayment(true);
-    paymentHasFailed.current = false;
-    try {
-      if (paymentMethod === 'cod') {
-        await handleCOD();
-        return;
-      }
+    if (!address.id) {
+      setCheckoutStep('address');
+      toast.error('Please choose a delivery address before payment.');
+      return;
+    }
 
-      const response = await fetch('/api/razorpay/create-order', {
+    const checkoutSnapshot = {
+      selectedItemIds: retryOrder
+        ? retryOrder.order_items.map((item: any) => item.id)
+        : checkoutSource === 'CART'
+          ? selectedCart.map(item => item.id)
+          : [],
+      addressId: address.id,
+      couponCode: retryOrder ? retryOrder.coupon_code : appliedCoupon?.code,
+      subtotal: displaySubtotal,
+      shipping: displayShipping,
+      total: displayTotal,
+    };
+    checkoutSnapshotRef.current = checkoutSnapshot;
+
+    if (paymentMethod === 'cod') {
+      await handleCOD();
+      return;
+    }
+
+    await handleOnlinePayment();
+  };
+
+  const handleOnlinePayment = async () => {
+    setIsProcessingPayment(true);
+    setProcessingStatus('online_connecting');
+
+    try {
+      const response = await fetch('/api/payments/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amount: total,
-          currency: 'INR',
-          couponCode: appliedCoupon?.code,
-          addressId: address.id,
-          selectedItemIds: selectedItemIds,
-          isPartialCheckout: true
+          selectedItemIds: retryOrder ? undefined : (checkoutSource === 'CART' ? selectedCart.map(item => item.id) : undefined),
+          addressId: retryOrder ? undefined : address.id,
+          couponCode: retryOrder ? undefined : appliedCoupon?.code,
+          orderId: retryOrderId || undefined,
+          checkoutSource: checkoutSource,
+          buyNowItem: checkoutSource === 'BUY_NOW' ? buyNowItem : undefined,
         }),
       });
 
-      const orderData = await response.json();
-      if (!orderData.success) throw new Error(orderData.message || 'Failed to create order');
+      const data = await response.json().catch(() => null);
+      const checkout = data?.checkout;
+      if (
+        !response.ok ||
+        !data?.success ||
+        !checkout?.publicKey ||
+        !checkout?.providerOrderId ||
+        !checkout?.orderId ||
+        !Number.isFinite(Number(checkout?.amount))
+      ) {
+        toast.error('Payment could not be started. Please try again.');
+        setIsProcessingPayment(false);
+        setProcessingStatus(null);
+        return;
+      }
 
-      // PHASE 3: Open Razorpay Direct (Integrated in Overlay)
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
-        currency: orderData.order.currency,
-        name: 'Root&Loom',
-        description: 'Rooted in Vibes. Loomed for the Journey.',
-        order_id: orderData.order.id,
-        handler: async function (response: any) {
-          setIsProcessingPayment(true);
-          try {
-            const verifyResponse = await fetch('/api/razorpay/verify-payment', {
+      rzpInstance.current = await openRazorpayCheckout({
+        key: checkout.publicKey,
+        amount: Math.round(Number(checkout.amount) * 100),
+        currency: checkout.currency,
+        name: 'Root & Loom',
+        description: `Order ${checkout.orderNumber}`,
+        order_id: checkout.providerOrderId,
+        prefill: {
+          name: checkout.customer?.name,
+          email: checkout.customer?.email,
+          contact: address.phone || checkout.customer?.contact || undefined,
+        },
+        notes: {
+          order_id: checkout.orderId,
+        },
+        theme: {
+          color: '#1F2F26',
+        },
+        modal: {
+          ondismiss: async () => {
+            if (rzpInstance.current) {
+              try { rzpInstance.current.close(); } catch (e) {}
+            }
+            await fetch('/api/payments/failure', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                addressId: address.id,
-                couponCode: appliedCoupon?.code,
+                providerOrderId: checkout.providerOrderId,
+                reason: 'cancelled',
               }),
             });
-
-            const verifyData = await verifyResponse.json();
-            if (verifyData.success) {
-              await refreshCart();
-              router.push(`/checkout/success?orderNumber=${verifyData.orderNumber}`);
-            } else {
-              toast.error(verifyData.message || 'Verification failed');
-              setIsProcessingPayment(false);
-              setLoading(false);
+            window.location.href = `/checkout/failed?order_id=${checkout.orderId}&reason=cancelled&message=${encodeURIComponent('Payment was cancelled by the user')}&amount=${checkout.amount}`;
+          },
+        },
+        onPaymentFailed: async (failureResponse) => {
+          if (rzpInstance.current) {
+            try { rzpInstance.current.close(); } catch (e) {}
+          }
+          await fetch('/api/payments/failure', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              providerOrderId: failureResponse?.error?.metadata?.order_id || checkout.providerOrderId,
+              providerPaymentId: failureResponse?.error?.metadata?.payment_id || null,
+              reason: failureResponse?.error?.reason || failureResponse?.error?.description || 'payment_failed',
+            }),
+          });
+          const payId = failureResponse?.error?.metadata?.payment_id || '';
+          const code = failureResponse?.error?.code || '';
+          const msg = failureResponse?.error?.description || 'Payment failed';
+          window.location.href = `/checkout/failed?order_id=${checkout.orderId}&payment_id=${payId}&code=${code}&reason=failed&message=${encodeURIComponent(msg)}&amount=${checkout.amount}`;
+        },
+        handler: async (paymentResponse) => {
+          if (rzpInstance.current) {
+            try { rzpInstance.current.close(); } catch (e) {}
+          }
+          try {
+            const verifyResponse = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(paymentResponse),
+            });
+            const verifyData = await verifyResponse.json().catch(() => null);
+            if (!verifyResponse.ok || !verifyData?.success || !verifyData?.order?.orderNumber) {
+              window.location.href = `/checkout/failed?order_id=${checkout.orderId}&payment_id=${paymentResponse.razorpay_payment_id}&reason=verification_failed&message=${encodeURIComponent('Payment verification failed')}&amount=${checkout.amount}`;
+              return;
             }
-          } catch (error) {
-            console.error('Verification Error:', error);
-            setIsProcessingPayment(false);
-            setLoading(false);
-            router.push('/checkout/failed?reason=network_error');
+
+            // Save last_checkout telemetry metadata
+            if (user) {
+              const { createClient } = await import('@/lib/supabase/client');
+              const supabaseClient = createClient();
+              await supabaseClient
+                .from('profiles')
+                .update({ last_checkout: new Date().toISOString() })
+                .eq('id', user.id);
+            }
+
+            refreshCart({ broadcast: true }).catch((error) => {
+              console.error('Failed to refresh cart after online payment success:', error);
+            });
+            sessionStorage.removeItem('rootloom_buy_now_item');
+            const successUrl = new URL('/checkout/success', window.location.origin);
+            successUrl.searchParams.set('orderNumber', verifyData.order.orderNumber);
+            window.location.href = successUrl.toString();
+          } catch (e: any) {
+            window.location.href = `/checkout/failed?order_id=${checkout.orderId}&reason=network_error&message=${encodeURIComponent(e.message || 'Network error during verification')}&amount=${checkout.amount}`;
           }
         },
-        modal: {
-          ondismiss: () => {
-             setIsProcessingPayment(false);
-             setLoading(false);
-             router.push('/checkout/failed?reason=cancelled');
-          },
-          escape: false,
-          backdropclose: false
-        },
-        prefill: {
-          name: address.full_name,
-          email: user?.email || '',
-          contact: address.phone,
-        },
-        theme: { color: '#1F2F26' },
-        retry: { enabled: false }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzpInstance.current = rzp;
-      
-      rzp.on('payment.failed', function (response: any) {
-          setIsProcessingPayment(false);
-          setLoading(false);
-          router.replace(`/checkout/failed?reason=${response.error.code}`);
       });
-
-      rzp.open();
-
     } catch (error: any) {
-      console.error('Payment Error:', error);
-      toast.error(error.message || 'Payment error');
+      toast.error('Payment could not be started. Please try again.');
       setIsProcessingPayment(false);
-      setLoading(false);
+      setProcessingStatus(null);
     }
   };
 
   const handleCOD = async () => {
+    if (isProcessingPayment) {
+      return;
+    }
+
     setIsProcessingPayment(true);
-    setLoading(true);
+    setProcessingStatus('cod_processing');
     try {
       const response = await fetch('/api/checkout/cod', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selectedItemIds: selectedItemIds,
-          addressId: address.id,
-          subtotal, shipping_cost: shipping, total,
-          couponCode: appliedCoupon?.code,
-          isPartialCheckout: true // Signal partial cleanup
+          selectedItemIds: checkoutSource === 'CART'
+            ? (checkoutSnapshotRef.current?.selectedItemIds || selectedCart.map(item => item.id))
+            : undefined,
+          addressId: checkoutSnapshotRef.current?.addressId || address.id,
+          subtotal: checkoutSnapshotRef.current?.subtotal || subtotal,
+          shipping_cost: checkoutSnapshotRef.current?.shipping || shipping,
+          total: checkoutSnapshotRef.current?.total || total,
+          couponCode: checkoutSnapshotRef.current?.couponCode || appliedCoupon?.code,
+          isPartialCheckout: true,
+          orderId: retryOrderId || null,
+          checkoutSource,
+          buyNowItem: checkoutSource === 'BUY_NOW' ? buyNowItem : undefined,
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        // Option A: Refresh cart instead of clearCart() to keep unselected items
-        await refreshCart();
-        router.push(`/checkout/success?orderNumber=${data.orderNumber}`);
+        // Save last_checkout telemetry metadata
+        if (user) {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabaseClient = createClient();
+          await supabaseClient
+            .from('profiles')
+            .update({ last_checkout: new Date().toISOString() })
+            .eq('id', user.id);
+        }
+
+        refreshCart({ broadcast: true }).catch((error) => {
+          console.error('Failed to refresh cart after COD success:', error);
+        });
+        sessionStorage.removeItem('rootloom_buy_now_item');
+        const successUrl = new URL('/checkout/success', window.location.origin);
+        successUrl.searchParams.set('orderNumber', data.orderNumber);
+        if (recoveredVia) {
+          successUrl.searchParams.set('recovered_via', recoveredVia);
+        }
+        if (retryCount > 0) {
+          successUrl.searchParams.set('retry_count', String(retryCount));
+        }
+        router.replace(`${successUrl.pathname}${successUrl.search}`);
       } else {
         throw new Error(data.message);
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || 'Failed to place order. Please try again.');
       setIsProcessingPayment(false);
-      setLoading(false);
+      setProcessingStatus(null);
     }
   };
 
-  if (authLoading || (selectedCount === 0 && !isProcessingPayment)) {
+  if (retryOrderError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stone-50">
-        <Loader2 className="w-8 h-8 animate-spin text-deep-forest" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-stone-100 shadow-sm p-8 text-center space-y-4">
+          <ShieldCheck className="h-12 w-12 text-red-500 mx-auto" />
+          <h1 className="text-2xl font-serif font-bold text-stone-900">Order Error</h1>
+          <p className="text-stone-500 font-medium text-sm leading-relaxed">{retryOrderError}</p>
+          <Button asChild className="w-full bg-deep-forest hover:bg-deep-forest/90 text-white font-bold rounded-xl h-12">
+            <Link href="/account/orders">Back to Orders</Link>
+          </Button>
+        </div>
       </div>
-    )
+    );
+  }
+
+  if (authLoading || !user || loading || !isCheckoutSourceReady || (!retryOrderId && checkoutSource === 'CART' && selectedCount === 0 && !isProcessingPayment)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-deep-forest" />
+        {!user && !authLoading && (
+          <div className="text-center space-y-2">
+            <p className="text-stone-600 font-medium">Please log in to continue checkout.</p>
+            <Button onClick={() => openLoginModal(window.location.pathname + window.location.search, undefined, 'checkout')} className="bg-deep-forest text-white rounded-full">
+              Open Login Window
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="bg-stone-100 min-h-screen pb-20 pt-8">
+      <div className="container max-w-5xl mx-auto px-4 mb-6">
+        <CheckoutProgressIndicator currentStep={checkoutStep === 'payment' ? 'payment' : 'address'} />
+      </div>
       <div className="container max-w-5xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
         {/* Main Accordion Flow */}
@@ -464,19 +773,26 @@ export default function CheckoutPage() {
           <div className="bg-white shadow-sm rounded-sm overflow-hidden">
             <div className={cn("px-4 py-3 flex items-center justify-between", checkoutStep === 'address' ? 'bg-deep-forest text-white' : 'bg-white')}>
               <div className="flex items-center gap-4">
-                <span className={cn("px-2 py-0.5 rounded text-sm font-bold shadow-sm transition-colors", checkoutStep === 'address' ? 'bg-white text-deep-forest' : completedSteps.address ? 'bg-stone-200 text-stone-500' : 'bg-stone-200 text-stone-500')}>2</span>
-                <h2 className={cn("font-bold font-serif uppercase tracking-widest text-sm flex items-center transition-colors", checkoutStep === 'address' ? 'text-white' : completedSteps.address ? 'text-gray-500' : 'text-gray-500')}>
+                <span className={cn("px-2 py-0.5 rounded text-sm font-bold shadow-sm transition-colors", checkoutStep === 'address' ? 'bg-white text-deep-forest' : 'bg-stone-200 text-stone-500')}>2</span>
+                <h2 className={cn("font-bold font-serif uppercase tracking-widest text-sm flex items-center transition-colors", checkoutStep === 'address' ? 'text-white' : 'text-gray-500')}>
                   DELIVERY ADDRESS {completedSteps.address && <Check className="ml-2 h-4 w-4 text-green-600 font-bold" />}
                 </h2>
               </div>
               {completedSteps.address && checkoutStep !== 'address' && (
-                <Button variant="ghost" size="sm" onClick={() => setCheckoutStep('address')} className="text-deep-forest font-bold uppercase text-xs tracking-wider border border-deep-forest/20 hover:bg-deep-forest/5">CHANGE</Button>
+                <Button disabled={isProcessingPayment} variant="ghost" size="sm" onClick={() => setCheckoutStep('address')} className="text-deep-forest font-bold uppercase text-xs tracking-wider border border-deep-forest/20 hover:bg-deep-forest/5">CHANGE</Button>
               )}
             </div>
 
             {checkoutStep === 'address' && (
               <div className="p-6 bg-white border-t border-stone-100">
-                {!isAddingNewAddress && savedAddresses.length > 0 ? (
+                {!hasLoadedAddresses ? (
+                  <div className="space-y-4 animate-pulse">
+                    <div className="h-28 bg-stone-50 border border-stone-100 rounded-xl flex items-center justify-center p-4 shadow-sm">
+                      <Loader2 className="h-5 w-5 animate-spin text-stone-400 mr-3" />
+                      <span className="text-stone-500 text-sm font-medium">Fetching saved addresses...</span>
+                    </div>
+                  </div>
+                ) : !isAddingNewAddress && savedAddresses.length > 0 ? (
                   <div className="space-y-4">
                     {savedAddresses.map(addr => (
                       <label key={addr.id} className={cn("flex gap-4 p-4 border rounded-md cursor-pointer transition-all", selectedAddressId === addr.id ? "bg-stone-50 border-deep-forest/40" : "border-stone-200 hover:bg-stone-50/50")}>
@@ -519,10 +835,7 @@ export default function CheckoutPage() {
                     ))}
                     {savedAddresses.length < 3 && (
                       <Button variant="outline" onClick={() => {
-                        setAddress({
-                          full_name: '', phone: '', address_line1: '', address_line2: '',
-                          city: '', state: '', postal_code: '', country: 'India', is_default: false
-                        });
+                        setAddress({ full_name: '', phone: '', address_line1: '', address_line2: '', city: '', state: '', postal_code: '', country: 'India', is_default: false });
                         setIsAddingNewAddress(true);
                       }} className="w-full h-12 border-dashed border-stone-300 text-deep-forest font-bold uppercase tracking-wider text-xs">
                         <Plus className="mr-2 h-4 w-4" /> Add a new address
@@ -566,6 +879,17 @@ export default function CheckoutPage() {
                         <Label className="text-xs uppercase font-bold tracking-wider text-stone-500">Pincode</Label>
                         <Input name="postal_code" value={address.postal_code} onChange={handleInputChange} maxLength={6} className="h-12 bg-white" />
                       </div>
+                      <div className="md:col-span-2 flex items-center space-x-2 mt-2">
+                        <Checkbox 
+                          id="save-to-profile" 
+                          checked={saveToProfile} 
+                          onCheckedChange={(checked) => setSaveToProfile(!!checked)}
+                          className="h-4 w-4 border-stone-300 data-[state=checked]:bg-deep-forest data-[state=checked]:border-deep-forest"
+                        />
+                        <label htmlFor="save-to-profile" className="text-xs font-semibold text-stone-600 select-none cursor-pointer">
+                          Save this information to my profile for faster future checkout
+                        </label>
+                      </div>
                     </div>
                     <div className="mt-6 flex gap-4">
                       <Button
@@ -594,20 +918,20 @@ export default function CheckoutPage() {
           <div className="bg-white shadow-sm rounded-sm overflow-hidden">
             <div className={cn("px-4 py-3 flex items-center justify-between", checkoutStep === 'summary' ? 'bg-deep-forest text-white' : 'bg-white')}>
               <div className="flex items-center gap-4">
-                <span className={cn("px-2 py-0.5 rounded text-sm font-bold shadow-sm transition-colors", checkoutStep === 'summary' ? 'bg-white text-deep-forest' : completedSteps.summary ? 'bg-stone-200 text-stone-500' : 'bg-stone-200 text-stone-500')}>3</span>
-                <h2 className={cn("font-bold font-serif uppercase tracking-widest text-sm flex items-center transition-colors", checkoutStep === 'summary' ? 'text-white' : completedSteps.summary ? 'text-gray-500' : 'text-gray-500')}>
+                <span className={cn("px-2 py-0.5 rounded text-sm font-bold shadow-sm transition-colors", checkoutStep === 'summary' ? 'bg-white text-deep-forest' : 'bg-stone-200 text-stone-500')}>3</span>
+                <h2 className={cn("font-bold font-serif uppercase tracking-widest text-sm flex items-center transition-colors", checkoutStep === 'summary' ? 'text-white' : 'text-gray-500')}>
                   ORDER SUMMARY {completedSteps.summary && <Check className="ml-2 h-4 w-4 text-green-600 font-bold" />}
                 </h2>
               </div>
               {completedSteps.summary && checkoutStep !== 'summary' && (
-                <Button variant="ghost" size="sm" onClick={() => setCheckoutStep('summary')} className="text-deep-forest font-bold uppercase text-xs tracking-wider border border-deep-forest/20 hover:bg-deep-forest/5">CHANGE</Button>
+                <Button disabled={isProcessingPayment} variant="ghost" size="sm" onClick={() => setCheckoutStep('summary')} className="text-deep-forest font-bold uppercase text-xs tracking-wider border border-deep-forest/20 hover:bg-deep-forest/5">CHANGE</Button>
               )}
             </div>
 
             {checkoutStep === 'summary' && (
               <div className="bg-white border-t border-stone-100">
                 <div className="divide-y divide-stone-100">
-                  {selectedCart.map(item => (
+                  {displayItems.map((item: any) => (
                     <div key={item.id} className="p-6 flex gap-6">
                       <div className="h-[120px] w-[90px] relative flex-shrink-0 bg-stone-50 border border-stone-100 rounded p-2">
                         {item.product.product_images?.[0] ? (
@@ -626,14 +950,14 @@ export default function CheckoutPage() {
                           <span>Qty: <span className="font-bold text-stone-900 border px-2 py-0.5 rounded bg-stone-50">{item.quantity}</span></span>
                         </div>
                         <div className="mt-4 flex items-center gap-3">
-                          <span className="font-bold text-xl text-stone-900">{formatPrice((item.product.base_price + (item.variant.price_adjustment || 0)) * item.quantity)}</span>
+                          <span className="font-bold text-xl text-stone-900">{formatPrice(item.price * item.quantity)}</span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Inline Coupon Code */}
+                {/* Coupon Code */}
                 <div className="p-6 bg-stone-50/50 border-t border-stone-100">
                   {!appliedCoupon ? (
                     <div className="flex gap-3 max-w-sm">
@@ -683,36 +1007,39 @@ export default function CheckoutPage() {
               <div className="p-6 bg-white border-t border-stone-100">
                 <div className="grid gap-4 max-w-xl">
                   <PaymentMethodCard
-                    id="razorpay"
+                    id="online"
                     title="UPI, Cards & Netbanking"
-                    description="Secure online payment via Razorpay. Supported: PhonePe, GPay, Visa, Mastercard, AMEX."
-                    icon="razorpay"
-                    selected={paymentMethod === 'razorpay'}
-                    onSelect={() => setPaymentMethod('razorpay')}
+                    description="Pay securely online through our payment partner."
+                    icon="online"
+                    selected={paymentMethod === 'online'}
+                    disabled={isProcessingPayment}
+                    onSelect={() => !isProcessingPayment && setPaymentMethod('online')}
                   />
+
                   <PaymentMethodCard
                     id="cod"
                     title="Cash on Delivery"
                     description="Pay in cash or via UPI to the delivery executive when the order reaches your door."
                     icon="cod"
                     selected={paymentMethod === 'cod'}
-                    onSelect={() => setPaymentMethod('cod')}
+                    disabled={isProcessingPayment}
+                    onSelect={() => !isProcessingPayment && setPaymentMethod('cod')}
                   />
                 </div>
 
                 <div className="mt-8 border-t border-stone-100 pt-6">
                   <Button
                     onClick={processPayment}
-                    disabled={loading}
+                    disabled={isProcessingPayment || loading || !address.id}
                     className="bg-deep-forest hover:bg-deep-forest/90 text-white rounded-sm px-12 font-bold text-lg tracking-wide h-14 shadow-lg flex items-center w-full sm:w-auto justify-center"
                   >
-                    {loading ? (
+                    {isProcessingPayment ? (
                       <>
                         <Loader2 className="mr-3 h-6 w-6 animate-spin" />
                         PROCESSING...
                       </>
                     ) : (
-                      `PLACE ORDER & PAY ${formatPrice(total)}`
+                      `PLACE ORDER & PAY ${formatPrice(displayTotal)}`
                     )}
                   </Button>
                 </div>
@@ -730,26 +1057,26 @@ export default function CheckoutPage() {
             </div>
             <div className="p-5 space-y-4">
               <div className="flex justify-between text-stone-900 font-medium">
-                <span>Price ({selectedCount} {selectedCount === 1 ? 'item' : 'items'})</span>
-                <span>{formatPrice(subtotal)}</span>
+                <span>Price ({displayCount} {displayCount === 1 ? 'item' : 'items'})</span>
+                <span>{formatPrice(displaySubtotal)}</span>
               </div>
-              {discount > 0 && (
+              {displayDiscount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium">
                   <span>Discount</span>
-                  <span>-{formatPrice(discount)}</span>
+                  <span>-{formatPrice(displayDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-stone-900 font-medium border-b border-dashed border-stone-200 pb-5">
                 <span>Delivery Charges</span>
-                <span className="text-green-600 font-bold">{shipping === 0 ? 'FREE' : formatPrice(shipping)}</span>
+                <span className="text-green-600 font-bold">{displayShipping === 0 ? 'FREE' : formatPrice(displayShipping)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-stone-900 pt-1">
                 <span>Total Payable</span>
-                <span>{formatPrice(total)}</span>
+                <span>{formatPrice(displayTotal)}</span>
               </div>
-              {discount > 0 && (
+              {displayDiscount > 0 && (
                 <div className="text-green-700 font-bold tracking-wide text-xs pt-3 mt-1 text-center bg-green-50 p-2 rounded">
-                  Your Total Savings on this order {formatPrice(discount)}
+                  Your Total Savings on this order {formatPrice(displayDiscount)}
                 </div>
               )}
             </div>
@@ -761,12 +1088,13 @@ export default function CheckoutPage() {
 
       </div>
 
+      {/* Processing overlay — COD only */}
       {isProcessingPayment && (
-        <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white p-6">
+        <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white/80 backdrop-blur-md p-6">
           <div className="absolute top-0 left-0 w-full h-1 bg-stone-100">
             <div className="h-full bg-deep-forest animate-shimmer w-1/3" />
           </div>
-          
+
           <div className="flex flex-col items-center max-w-sm w-full">
             <div className="mb-12">
               <h1 className="text-3xl font-serif tracking-[0.2em] text-deep-forest font-bold">ROOT<span className="text-stone-300">&</span>LOOM</h1>
@@ -778,9 +1106,11 @@ export default function CheckoutPage() {
             </div>
 
             <div className="text-center space-y-4">
-              <h2 className="text-xl font-serif font-bold text-stone-900">Processing Payment</h2>
+              <h2 className="text-xl font-serif font-bold text-stone-900">
+                {processingStatus === 'online_connecting' ? 'Connecting securely...' : 'Placing Your Order...'}
+              </h2>
               <p className="text-stone-500 text-sm leading-relaxed font-medium">
-                Please do not refresh this page. We are connecting you to our secure payment gateway.
+                Please wait. Do not refresh this page.
               </p>
             </div>
           </div>

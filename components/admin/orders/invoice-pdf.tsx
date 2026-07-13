@@ -181,6 +181,7 @@ export const InvoicePDF = ({ order }: InvoiceProps) => {
                 <View style={styles.header}>
                     <View style={styles.logoContainer}>
                         {/* Using a data URI for the logo to ensure PDF generation works without absolute URL fetching issues */}
+                        {/* eslint-disable-next-line jsx-a11y/alt-text */}
                         <Image src="/images/logo.png" style={{ height: 40, width: 'auto' }} />
                     </View>
                     <View style={styles.invoiceMeta}>

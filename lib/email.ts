@@ -30,7 +30,7 @@ export const sendOrderConfirmationEmail = async ({
 }: OrderEmailProps) => {
   if (!resend) {
     console.warn('RESEND_API_KEY is not set. Skipping email sending.');
-    return;
+    return { success: false, error: 'Email service not configured' };
   }
 
   try {
@@ -141,7 +141,7 @@ export const sendAbandonedCartEmail = async ({
   items,
   tier = '1hr'
 }: AbandonedCartEmailProps) => {
-  if (!resend) return;
+  if (!resend) return { success: false, error: 'Email service not configured' };
 
   let subject = 'You left something behind! 🛒';
   let headerText = 'We noticed you left some items in your cart. They are selling out fast!';

@@ -9,6 +9,8 @@ const profileSchema = z.object({
     fullName: z.string().min(2, 'Name must be at least 2 characters'),
     phone: z.string().optional().or(z.literal('')),
     email: z.string().email('Please enter a valid email').optional().or(z.literal('')),
+    dob: z.string().optional().or(z.literal('')),
+    gender: z.string().optional().or(z.literal('')),
 });
 
 export async function updateProfile(prevState: any, formData: FormData) {
@@ -20,26 +22,32 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
 
     const rawData = {
-        fullName: formData.get('fullName') as string,
-        phone: formData.get('phone') as string,
-        email: formData.get('email') as string,
+        fullName: (formData.get('fullName') as string) || '',
+        phone: (formData.get('phone') as string) || '',
+        email: (formData.get('email') as string) || '',
+        dob: (formData.get('dob') as string) || '',
+        gender: (formData.get('gender') as string) || '',
     };
 
     const validatedFields = profileSchema.safeParse(rawData);
 
     if (!validatedFields.success) {
+        const fieldErrors = validatedFields.error.flatten().fieldErrors;
         return {
             success: false,
-            message: validatedFields.error.flatten().fieldErrors.fullName?.[0]
-                || validatedFields.error.flatten().fieldErrors.email?.[0]
+            message: fieldErrors.fullName?.[0]
+                || fieldErrors.email?.[0]
+                || fieldErrors.phone?.[0]
+                || fieldErrors.dob?.[0]
+                || fieldErrors.gender?.[0]
                 || 'Invalid input',
         };
     }
 
-    const { fullName, phone, email } = validatedFields.data;
+    const { fullName, phone, email, dob, gender } = validatedFields.data;
 
     // 1. Check for duplicate phone number
-    if (phone) {
+    if (phone && formData.has('phone')) {
         const { data: existingPhoneProfile } = await supabase
             .from('profiles')
             .select('id')
@@ -56,7 +64,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
 
     // 2. Check for duplicate email
-    if (email) {
+    if (email && formData.has('email')) {
         const { data: existingEmailProfile } = await supabase
             .from('profiles')
             .select('id')
@@ -72,15 +80,31 @@ export async function updateProfile(prevState: any, formData: FormData) {
         }
     }
 
-    // 3. Update the profiles table (name + phone + email)
+    // 3. Update the profiles table dynamically
+    const updateData: any = {
+        full_name: fullName,
+        updated_at: new Date().toISOString(),
+    };
+
+    if (formData.has('phone')) {
+        updateData.phone = phone || null;
+    }
+
+    if (formData.has('email')) {
+        updateData.email = email || null;
+    }
+
+    if (formData.has('dob')) {
+        updateData.dob = dob || null;
+    }
+
+    if (formData.has('gender')) {
+        updateData.gender = gender || null;
+    }
+
     const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-            full_name: fullName,
-            phone: phone || null,
-            email: email || null,
-            updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', user.id);
 
     if (profileError) {

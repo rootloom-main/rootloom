@@ -70,7 +70,7 @@ export function AdminReviewsTable({ reviews = [] }: AdminReviewsTableProps) {
                                 <TableCell colSpan={7} className="text-center py-12 text-stone-500">
                                     <div className="flex flex-col items-center justify-center space-y-2">
                                         <Search className="h-8 w-8 text-stone-300" />
-                                        <p>No reviews found matching "{searchQuery}".</p>
+                                        <p>No reviews found matching &quot;{searchQuery}&quot;.</p>
                                     </div>
                                 </TableCell>
                             </TableRow>

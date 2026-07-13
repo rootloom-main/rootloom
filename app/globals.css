@@ -1,68 +1,38 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
+/* ============================================================
+   MOBILE-FIRST GLOBAL FOUNDATION
+   ============================================================ */
 
 @layer base {
   :root {
-    /* Primary Background: Heirloom White */
     --background: 42 33% 95%;
-    /* Primary Text: Deep Forest */
     --foreground: 146 21% 15%;
-
-    /* Card Background: Stone Paper */
     --card: 42 27% 93%;
     --card-foreground: 146 21% 15%;
-
-    /* Popover: Heirloom White */
     --popover: 42 33% 95%;
     --popover-foreground: 146 21% 15%;
-
-    /* Primary: Deep Forest (for strong interactions) */
     --primary: 146 21% 15%;
     --primary-foreground: 42 33% 95%;
-
-    /* Secondary: Stone Paper */
     --secondary: 42 27% 93%;
     --secondary-foreground: 146 21% 15%;
-
-    /* Muted: Linen Wash */
     --muted: 38 28% 91%;
-    /* Muted Text: Moss Olive */
     --muted-foreground: 108 8% 39%;
-
-    /* Accent: Raw Clay (used for links/highlights) */
     --accent: 27 28% 43%;
     --accent-foreground: 42 33% 95%;
-
-    /* Destructive: Burnt Umber */
     --destructive: 12 44% 33%;
     --destructive-foreground: 42 33% 95%;
-
-    /* Border: Woven Sand */
     --border: 39 21% 83%;
-    /* Input: Woven Sand */
     --input: 39 21% 83%;
-
-    /* Ring: Oxide Brown */
     --ring: 25 24% 35%;
-
     --radius: 0.5rem;
+    --sat: env(safe-area-inset-top, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
   }
-
 
   .dark {
     --background: 42 33% 95%;
@@ -85,29 +55,74 @@
     --input: 39 21% 83%;
     --ring: 25 24% 35%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1.5;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
-  
-  @media (min-width: 640px) {
-    body {
-       font-size: 16px;
-    }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  button,
+  a,
+  [role="button"],
+  [role="link"] {
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
   }
 }
+
 @layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .pb-nav-safe { padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
+  .scroll-pb-nav { scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
+  .touch-target { min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; }
+  .pb-bottom-nav { padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+
   @keyframes micro-bounce {
     0%, 100% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-2px) scale(1.02); }
   }
   .animate-micro-bounce { animation: micro-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+  @keyframes slide-up {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .animate-slide-up { animation: slide-up 0.25s cubic-bezier(0.32, 0.72, 0, 1); }
+
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 }

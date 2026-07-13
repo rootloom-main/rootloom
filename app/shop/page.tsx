@@ -10,9 +10,10 @@ export const revalidate = 60; // Cache this route for 60 seconds
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }): Promise<Metadata> {
-  const category = (searchParams.category as string) || null;
+  const resolvedSearchParams = await searchParams;
+  const category = (resolvedSearchParams.category as string) || null;
   const title = category 
     ? `${category.charAt(0).toUpperCase() + category.slice(1)} Streetwear & Aesthetic Clothing | Root & Loom`
     : 'Shop All Aesthetic Streetwear & Drops | Root & Loom';
@@ -35,21 +36,22 @@ import { ProductService } from '@/lib/services/productService';
 export default async function ShopPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const categories = await ProductService.getCategories();
-  const category = (searchParams.category as string) || null;
+  const category = (resolvedSearchParams.category as string) || null;
   const heading = category 
     ? `${category.charAt(0).toUpperCase() + category.slice(1)}'s Streetwear Collection`
     : 'All Streetwear & Drops';
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl md:text-5xl font-black mb-8 uppercase tracking-tighter italic text-deep-forest">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl md:text-5xl font-black mb-4 sm:mb-8 uppercase tracking-tighter italic text-deep-forest">
         {heading}
       </h1>
       <Suspense fallback={<ProductGridSkeleton count={8} />}>
-        <ShopContent categories={categories || []} searchParams={searchParams} />
+        <ShopContent categories={categories || []} searchParams={resolvedSearchParams} />
       </Suspense>
     </div>
   );

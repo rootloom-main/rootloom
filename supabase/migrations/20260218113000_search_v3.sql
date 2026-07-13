@@ -51,8 +51,10 @@ BEGIN
     FROM products p
     JOIN categories c ON p.category_id = c.id
     WHERE
+      p.deleted_at IS NULL
+      AND p.status = 'active'
       -- Text Matching
-      (
+      AND (
         query_text IS NULL OR query_text = '' OR
         p.name ILIKE '%' || query_text || '%' OR
         p.description ILIKE '%' || query_text || '%' OR

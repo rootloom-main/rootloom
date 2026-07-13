@@ -39,13 +39,15 @@ interface CartContextType {
   cartCount: number;
   selectedItemIds: string[];
   isLoading: boolean;
+  isCheckoutLocked: boolean;
   addToCart: (item: { productId: string, variantId: string, quantity: number, productData?: any, variantData?: any }) => Promise<void>;
   updateCartItem: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   toggleItemSelection: (itemId: string) => void;
   toggleAllSelection: () => void;
   clearCart: () => Promise<void>;
-  refreshCart: () => Promise<void>;
+  refreshCart: (options?: { broadcast?: boolean }) => Promise<void>;
+  setCheckoutLocked: (locked: boolean) => void;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   // Derived values for UI
@@ -62,11 +64,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCheckoutLocked, setIsCheckoutLocked] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMiniCartOpen, setIsMiniCartOpen] = useState(false);
   const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
   const { user, loading: authLoading } = useAuth();
   const prevUser = useRef(user);
+  const cartSyncChannelRef = useRef<BroadcastChannel | null>(null);
+
+  const broadcastCartSync = () => {
+    if (typeof window === 'undefined') return;
+
+    const payload = String(Date.now());
+    localStorage.setItem('rootloom_cart_sync', payload);
+    cartSyncChannelRef.current?.postMessage({ type: 'cart_sync', payload });
+  };
 
   // Persistence: Load from localStorage
   useEffect(() => {
@@ -166,6 +178,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleExternalCartSync = () => {
+      fetchCart();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'rootloom_cart_sync') {
+        handleExternalCartSync();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
+    if ('BroadcastChannel' in window) {
+      const channel = new BroadcastChannel('rootloom_cart_sync');
+      cartSyncChannelRef.current = channel;
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'cart_sync') {
+          handleExternalCartSync();
+        }
+      };
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      cartSyncChannelRef.current?.close();
+      cartSyncChannelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+
+  const notifyCheckoutLocked = () => {
+    toast.warning('Your cart is locked while checkout is in progress.');
+  };
+
   const addToCart = async (arg1: any, arg2?: string, arg3?: number) => {
     let productId: string;
     let variantId: string;
@@ -183,25 +232,38 @@ export function CartProvider({ children }: { children: ReactNode }) {
       quantity = arg3 || 1;
     }
 
-    console.log('[CartProvider] addToCart:', { productId, variantId, quantity });
+    const requestedQuantity = Math.max(1, Math.floor(Number(quantity) || 1));
 
     if (!user) {
       // Guest Logic
       const guestCart = getGuestCart();
       const existing = guestCart.find((i: any) => i.variant_id === variantId);
+      const availableStock =
+        Number(variantData?.stock || 0) - Number(variantData?.reserved_quantity || 0);
 
       let updatedCart;
       if (existing) {
+        const nextQuantity = existing.quantity + requestedQuantity;
+        if (availableStock > 0 && nextQuantity > availableStock) {
+          toast.error(`Only ${availableStock} left in stock.`);
+          return;
+        }
+
         updatedCart = guestCart.map((i: any) =>
-          i.variant_id === variantId ? { ...i, quantity: i.quantity + quantity } : i
+          i.variant_id === variantId ? { ...i, quantity: nextQuantity } : i
         );
       } else {
+        if (availableStock > 0 && requestedQuantity > availableStock) {
+          toast.error(`Only ${availableStock} left in stock.`);
+          return;
+        }
+
         // We need some preview data for the UI if it's a new guest item
         const newItem = {
           id: Math.random().toString(36).substr(2, 9),
           product_id: productId,
           variant_id: variantId,
-          quantity,
+          quantity: requestedQuantity,
           product: productData,
           variant: variantData
         };
@@ -219,7 +281,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const result = await addToCartAction(productId, variantId, quantity);
+      const result = await addToCartAction(productId, variantId, requestedQuantity);
       if (!result.success) throw new Error(result.message);
 
       await fetchCart();
@@ -238,6 +300,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateCartItem = async (itemId: string, quantity: number) => {
+    if (isCheckoutLocked) {
+      notifyCheckoutLocked();
+      return;
+    }
+
     if (!user) {
       const guestCart = getGuestCart();
       const updated = guestCart.map((i: any) =>
@@ -260,6 +327,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const removeFromCart = async (itemId: string) => {
+    if (isCheckoutLocked) {
+      notifyCheckoutLocked();
+      return;
+    }
+
     if (!user) {
       const guestCart = getGuestCart();
       const updated = guestCart.filter((i: any) => i.id !== itemId);
@@ -282,6 +354,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleItemSelection = (itemId: string) => {
+    if (isCheckoutLocked) {
+      notifyCheckoutLocked();
+      return;
+    }
+
     setSelectedItemIds(prev => 
       prev.includes(itemId) 
         ? prev.filter(id => id !== itemId) 
@@ -290,6 +367,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleAllSelection = () => {
+    if (isCheckoutLocked) {
+      notifyCheckoutLocked();
+      return;
+    }
+
     const allIds = cart.map(item => item.id);
     if (selectedItemIds.length === allIds.length) {
       setSelectedItemIds([]);
@@ -299,6 +381,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const clearCart = async () => {
+    if (isCheckoutLocked) {
+      notifyCheckoutLocked();
+      return;
+    }
+
     if (!user) {
       saveGuestCart([]);
       setCart([]);
@@ -317,8 +404,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshCart = async () => {
+  const refreshCart = async (options?: { broadcast?: boolean }) => {
     await fetchCart();
+    if (options?.broadcast) {
+      broadcastCartSync();
+    }
   };
 
   // Derived Values
@@ -348,6 +438,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         cartCount,
         selectedItemIds,
         isLoading,
+        isCheckoutLocked,
         addToCart,
         updateCartItem,
         removeFromCart,
@@ -355,6 +446,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         toggleAllSelection,
         clearCart,
         refreshCart,
+        setCheckoutLocked: setIsCheckoutLocked,
         isCartOpen,
         setIsCartOpen,
         selectedCartItems,

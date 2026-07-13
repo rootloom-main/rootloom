@@ -13,7 +13,7 @@ export default function PrivacyPage() {
                 <p>Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">1. Information We Collect</h2>
-                <p>We collect information you provide directly to us when making a purchase, creating an account, or subscribing to our newsletter. This includes your name, email address, postal address, phone number, and payment information (processed securely through Razorpay).</p>
+                <p>We collect information you provide directly to us when making a purchase, creating an account, or subscribing to our newsletter. This includes your name, email address, postal address, phone number, and payment information (processed securely through our payment partner).</p>
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">2. How We Use Your Information</h2>
                 <p>We use the information we collect to fulfill your orders, process payments, communicate with you about your orders, and notify you about new products or offers if you have opted in to our marketing communications.</p>

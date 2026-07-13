@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { sanitizeRedirectPath } from '@/lib/utils/redirect';
 
 export const runtime = 'nodejs';
 
@@ -9,11 +10,11 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const token_hash = searchParams.get('token_hash');
     const type = searchParams.get('type') as any;
-    const next = searchParams.get('next') ?? '/';
+    const next = sanitizeRedirectPath(searchParams.get('next'), '/');
 
     if (code || (token_hash && type)) {
-        const cookieStore = cookies();
-        const response = NextResponse.redirect(`${origin}${next}`);
+        const cookieStore = await cookies();
+        let response = NextResponse.redirect(`${origin}${next}`);
 
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest) {
                         try {
                             cookiesToSet.forEach(({ name, value, options }) =>
                                 cookieStore.set(name, value, options)
+                            );
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                response.cookies.set(name, value, options)
                             );
                         } catch {
                             // Ignored if called from a Server Component

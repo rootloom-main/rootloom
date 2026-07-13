@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createAdminClient } from '@/lib/supabase/admin';
 import { getCache, setCache } from '@/lib/redis';
+import { profileAsync } from '@/lib/observability';
 
 /**
  * ProductService encapsulates business logic and Upstash Redis caching
@@ -11,8 +12,12 @@ export const ProductService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
-        const { data, error } = await supabase.from('categories').select('id, name, slug, image_url').order('name');
+        const supabase = createAdminClient();
+        const { data, error } = await profileAsync<any>(
+            'product.categories',
+            async () => supabase.from('categories').select('id, name, slug, image_url').order('name') as any,
+            { cache_key: cacheKey }
+        );
 
         if (error) {
             console.error('Failed to fetch categories:', error);
@@ -38,41 +43,50 @@ export const ProductService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         
         // Handle Fuzzy Search via RPC if query present
         if (params?.search) {
             // First, find matching IDs using the typo-tolerant RPC
-            const { data: searchResults, error: searchError } = await supabase.rpc('search_products', {
-                query_text: params.search,
-                filter_category_id: params?.categorySlug && params.categorySlug !== 'all' ? (await supabase.from('categories').select('id').eq('slug', params.categorySlug).single()).data?.id : null,
-                min_price: params?.minPrice,
-                max_price: params?.maxPrice,
-                sort_by: params?.sortBy === 'latest' ? 'newest' : (params?.sortBy === 'price-asc' ? 'price_asc' : (params?.sortBy === 'price-desc' ? 'price_desc' : 'relevance')),
-                limit_count: params?.limit || 50,
-                offset_count: 0
-            } as any);
+            const { data: searchResults, error: searchError } = await profileAsync<any>(
+                'product.search.rpc',
+                async () => supabase.rpc('search_products', {
+                    query_text: params.search,
+                    filter_category_id: params?.categorySlug && params.categorySlug !== 'all' ? (await supabase.from('categories').select('id').eq('slug', params.categorySlug).single()).data?.id : null,
+                    min_price: params?.minPrice,
+                    max_price: params?.maxPrice,
+                    sort_by: params?.sortBy === 'latest' ? 'newest' : (params?.sortBy === 'price-asc' ? 'price_asc' : (params?.sortBy === 'price-desc' ? 'price_desc' : 'relevance')),
+                    limit_count: params?.limit || 50,
+                    offset_count: 0
+                } as any),
+                { cache_key: cacheKey }
+            );
 
             if (searchError) {
                 console.error('Search RPC Error:', searchError);
             } else if (searchResults && searchResults.length > 0) {
                 const ids = searchResults.map((r: any) => r.id);
                 // Fetch full product details for these matching IDs
-                const { data: fullProducts, error: fullError } = await supabase
-                    .from('products')
-                    .select(`
-                        id, name, slug, base_price,
-                        category:categories(name, slug),
-                        product_images(image_url, alt_text, display_order),
-                        product_variants(id, size, color, stock, price_adjustment)
-                    `)
-                    .is('deleted_at', null)
-                    .in('id', ids);
+                const { data: fullProducts, error: fullError } = await profileAsync<any>(
+                    'product.search.fetch_products',
+                    async () => supabase
+                        .from('products')
+                        .select(`
+                            id, name, slug, base_price,
+                            category:categories(name, slug),
+                            product_images(image_url, alt_text, display_order),
+                            product_variants(id, size, color, stock, price_adjustment)
+                        `)
+                        .eq('status', 'active')
+                        .is('deleted_at', null)
+                        .in('id', ids),
+                    { result_count: ids.length }
+                );
                 
                 if (fullError) return [];
                 
                 // Re-sort to match RPC relevance order
-                const sorted = ids.map(id => fullProducts.find(p => p.id === id)).filter(Boolean);
+                const sorted = ids.map((id: any) => fullProducts.find((p: any) => p.id === id)).filter(Boolean);
                 
                 if (sorted.length > 0) {
                     await setCache(cacheKey, sorted, 900);
@@ -80,7 +94,7 @@ export const ProductService = {
                 }
             }
             
-            // If no results from RPC, fall back to ilike or return empty (RPC is better)
+            // If no results from RPC, return empty
             if (!searchResults || searchResults.length === 0) return [];
         }
 
@@ -89,7 +103,7 @@ export const ProductService = {
           category:categories!inner(name, slug),
           product_images(image_url, alt_text, display_order),
           product_variants(id, size, color, stock, price_adjustment)
-        `).is('deleted_at', null);
+        `).eq('status', 'active').is('deleted_at', null);
 
         if (params?.categorySlug && params.categorySlug !== 'all') {
             query = query.eq('category.slug', params.categorySlug);
@@ -121,7 +135,11 @@ export const ProductService = {
             query = query.limit(params.limit);
         }
 
-        const { data, error } = await query;
+        const { data, error } = await profileAsync<any>(
+            'product.list',
+            async () => query as any,
+            { cache_key: cacheKey, category: params?.categorySlug || 'all', sort: params?.sortBy || 'latest' }
+        );
         if (error) {
             console.error('Failed to fetch products:', error);
             return [];
@@ -139,18 +157,23 @@ export const ProductService = {
         const cached = await getCache<any>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
-        const { data, error } = await supabase
-            .from('products')
-            .select(`
-        id, name, slug, description, base_price, metadata,
-        category:categories(name, slug),
-        product_images(id, image_url, alt_text, display_order),
-        product_variants(id, size, color, stock, price_adjustment, sku)
-      `)
-            .eq('slug', slug)
-            .is('deleted_at', null)
-            .single();
+        const supabase = createAdminClient();
+        const { data, error } = await profileAsync<any>(
+            'product.by_slug',
+            async () => supabase
+                .from('products')
+                .select(`
+                    id, name, slug, description, base_price, metadata, category_id,
+                    category:categories(id, name, slug),
+                    product_images(id, image_url, alt_text, display_order),
+                    product_variants(id, size, color, stock, price_adjustment, sku)
+                `)
+                .eq('slug', slug)
+                .eq('status', 'active')
+                .is('deleted_at', null)
+                .single(),
+            { slug }
+        );
 
         if (error) return null;
 
@@ -166,7 +189,7 @@ export const ProductService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         let query = supabase
             .from('products')
             .select(`
@@ -175,15 +198,20 @@ export const ProductService = {
                 product_variants(id, size, color, stock, price_adjustment),
                 category:categories!inner(slug)
             `)
+            .eq('status', 'active')
             .is('deleted_at', null);
         
         if (categorySlug) {
             query = query.eq('category.slug', categorySlug);
         }
 
-        const { data, error } = await query
-            .order('created_at', { ascending: false })
-            .limit(limit);
+        const { data, error } = await profileAsync<any>(
+            'product.new_arrivals',
+            async () => query
+                .order('created_at', { ascending: false })
+                .limit(limit),
+            { cache_key: cacheKey, category: categorySlug || 'all' }
+        );
 
         if (error) {
             console.error('Failed to fetch new arrivals:', error);
@@ -198,7 +226,7 @@ export const ProductService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
         let query = supabase
             .from('products')
             .select(`
@@ -207,15 +235,20 @@ export const ProductService = {
                 product_variants(id, size, color, stock, price_adjustment),
                 category:categories!inner(slug)
             `)
+            .eq('status', 'active')
             .is('deleted_at', null);
 
         if (categorySlug) {
             query = query.eq('category.slug', categorySlug);
         }
 
-        const { data, error } = await query
-            .order('sales_count', { ascending: false })
-            .limit(limit);
+        const { data, error } = await profileAsync<any>(
+            'product.best_sellers',
+            async () => query
+                .order('sales_count', { ascending: false })
+                .limit(limit),
+            { cache_key: cacheKey, category: categorySlug || 'all' }
+        );
 
         if (error) {
             console.error('Failed to fetch best sellers:', error);
@@ -230,13 +263,18 @@ export const ProductService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
-        const { data, error } = await supabase
-            .from('products')
-            .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
-            .eq('featured', true)
-            .is('deleted_at', null)
-            .limit(limit);
+        const supabase = createAdminClient();
+        const { data, error } = await profileAsync<any>(
+            'product.featured',
+            async () => supabase
+                .from('products')
+                .select('id, name, slug, base_price, product_images(image_url, alt_text), product_variants(id, size, color, stock, price_adjustment)')
+                .eq('featured', true)
+                .eq('status', 'active')
+                .is('deleted_at', null)
+                .limit(limit),
+            { cache_key: cacheKey, limit }
+        );
 
         if (error) return [];
         if (data) await setCache(cacheKey, data, 900); // 15 mins

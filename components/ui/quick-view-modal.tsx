@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils/format';
@@ -40,17 +41,66 @@ interface QuickViewModalProps {
 
 export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalProps) {
     const { addToCart } = useCart();
+    const variants = product.product_variants || [];
+    const uniqueSizes = Array.from(new Set(variants.map((v) => v.size))).sort((a, b) => {
+        const sizeOrder: Record<string, number> = {
+            'xxs': 1, 'xs': 2, 's': 3, 'm': 4, 'l': 5, 'xl': 6,
+            'xxl': 7, '2xl': 7, 'xxxl': 8, '3xl': 8, '4xl': 9, '5xl': 10
+        };
+
+        const aClean = a.trim().toLowerCase();
+        const bClean = b.trim().toLowerCase();
+
+        const aNum = Number(aClean);
+        const bNum = Number(bClean);
+
+        const isANum = !isNaN(aNum) && aClean !== '';
+        const isBNum = !isNaN(bNum) && bClean !== '';
+
+        if (isANum && isBNum) {
+            return aNum - bNum;
+        }
+
+        if (isANum) return -1;
+        if (isBNum) return 1;
+
+        const aWeight = sizeOrder[aClean];
+        const bWeight = sizeOrder[bClean];
+
+        if (aWeight !== undefined && bWeight !== undefined) {
+            return aWeight - bWeight;
+        }
+
+        return aClean.localeCompare(bClean);
+    });
+    const uniqueColors = Array.from(new Set(variants.map((v) => v.color)));
+
+    // Preselect color from clicked product card name or fallback to first in-stock variant
+    const defaultVariant = variants.find((v) => v.stock > 0) || variants[0];
+    const getInitialColor = () => {
+        const matchingColor = uniqueColors.find(color => 
+            product.name.toLowerCase().includes(color.toLowerCase())
+        );
+        return matchingColor || (defaultVariant ? defaultVariant.color : '');
+    };
+
     const [selectedSize, setSelectedSize] = useState<string>('');
-    const [selectedColor, setSelectedColor] = useState<string>('');
+    const [selectedColor, setSelectedColor] = useState<string>(getInitialColor());
     const [isAdding, setIsAdding] = useState(false);
+
+    // Reset/initialize state whenever the modal opens
+    useEffect(() => {
+        if (open) {
+            setSelectedSize('');
+            setSelectedColor(getInitialColor());
+        }
+        // getInitialColor is derived from product data and should reset only when the modal opens for a new product.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, product]);
 
     const imageUrl = product.product_images?.[0]?.image_url || '/placeholder.png';
     const rating = 4.5;
     const reviewCount = product.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 50 + 10;
-
-    const variants = product.product_variants || [];
-    const uniqueSizes = Array.from(new Set(variants.map((v) => v.size)));
-    const uniqueColors = Array.from(new Set(variants.map((v) => v.color)));
 
     const selectedVariant = variants.find(
         (v) => v.size === selectedSize && v.color === selectedColor
@@ -61,12 +111,21 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
     const discount = calculateDiscountPercentage(finalPrice, mrp);
 
     const handleAddToCart = async () => {
-        if (!selectedSize || !selectedColor) {
-            toast.error('Please select size and color');
+        if (!selectedSize) {
+            toast.error('Please select a size.');
             return;
         }
 
-        if (!selectedVariant) {
+        if (!selectedColor) {
+            toast.error('Please select a color.');
+            return;
+        }
+
+        const variantToUse = variants.find(
+            (v) => v.size === selectedSize && v.color === selectedColor
+        );
+
+        if (!variantToUse) {
             toast.error('Selected variant not available');
             return;
         }
@@ -75,7 +134,7 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
         try {
             await addToCart({
                 productId: product.id,
-                variantId: selectedVariant.id,
+                variantId: variantToUse.id,
                 quantity: 1,
                 productData: {
                     name: product.name,
@@ -86,8 +145,8 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
                 variantData: {
                     size: selectedSize,
                     color: selectedColor,
-                    price_adjustment: selectedVariant.price_adjustment,
-                    stock: selectedVariant.stock
+                    price_adjustment: variantToUse.price_adjustment,
+                    stock: variantToUse.stock
                 }
             });
             onOpenChange(false);
@@ -176,25 +235,37 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
                             </div>
 
                             {/* Color Selector */}
-                            <div className="space-y-3">
-                                <Label className="text-[10px] font-bold tracking-widest uppercase text-stone-500">Select Color</Label>
-                                <div className="flex flex-wrap gap-2">
-                                    {uniqueColors.map((color) => (
-                                        <button
-                                            key={color}
-                                            onClick={() => setSelectedColor(color)}
-                                            className={cn(
-                                                "px-4 py-2 rounded-lg border-2 text-xs font-bold transition-all duration-200",
-                                                selectedColor === color
-                                                    ? "border-deep-forest bg-deep-forest/5 text-deep-forest shadow-sm"
-                                                    : "border-stone-100 bg-stone-50/50 text-stone-600 hover:border-stone-200"
-                                            )}
-                                        >
-                                            {color}
-                                        </button>
-                                    ))}
+                            {uniqueColors.length > 1 ? (
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-bold tracking-widest uppercase text-stone-500">Select Color</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {uniqueColors.map((color) => (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                onClick={() => setSelectedColor(color)}
+                                                className={cn(
+                                                    "px-4 py-2 rounded-lg border-2 text-xs font-bold transition-all duration-200",
+                                                    selectedColor === color
+                                                        ? "border-deep-forest bg-deep-forest/5 text-deep-forest shadow-sm"
+                                                        : "border-stone-100 bg-stone-50/50 text-stone-600 hover:border-stone-200"
+                                                )}
+                                            >
+                                                {color}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : uniqueColors.length === 1 ? (
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-bold tracking-widest uppercase text-stone-500">Color</Label>
+                                    <div>
+                                        <Badge className="bg-deep-forest/5 text-deep-forest hover:bg-deep-forest/5 border border-deep-forest/20 text-xs px-3 py-1.5 rounded-lg font-bold">
+                                            {uniqueColors[0]}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            ) : null}
 
                             {/* Stock Info */}
                             {selectedVariant && (

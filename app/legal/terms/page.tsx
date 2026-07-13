@@ -19,7 +19,7 @@ export default function TermsPage() {
                 <p>All purchases made through our website are subject to product availability. We may, in our sole discretion, limit or cancel the quantities offered on our website or restrict the sales of our products to any person, household, geographic region, or jurisdiction.</p>
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">3. Pricing and Payments</h2>
-                <p>Prices for our products are subject to change without notice. We process secure payments via Razorpay. We reserve the right to refuse any order you place with us.</p>
+                <p>Prices for our products are subject to change without notice. We process secure payments via our payment partner. We reserve the right to refuse any order you place with us.</p>
 
                 <h2 className="text-2xl font-bold text-stone-900 mt-8 mb-4">4. Intellectual Property</h2>
                 <p>The Site and its original content, features, and functionality are owned by Root & Loom and are protected by international copyright, trademark, patent, trade secret, and other intellectual property or proprietary rights laws.</p>

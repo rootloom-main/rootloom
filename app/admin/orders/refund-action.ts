@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
+import { releaseCouponUsageForOrder } from '@/lib/coupon-accounting';
 
 export async function processRefund(formData: FormData) {
     const supabase = await createClient() as any;
@@ -15,7 +16,6 @@ export async function processRefund(formData: FormData) {
         return { error: 'Order ID and refund amount are required' };
     }
 
-    // Verify Admin
     const user = await getCurrentUser();
     if (!user) return { error: 'Unauthorized' };
 
@@ -29,10 +29,9 @@ export async function processRefund(formData: FormData) {
         return { error: 'Forbidden' };
     }
 
-    // 1. Fetch the Order to get the payment ID
     const { data: order, error: orderError } = await adminSupabase
         .from('orders')
-        .select('payment_id, status')
+        .select('payment_id, status, refund_status')
         .eq('id', orderId)
         .single();
 
@@ -40,13 +39,12 @@ export async function processRefund(formData: FormData) {
         return { error: 'Order not found' };
     }
 
-    // 2. Update Order Status in Database (Manual Refund)
     const { error: updateError } = await adminSupabase
         .from('orders')
         .update({
             refund_status: 'processed',
             refund_amount: parseFloat(amount),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
         })
         .eq('id', orderId);
 
@@ -54,9 +52,13 @@ export async function processRefund(formData: FormData) {
         return { error: 'Refund completed but failed to update database status' };
     }
 
-    // 2. Restock Inventory if requested
+    if (order.refund_status !== 'processed') {
+        await releaseCouponUsageForOrder(adminSupabase as any, orderId).catch((error) => {
+            console.error('Failed to release coupon usage for refunded order', error);
+        });
+    }
+
     if (restock) {
-        // Fetch order items
         const { data: orderItems } = await adminSupabase
             .from('order_items')
             .select('variant_id, quantity')
@@ -64,19 +66,23 @@ export async function processRefund(formData: FormData) {
 
         if (orderItems) {
             for (const item of orderItems) {
-                // Increment stock
                 if (item.variant_id) {
                     const { error: stockError } = await adminSupabase.rpc('increment_stock', {
                         variant_id: item.variant_id,
-                        qty: item.quantity
+                        qty: item.quantity,
                     });
 
-                    // Fallback if rpc doesn't exist (it should from previous migrations, but let's be safe)
                     if (stockError) {
-                        // Manual fetch and update (race condition possible but acceptable for admin action)
-                        const { data: variant } = await supabase.from('product_variants').select('stock').eq('id', item.variant_id).single();
+                        const { data: variant } = await supabase
+                            .from('product_variants')
+                            .select('stock')
+                            .eq('id', item.variant_id)
+                            .single();
                         if (variant) {
-                            await supabase.from('product_variants').update({ stock: variant.stock + item.quantity }).eq('id', item.variant_id);
+                            await supabase
+                                .from('product_variants')
+                                .update({ stock: variant.stock + item.quantity })
+                                .eq('id', item.variant_id);
                         }
                     }
                 }

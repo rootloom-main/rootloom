@@ -12,3 +12,9 @@ ADD CONSTRAINT positive_stock CHECK (stock >= 0);
 -- NOTE: If the second constraint fails, it means you CURRENTLY have variants with negative stock.
 -- You must fix them before applying the constraint:
 -- UPDATE product_variants SET stock = 0 WHERE stock < 0;
+
+-- 3. Invoice Template Management System
+-- Run the full SQL schema script from the migration file located at:
+-- supabase/migrations/20260711090000_create_invoice_templates.sql
+-- This creates the invoice_templates, invoice_template_versions, invoices tables, and configures storage.
+

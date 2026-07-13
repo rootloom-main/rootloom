@@ -17,17 +17,18 @@ export async function POST(req: NextRequest) {
 
     const { couponCode, addressId } = await req.json();
 
-    // 1. Fetch Cart from DB
+    // 1. Fetch Cart from DB (filtering out soft-deleted products)
     const { data: cartItemsDB, error: cartError } = await supabase
       .from('cart_items')
       .select(`
           quantity,
           product_id,
           variant_id,
-          product:products(name, base_price),
-          variant:product_variants(price_adjustment, stock)
+          product:products!inner(name, base_price),
+          variant:product_variants!inner(price_adjustment, stock, reserved_quantity)
         `)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .is('products.deleted_at', null);
 
     if (cartError || !cartItemsDB || cartItemsDB.length === 0) {
       return NextResponse.json({ success: false, message: 'Cart is empty' }, { status: 400 });
@@ -41,10 +42,11 @@ export async function POST(req: NextRequest) {
       const product = Array.isArray(item.product) ? item.product[0] : item.product;
       const variant = Array.isArray(item.variant) ? item.variant[0] : item.variant;
 
-      if (!variant || variant.stock < item.quantity) {
+      const availableStock = Number(variant?.stock || 0) - Number(variant?.reserved_quantity || 0);
+      if (!variant || availableStock < item.quantity) {
         return NextResponse.json({ 
           success: false, 
-          message: `Not enough stock for ${product?.name || 'item'}. Only ${variant?.stock || 0} left.` 
+          message: `Not enough stock for ${product?.name || 'item'}. Only ${availableStock || 0} left.`
         }, { status: 400 });
       }
 

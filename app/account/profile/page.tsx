@@ -18,6 +18,12 @@ export default async function ProfilePage() {
         .eq('id', user.id)
         .single();
 
+    const { data: addresses } = await supabase
+        .from('addresses')
+        .select('is_default')
+        .eq('user_id', user.id);
+    const hasDefaultAddress = addresses ? addresses.some((a: any) => a.is_default) || addresses.length > 0 : false;
+
     return (
         <div className="max-w-3xl">
             <div className="mb-8">
@@ -31,7 +37,8 @@ export default async function ProfilePage() {
 
             <ProfileForm
                 user={{ email: user.email || null, phone: user.phone || null }}
-                profile={profile || { full_name: '', phone: '', email: '' }}
+                profile={profile || { full_name: '', phone: '', email: '', avatar_url: '' }}
+                hasDefaultAddress={hasDefaultAddress}
             />
         </div>
     );

@@ -103,7 +103,7 @@ export function HomeSectionRenderer({ sections, data }: HomeSectionRendererProps
                                                         </svg>
                                                     ))}
                                                 </div>
-                                                <p className="text-slate-bark italic mb-8 leading-relaxed">"{testimonial.content}"</p>
+                                                <p className="text-slate-bark italic mb-8 leading-relaxed">&quot;{testimonial.content}&quot;</p>
                                                 <div className="flex items-center gap-4">
                                                     {testimonial.image ? (
                                                         <div className="h-10 w-10 rounded-full overflow-hidden border border-stone-200">

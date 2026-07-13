@@ -19,34 +19,7 @@ import { CouponActions } from '@/components/admin/coupon-actions';
 export const dynamic = 'force-dynamic';
 
 export default async function CouponsPage() {
-    let user;
-    try {
-        user = await getCurrentUser();
-    } catch {
-        redirect('/auth/login');
-    }
-
-    if (!user) {
-        redirect('/auth/login');
-    }
-
     const supabase = await createSSRClient();
-
-    let profile: { role: string } | null = null;
-    try {
-        const { data } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-        profile = data as { role: string } | null;
-    } catch {
-        redirect('/');
-    }
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        redirect('/');
-    }
 
     let coupons: any[] = [];
     try {

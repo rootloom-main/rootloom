@@ -36,7 +36,7 @@ export async function createShippingLabel(shipment: ShipmentDetails): Promise<Sh
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    console.log('Generating label for order:', shipment.orderId);
+    // Placeholder: generate shipping label
 
     // Mock response
     const trackingNumber = `TRK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;

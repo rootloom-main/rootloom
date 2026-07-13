@@ -19,7 +19,7 @@ export default async function WishlistPage() {
         .from('wishlists')
         .select(`
             id,
-            product:products (
+            product:products!inner (
                 id,
                 name,
                 slug,
@@ -37,10 +37,11 @@ export default async function WishlistPage() {
             )
         `)
         .eq('user_id', user.id)
+        .is('products.deleted_at', null)
         .order('created_at', { ascending: false });
 
     // Filter out items where the product might have been deleted
-    const validWishlists = wishlists?.filter((item: any) => item.product !== null) || [];
+    const validWishlists = wishlists || [];
 
     return (
         <div className="container mx-auto px-4 py-8 md:py-12">

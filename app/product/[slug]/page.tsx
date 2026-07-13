@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
-import { createSSRClient } from '@/lib/utils/auth';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { ProductService } from '@/lib/services/productService';
 import { ProductDetails } from './product-details';
 import { Metadata } from 'next';
 import { ProductSchema, BreadcrumbSchema } from '@/components/seo/structured-data';
 import { getRelatedProducts } from '@/lib/data/recommendations';
 import NextDynamic from 'next/dynamic';
+import RecentlyViewed from '@/components/product/recently-viewed';
 
 const Reviews = NextDynamic(() => import('@/components/product/reviews'), {
   loading: () => <div className="h-40 animate-pulse bg-stone-100 rounded-xl" />
@@ -15,24 +16,21 @@ const RelatedProducts = NextDynamic(() => import('@/components/product/related-p
   loading: () => <div className="h-80 animate-pulse bg-stone-100 rounded-xl" />
 });
 
-const RecentlyViewed = NextDynamic(() => import('@/components/product/recently-viewed'), {
-  ssr: false
-});
-
 interface ProductPageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 900;
 
 export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
-  const supabase = await createSSRClient();
+  const { slug } = await params;
+  const supabase = createAdminClient();
   const { data: product } = await supabase
     .from('products')
     .select('name, description, product_images(image_url)')
-    .eq('slug', params.slug)
+    .eq('slug', slug)
     .single() as { data: any | null };
 
   if (!product) {
@@ -61,23 +59,16 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Slash } from 'lucide-react';
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const supabase = await createSSRClient();
+  const { slug } = await params;
+  const supabase = createAdminClient();
 
-  const [userResult, product] = await Promise.all([
-    supabase.auth.getUser(),
-    ProductService.getProductBySlug(params.slug),
-  ]);
-
-  const {
-    data: { user },
-  } = userResult;
+  const product = await ProductService.getProductBySlug(slug);
 
   if (!product) {
     notFound();
   }
 
-  // Fetch reviews, wishlist, and related products in parallel
-  const [reviewsResult, wishlistResult, relatedProducts] = await Promise.all([
+  const [{ data: reviews }, relatedProducts] = await Promise.all([
     supabase
       .from('reviews')
       .select(`
@@ -86,19 +77,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
     `)
       .eq('product_id', product.id)
       .order('created_at', { ascending: false }),
-    user
-      ? supabase
-        .from('wishlists')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('product_id', product.id)
-        .single()
-      : Promise.resolve({ data: null }),
     getRelatedProducts(product.id, product.category_id || product.category?.id),
   ]);
-
-  const reviews = reviewsResult.data;
-  const isWishlisted = !!wishlistResult.data;
   const hasStock = product.product_variants.some((v: any) => v.stock > 0);
 
   // Calculate Ratings
@@ -177,7 +157,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       <ProductDetails
         product={product}
-        isWishlisted={isWishlisted}
+        isWishlisted={false}
         averageRating={averageRating}
         totalReviews={totalReviews}
       />
@@ -185,7 +165,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <div className="container mx-auto px-4">
         <RelatedProducts products={relatedProducts} />
         <RecentlyViewed currentProductId={product.id} />
-        <Reviews productId={product.id} reviews={reviews || []} user={user} />
+        <Reviews productId={product.id} reviews={reviews || []} user={null} />
       </div>
     </div>
   );

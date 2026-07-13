@@ -6,15 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { formatPrice, formatDate } from '@/lib/utils/format';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, Package, MapPin, CreditCard } from 'lucide-react';
+import { ChevronLeft, Package, MapPin, CreditCard, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import { CancelOrderButton } from './cancel-order-button';
 
 export default async function OrderDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
   const user = await getCurrentUser();
 
@@ -55,7 +56,7 @@ export default async function OrderDetailPage({
       )
     `
     )
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
     .single()) as { data: any | null };
 
@@ -188,12 +189,20 @@ export default async function OrderDetailPage({
             </CardContent>
           </Card>
 
-          {/* Cancel Order Button */}
+          {/* Action Buttons */}
           {order.status !== 'delivered' && order.status !== 'cancelled' && (
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end gap-3 mt-4">
+              {order.payment_status !== 'completed' && (
+                <Button asChild className="bg-deep-forest hover:bg-deep-forest/90 text-white font-bold rounded-xl h-11 px-6 shadow-md">
+                  <Link href={`/checkout?order_id=${order.id}`}>
+                    Retry Payment
+                  </Link>
+                </Button>
+              )}
               <CancelOrderButton orderId={order.id} orderStatus={order.status} />
             </div>
           )}
+
 
           {/* Return Eligibility Section */}
           {order.status === 'delivered' && (
@@ -237,14 +246,31 @@ export default async function OrderDetailPage({
               )}
             </div>
           )}
-          {order.tracking_number && (
+          {(order.tracking_number || order.tracking_url) && (
             <Card>
               <CardHeader>
                 <CardTitle>Tracking Information</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">Tracking Number</p>
-                <p className="font-mono text-lg font-semibold">{order.tracking_number}</p>
+              <CardContent className="space-y-4">
+                {order.tracking_number && (
+                  <div>
+                    <p className="text-gray-600 mb-1">Tracking ID</p>
+                    <p className="font-mono text-lg font-semibold break-all">{order.tracking_number}</p>
+                  </div>
+                )}
+                {order.tracking_url && (
+                  <div>
+                    <p className="text-gray-600 mb-1">Tracking Link</p>
+                    <a
+                    href={order.tracking_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline font-semibold break-all flex items-center gap-1.5 mt-1"
+                  >
+                    Track Package <ExternalLink className="h-4 w-4" />
+                  </a>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

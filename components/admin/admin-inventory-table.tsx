@@ -10,7 +10,20 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { AlertTriangle, CheckCircle, Search } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Search, Plus, Trash } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { restockVariant } from '@/lib/actions/product';
 
 interface AdminInventoryTableProps {
     variants: any[];
@@ -58,15 +71,16 @@ export function AdminInventoryTable({ variants = [] }: AdminInventoryTableProps)
                             <TableHead>Variant Details</TableHead>
                             <TableHead className="text-right">Stock Level</TableHead>
                             <TableHead className="text-right">Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredVariants.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center py-12 text-stone-500">
+                                <TableCell colSpan={6} className="text-center py-12 text-stone-500">
                                     <div className="flex flex-col items-center justify-center space-y-2">
                                         <Search className="h-8 w-8 text-stone-300" />
-                                        <p>No inventory items found matching "{searchQuery}".</p>
+                                        <p>No inventory items found matching &quot;{searchQuery}&quot;.</p>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -99,6 +113,12 @@ export function AdminInventoryTable({ variants = [] }: AdminInventoryTableProps)
                                             </div>
                                         )}
                                     </TableCell>
+                                     <TableCell className="text-right">
+                                         <div className="flex justify-end gap-2">
+                                             <RestockButton variantId={variant.id} productName={variant.product?.name} />
+                                             <DeleteVariantButton variantId={variant.id} sku={variant.sku} />
+                                         </div>
+                                     </TableCell>
                                 </TableRow>
                             ))
                         )}
@@ -106,5 +126,107 @@ export function AdminInventoryTable({ variants = [] }: AdminInventoryTableProps)
                 </Table>
             </div>
         </div>
+    );
+}
+
+function RestockButton({ variantId, productName }: { variantId: string; productName: string }) {
+    const [open, setOpen] = useState(false);
+    const [quantity, setQuantity] = useState(1);
+    const [loading, setLoading] = useState(false);
+
+    const handleRestock = async () => {
+        setLoading(true);
+        try {
+            const result = await restockVariant(variantId, quantity);
+            if (result.success) {
+                toast.success(result.message);
+                setOpen(false);
+                setQuantity(1);
+            } else {
+                toast.error(result.message);
+            }
+        } catch (error) {
+            toast.error('An error occurred while restocking');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 border-stone-200 hover:border-deep-forest hover:text-deep-forest">
+                    <Plus className="h-3.5 w-3.5" />
+                    Restock
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Restock Product</DialogTitle>
+                    <DialogDescription>
+                        Add more items to the inventory for <strong>{productName}</strong>.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="quantity" className="text-right">
+                            Quantity
+                        </Label>
+                        <Input
+                            id="quantity"
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                            className="col-span-3"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                        Cancel
+                    </Button>
+                    <Button onClick={handleRestock} disabled={loading || quantity <= 0} className="bg-deep-forest text-white hover:bg-deep-forest/90">
+                        {loading ? 'Restocking...' : 'Confirm Restock'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function DeleteVariantButton({ variantId, sku }: { variantId: string; sku?: string }) {
+    const [loading, setLoading] = useState(false);
+
+    const handleDelete = async () => {
+        if (confirm(`Are you sure you want to permanently delete variant ${sku || ''}?`)) {
+            setLoading(true);
+            try {
+                const { deleteVariant } = await import('@/lib/actions/product');
+                const result = await deleteVariant(variantId);
+                if (result.success) {
+                    toast.success(result.message);
+                } else {
+                    toast.error(result.message);
+                }
+            } catch (error) {
+                toast.error('An error occurred while deleting variant');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    return (
+        <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            disabled={loading}
+            className="h-8 gap-1.5 border-stone-200 text-red-600 hover:border-red-600 hover:text-red-600 hover:bg-red-50"
+        >
+            <Trash className="h-3.5 w-3.5" />
+            Delete
+        </Button>
     );
 }

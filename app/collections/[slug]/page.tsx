@@ -10,11 +10,12 @@ import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params;
     const supabase = await createClient();
     const { data: collection } = await (supabase.from('collections' as unknown as any) as any)
         .select('name, description, seo_metadata')
-        .eq('slug', params.slug)
+        .eq('slug', slug)
         .single();
 
     if (!collection) return { title: 'Collection' };
@@ -180,10 +181,11 @@ async function CollectionContent({ slug }: { slug: string }) {
     );
 }
 
-export default function CollectionPage({ params }: { params: { slug: string } }) {
+export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
     return (
         <Suspense fallback={<div className="min-h-screen pt-20"><ProductGridSkeleton count={8} /></div>}>
-            <CollectionContent slug={params.slug} />
+            <CollectionContent slug={slug} />
         </Suspense>
     );
 }

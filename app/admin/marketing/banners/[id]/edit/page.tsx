@@ -78,6 +78,7 @@ export default function EditBannerPage() {
         };
 
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [bannerId]);
 
     const handleSubmit = async (e: React.FormEvent) => {

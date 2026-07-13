@@ -33,13 +33,13 @@ class InMemoryRateLimiter {
     }
 }
 
-// Memory fallback: 1000 reqs per minute for testing/unblocking
-const memoryLimiter = new InMemoryRateLimiter(1000, 60 * 1000);
+// Secure memory fallback: fail tight when Redis is unavailable.
+const memoryLimiter = new InMemoryRateLimiter(5, 60 * 1000);
 
-// Upstash limiter: 1000 reqs per minute Window
+// Upstash limiter: 5 reqs per minute window for auth-sensitive flows.
 const upstashLimiter = redis ? new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(1000, "1 m"),
+    limiter: Ratelimit.slidingWindow(5, "1 m"),
     analytics: true,
 }) : null;
 

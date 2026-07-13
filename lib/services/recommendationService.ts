@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCache, setCache } from '@/lib/redis';
+import { profileAsync } from '@/lib/observability';
 
 export const RecommendationService = {
     /**
@@ -11,25 +12,35 @@ export const RecommendationService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // Since get_trending_product_ids might not exist yet, we fetch top featured products 
         // or recently updated products to simulate trending behavior safely.
-        let { data: products, error } = await supabase
+        let { data: products, error } = await profileAsync<any>(
+            'recommendations.trending',
+            async () => supabase
             .from('products')
             .select('*, product_images(image_url, alt_text, display_order)')
             .eq('featured', true)
+            .eq('status', 'active')
             .is('deleted_at', null)
-            .limit(limit);
+            .limit(limit),
+            { cache_key: cacheKey, limit }
+        );
 
         if (error || !products || products.length === 0) {
             // Fallback to latest products
-            const { data: latest } = await supabase
+            const { data: latest } = await profileAsync<any>(
+                'recommendations.trending.latest_fallback',
+                async () => supabase
                 .from('products')
                 .select('*, product_images(image_url, alt_text, display_order)')
+                .eq('status', 'active')
                 .is('deleted_at', null)
                 .order('created_at', { ascending: false })
-                .limit(limit);
+                .limit(limit),
+                { limit }
+            );
             products = latest;
         }
 
@@ -49,15 +60,20 @@ export const RecommendationService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
-        const { data: products, error } = await supabase
+        const { data: products, error } = await profileAsync<any>(
+            'recommendations.by_category',
+            async () => supabase
             .from('products')
             .select('*, product_images(image_url, alt_text, display_order), product_variants(price_adjustment)')
             .eq('category_id', categoryId)
             .neq('id', excludeProductId)
+            .eq('status', 'active')
             .is('deleted_at', null)
-            .limit(limit);
+            .limit(limit),
+            { cache_key: cacheKey, category_id: categoryId }
+        );
 
         if (error) {
             console.error('Related Products Error:', error);
@@ -82,13 +98,18 @@ export const RecommendationService = {
         const cached = await getCache<any[]>(cacheKey);
         if (cached) return cached;
 
-        const supabase = await createClient();
-        const { data: products } = await supabase
+        const supabase = createAdminClient();
+        const { data: products } = await profileAsync<any>(
+            'recommendations.recent',
+            async () => supabase
             .from('products')
             .select('*, product_images(image_url, alt_text, display_order)')
             .in('id', productIds)
+            .eq('status', 'active')
             .is('deleted_at', null)
-            .limit(10);
+            .limit(10),
+            { cache_key: cacheKey }
+        );
 
         if (products) {
             await setCache(cacheKey, products, 900); // 15 mins

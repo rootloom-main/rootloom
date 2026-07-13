@@ -1,17 +1,19 @@
+import { Loader2 } from 'lucide-react';
+
 export default function Loading() {
     return (
-        <div className="min-h-screen bg-stone-50">
-            {/* Skeleton Header */}
-            <div className="h-20 bg-white border-b border-stone-200" />
-
-            {/* Skeleton Hero/Content */}
-            <div className="container mx-auto px-4 py-8 animate-pulse">
-                <div className="h-64 md:h-96 bg-stone-200 rounded-lg mb-8" />
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="h-80 bg-stone-200 rounded-lg" />
-                    <div className="h-80 bg-stone-200 rounded-lg" />
-                    <div className="h-80 bg-stone-200 rounded-lg" />
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-stone-50/70 backdrop-blur-md">
+            <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-500">
+                <div className="mb-6 text-center">
+                    <h1 className="text-3xl font-serif tracking-[0.2em] text-deep-forest font-bold">
+                        ROOT<span className="text-stone-300">&</span>LOOM
+                    </h1>
+                    <p className="text-[9px] tracking-[0.4em] text-stone-400 font-black uppercase mt-1">
+                        Loading Experience
+                    </p>
+                </div>
+                <div className="relative flex items-center justify-center">
+                    <Loader2 className="h-10 w-10 text-deep-forest animate-spin stroke-[1.5px]" />
                 </div>
             </div>
         </div>

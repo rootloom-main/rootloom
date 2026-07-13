@@ -79,6 +79,7 @@ export default function AdminMessagesPage() {
 
     useEffect(() => {
         fetchSubmissions();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterStatus]);
 
     const updateStatus = async (id: string, status: string) => {

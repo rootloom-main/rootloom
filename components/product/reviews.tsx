@@ -52,13 +52,36 @@ export default function Reviews({ productId, reviews, user }: ReviewsProps) {
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const files = e.target.files;
         if (!files || files.length === 0) return;
+        
+        const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
         setIsUploading(true);
         const newImages: string[] = [];
         try {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${Math.random()}.${fileExt}`;
+
+                // 1. Validate MIME type (specifically block SVG to prevent XSS payloads)
+                if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+                    toast.error('Only standard images are allowed (SVGs are blocked for security).');
+                    throw new Error('Invalid file type');
+                }
+
+                // 2. Validate file extension
+                const fileExt = file.name.split('.').pop()?.toLowerCase();
+                if (!fileExt || !ALLOWED_EXTENSIONS.includes(fileExt)) {
+                    toast.error(`Allowed formats: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}.`);
+                    throw new Error('Invalid file extension');
+                }
+
+                // 3. Validate file size
+                if (file.size > MAX_FILE_SIZE) {
+                    toast.error('Maximum allowed image size is 5MB.');
+                    throw new Error('File too large');
+                }
+
+                const fileName = `${Math.random().toString(36).substring(2, 11)}_${Date.now()}.${fileExt}`;
                 const filePath = `${user.id}/${fileName}`;
                 const { error: uploadError } = await supabase.storage.from('review-images').upload(filePath, file);
                 if (uploadError) throw uploadError;

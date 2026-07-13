@@ -3,9 +3,9 @@ import { getCurrentUser } from '@/lib/utils/auth';
 import { redirect } from 'next/navigation';
 import { ProductForm } from '../_components/product-form';
 
-export default async function EditProductPage({ params }: { params: { id: string } }) {
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createSSRClient() as any;
-    const { id } = params;
+    const { id } = await params;
 
     const user = await getCurrentUser();
 

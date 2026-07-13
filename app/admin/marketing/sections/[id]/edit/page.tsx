@@ -29,6 +29,7 @@ export default function EditSectionPage() {
             setLoading(false);
         };
         fetchSection();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [params?.id]);
 
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;

@@ -7,19 +7,6 @@ import { ArrowLeft } from 'lucide-react';
 
 export default async function NewCampaignPage() {
     const supabase = await createAdminClient();
-    const user = await getCurrentUser();
-
-    if (!user) redirect('/auth/login');
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        redirect('/');
-    }
 
     return (
         <div className="container mx-auto px-6 py-8 pb-20">

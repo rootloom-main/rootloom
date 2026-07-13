@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { sendAbandonedCartEmail } from '@/lib/email';
 import { redis } from '@/lib/redis';
-import { sendPaymentRecoveryNotification } from '@/lib/whatsapp';
+import { sendCouponExpiryNudgeWhatsApp, sendPaymentRecoveryNotification } from '@/lib/whatsapp';
+import { verifyCronRequest } from '@/lib/cron-auth';
+import { recordOpsEvent } from '@/lib/ops-events';
 
 export const runtime = 'nodejs';
 
@@ -10,14 +12,13 @@ export const runtime = 'nodejs';
 // { "crons": [{ "path": "/api/cron/abandoned-carts", "schedule": "0 * * * *" }] }
 
 export async function GET(req: Request) {
-    // Simple cron secret verification
-    const authHeader = req.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const cronAuth = verifyCronRequest(req);
+    if (!cronAuth.ok) {
+        return cronAuth.response;
     }
 
     try {
-        const supabase = await createClient();
+        const supabase = createAdminClient();
 
         // Fetch all cart items grouped by user
         // In Supabase, we need to query distinct users from cart_items
@@ -140,20 +141,81 @@ export async function GET(req: Request) {
                         // Also send WhatsApp for 1h reminder if phone is available
                         if (profile?.phone) {
                             const cartTotal = cartData.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2);
-                            await sendPaymentRecoveryNotification(
+                            const didSend = await sendPaymentRecoveryNotification(
                                 profile.phone,
                                 profile.full_name || 'Customer',
                                 cartTotal
                             );
+                            await recordOpsEvent({
+                                eventType: 'growth.abandoned_cart_recovery',
+                                status: didSend ? 'sent' : 'failed',
+                                userId,
+                                channel: 'whatsapp',
+                                metadata: { cart_total: cartTotal },
+                            });
                         }
                     }
                 }
             }
         }
 
-        return NextResponse.json({ success: true, message: `Processed abandoned carts. Sent ${emailsSent} emails.` });
+        const couponNudgesSent = await sendCouponExpiryNudges(supabase as any);
+
+        return NextResponse.json({ success: true, message: `Processed abandoned carts. Sent ${emailsSent} cart emails and ${couponNudgesSent} coupon nudges.` });
     } catch (error: any) {
         console.error('Abandoned cart cron error:', error);
+        await recordOpsEvent({
+            eventType: 'growth.abandoned_cart_recovery',
+            status: 'failed',
+            metadata: { message: error.message || 'cron_failed' },
+        });
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
+}
+
+async function sendCouponExpiryNudges(supabase: any) {
+    const now = new Date();
+    const soon = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    const { data: coupons } = await supabase
+        .from('coupons')
+        .select('code, end_date')
+        .eq('is_active', true)
+        .not('end_date', 'is', null)
+        .gte('end_date', now.toISOString())
+        .lte('end_date', soon.toISOString())
+        .limit(5);
+
+    if (!coupons?.length) {
+        return 0;
+    }
+
+    const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .not('phone', 'is', null)
+        .limit(100);
+
+    let sent = 0;
+    for (const coupon of coupons) {
+        for (const profile of profiles || []) {
+            const nudgeKey = `coupon_expiry_${coupon.code}_${profile.id}`;
+            const alreadySent = redis ? await redis.get(nudgeKey) : false;
+            if (alreadySent) continue;
+
+            const didSend = await sendCouponExpiryNudgeWhatsApp(
+                profile.phone,
+                profile.full_name || 'Customer',
+                coupon.code,
+                coupon.end_date
+            );
+
+            if (didSend) {
+                sent += 1;
+                if (redis) await redis.set(nudgeKey, 'true', { ex: 7 * 24 * 60 * 60 });
+            }
+        }
+    }
+
+    return sent;
 }

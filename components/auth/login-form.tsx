@@ -16,6 +16,7 @@ import {
     InputOTPSeparator,
 } from '@/components/ui/input-otp';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { sanitizeRedirectPath } from '@/lib/utils/redirect';
 
 export function LoginForm() {
     const router = useRouter();
@@ -113,7 +114,7 @@ export function LoginForm() {
             // 1. Force a session sync in the client-side context
             await refreshSession();
 
-            const next = searchParams?.get('next') || '/';
+            const next = sanitizeRedirectPath(searchParams?.get('next'), '/');
 
             // 2. Refresh the server-side components
             router.refresh();

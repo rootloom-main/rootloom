@@ -1,13 +1,13 @@
 'use client';
 
-import { Check, CreditCard, Wallet, Truck } from 'lucide-react';
+import { Check, CreditCard, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PaymentMethodCardProps {
     id: string;
     title: string;
     description: string;
-    icon: 'razorpay' | 'cod';
+    icon: 'online' | 'cod';
     selected: boolean;
     onSelect: (id: string) => void;
     disabled?: boolean;
@@ -38,7 +38,7 @@ export function PaymentMethodCard({
                 "p-3 rounded-lg flex-shrink-0",
                 selected ? "bg-deep-forest text-white" : "bg-stone-50 text-stone-400"
             )}>
-                {icon === 'razorpay' ? (
+                {icon === 'online' ? (
                     <div className="flex flex-col items-center">
                         <CreditCard className="h-6 w-6 mb-1" />
                         <span className="text-[10px] font-bold uppercase tracking-tighter">Instant</span>
@@ -61,14 +61,6 @@ export function PaymentMethodCard({
                 <p className="text-stone-500 text-sm mt-0.5 leading-relaxed">
                     {description}
                 </p>
-
-                {id === 'razorpay' && (
-                    <div className="mt-3 flex gap-2 items-center opacity-60">
-                        <div className="h-4 w-6 bg-stone-100 rounded text-[8px] flex items-center justify-center font-bold text-stone-400 border border-stone-200">UPI</div>
-                        <div className="h-4 w-6 bg-stone-100 rounded text-[8px] flex items-center justify-center font-bold text-stone-400 border border-stone-200">CARD</div>
-                        <div className="h-4 w-6 bg-stone-100 rounded text-[8px] flex items-center justify-center font-bold text-stone-400 border border-stone-200">NB</div>
-                    </div>
-                )}
             </div>
 
             <div className={cn(

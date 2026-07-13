@@ -9,19 +9,6 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminCampaignsPage() {
     const supabase = await createAdminClient();
-    const user = await getCurrentUser();
-
-    if (!user) redirect('/auth/login');
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
-        redirect('/');
-    }
 
     const { data: campaigns, error } = await (supabase as any).from('marketing_campaigns')
         .select('*')

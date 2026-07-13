@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,8 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
-export default function PageEditor({ params }: { params: { id: string } }) {
+export default function PageEditor() {
     const router = useRouter();
+    const params = useParams<{ id: string }>();
+    const id = params?.id;
     const supabase = createClient();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -22,11 +24,13 @@ export default function PageEditor({ params }: { params: { id: string } }) {
     const [isPublished, setIsPublished] = useState(false);
 
     useEffect(() => {
+        if (!id) return;
+
         const fetchPage = async () => {
             const { data, error } = await supabase
                 .from('pages')
                 .select('*')
-                .eq('id', params.id)
+                .eq('id', id)
                 .single();
 
             if (data) {
@@ -38,10 +42,13 @@ export default function PageEditor({ params }: { params: { id: string } }) {
             setLoading(false);
         };
         fetchPage();
-    }, [params.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!id) return;
+
         setSaving(true);
 
         const { error } = await supabase
@@ -52,7 +59,7 @@ export default function PageEditor({ params }: { params: { id: string } }) {
                 is_published: isPublished,
                 updated_at: new Date().toISOString()
             })
-            .eq('id', params.id);
+            .eq('id', id);
 
         if (error) {
             toast.error('Failed to save page');

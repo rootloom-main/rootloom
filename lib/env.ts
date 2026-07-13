@@ -1,3 +1,4 @@
+import 'server-only';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -8,12 +9,7 @@ const envSchema = z.object({
     // Supabase
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(), // Optional for client-side builds, required for some server actions
-
-    // Payment (Razorpay)
-    NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1).optional(),
-    RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
-    RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 
     // Email (Resend)
     RESEND_API_KEY: z.string().min(1).optional(),
@@ -24,6 +20,18 @@ const envSchema = z.object({
     // Redis (Upstash)
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+
+    // Auth
+    OTP_HASH_SECRET: z.string().min(32).optional(),
+
+    // Payments (Razorpay)
+    RAZORPAY_KEY_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1).optional(),
+    RAZORPAY_KEY_SECRET: z.string().min(1).optional(),
+    RAZORPAY_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    // Cron Security
+    CRON_SECRET: z.string().min(16).optional(),
 
     // Twilio (WhatsApp)
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),

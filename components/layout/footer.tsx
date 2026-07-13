@@ -12,8 +12,6 @@ export function Footer() {
     company: [
       { name: 'About Us', href: '/about' },
       { name: 'Contact Us', href: '/contact' },
-      { name: 'Careers', href: '/about' },
-      { name: 'Press', href: '/about' },
     ],
     help: [
       { name: 'Track Order', href: '/account/orders' },
@@ -25,9 +23,7 @@ export function Footer() {
       { name: 'Privacy Policy', href: '/legal/privacy' },
       { name: 'Terms & Conditions', href: '/legal/terms' },
       { name: 'Refund Policy', href: '/legal/refund' },
-      { name: 'Shipping Policy', href: '/legal/shipping' },
       { name: 'Cookie Policy', href: '/legal/cookies' },
-      { name: 'Sitemap', href: '/sitemap.xml' },
     ]
   };
 
@@ -139,12 +135,6 @@ export function Footer() {
                 </Link>
               ))}
             </div>
-          </div>
-          <div className="flex gap-6 items-center">
-            <span className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-              Secure SSL Encryption
-            </span>
           </div>
         </div>
       </div>

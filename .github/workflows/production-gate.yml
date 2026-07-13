@@ -34,17 +34,37 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.NEXT_PUBLIC_RAZORPAY_KEY_ID }}
-          # The real build needs secrets, else the build might fail if it tries to fetch DB at build time
-          # It's recommended to mock DB calls at build time or provide a preview DB connection string
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          OTP_HASH_SECRET: ${{ secrets.OTP_HASH_SECRET }}
+          CALLBACK_NONCE_SECRET: ${{ secrets.CALLBACK_NONCE_SECRET }}
+
+      - name: Bundle Budget
+        run: npm run check:bundle-budget
+
+      - name: Checkout Concurrency Simulation
+        run: npm run test:checkout-concurrency
+
+      - name: Launch Traffic Simulation
+        run: npm run test:launch-traffic
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
         
       - name: Run Playwright E2E Tests
-        run: npx playwright test
+        run: npm run test:e2e:smoke
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
-          # We don't usually point it to the active external DB for CI unless we have a dedicated staging DB
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+      - name: Lighthouse Performance Gate
+        run: npx @lhci/cli@0.15.x autorun --collect.startServerCommand="node node_modules/next/dist/bin/next start -p 3100" --collect.url=http://127.0.0.1:3100 --assert.preset=lighthouse:recommended
+        continue-on-error: true
           
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4

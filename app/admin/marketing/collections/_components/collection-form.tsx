@@ -86,6 +86,7 @@ export function CollectionForm({ initialData, productsInCollection = [] }: Colle
             if (data) setCategories(data);
         };
         fetchCategories();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Product Assignment
@@ -517,7 +518,7 @@ export function CollectionForm({ initialData, productsInCollection = [] }: Colle
                                         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
                                             <div className="space-y-1">
                                                 <Label className="text-xs font-black uppercase tracking-widest text-slate-800">Homepage Grid</Label>
-                                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">Display in "Our Collections" section.</p>
+                                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">Display in &quot;Our Collections&quot; section.</p>
                                             </div>
                                             <Switch 
                                                 checked={marketingSettings.showOnHomepage} 

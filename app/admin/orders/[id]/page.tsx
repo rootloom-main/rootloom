@@ -15,9 +15,9 @@ import { RefundOrderButton } from '@/components/admin/orders/refund-order-button
 import { CancelOrderButton } from '@/app/account/orders/[id]/cancel-order-button';
 import { OrderStatusDropdown } from '@/components/admin/orders/order-status-dropdown';
 
-export default async function AdminOrderDetailPage({ params }: { params: { id: string } }) {
+export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createSSRClient();
-    const { id } = params;
+    const { id } = await params;
 
     // Fetch Logic
     const { data: order } = await supabase
@@ -74,7 +74,9 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                     {/* SHIP ORDER BUTTON */}
                     <ShipOrderButton
                         orderId={order.id}
-                        disabled={!!order.tracking_number || order.status === 'cancelled' || order.status === 'delivered'}
+                        disabled={order.status === 'cancelled' || order.status === 'delivered'}
+                        initialTrackingNumber={order.tracking_number}
+                        initialTrackingUrl={order.tracking_url}
                     />
                 </div>
             </div>
@@ -169,14 +171,29 @@ export default async function AdminOrderDetailPage({ params }: { params: { id: s
                                         <p>{order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.postal_code}</p>
                                         <p>{order.shipping_address.country}</p>
                                     </div>
-                                    {order.tracking_number && (
+                                    {(order.tracking_number || order.tracking_url) && (
                                         <div className="pt-2 border-t mt-2">
-                                            <p className="text-xs text-gray-500 uppercase font-semibold">Tracking Number</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <p className="font-mono bg-gray-100 px-2 py-1 rounded">{order.tracking_number}</p>
-                                                <Link href="#" className="text-blue-600 hover:text-blue-800">
-                                                    <ExternalLink className="h-4 w-4" />
-                                                </Link>
+                                            <p className="text-xs text-gray-500 uppercase font-semibold">Tracking Information</p>
+                                            <div className="space-y-2 mt-1">
+                                                {order.tracking_number && (
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Tracking ID</p>
+                                                        <p className="font-mono bg-gray-100 px-2 py-1 rounded inline-block break-all">{order.tracking_number}</p>
+                                                    </div>
+                                                )}
+                                                {order.tracking_url && (
+                                                    <div>
+                                                        <p className="text-xs text-gray-500">Tracking Link</p>
+                                                        <a
+                                                            href={order.tracking_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 hover:underline font-medium break-all inline-flex items-center gap-1.5"
+                                                        >
+                                                            Track Shipment <ExternalLink className="h-4 w-4" />
+                                                        </a>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}

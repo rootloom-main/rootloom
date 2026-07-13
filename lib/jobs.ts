@@ -31,7 +31,6 @@ export async function processNextJob() {
         .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: true })
-        .order('created_at', { ascending: true })
         .limit(1) as { data: any[] | null, error: any };
 
     if (error || !jobs || jobs.length === 0) return null;
@@ -39,7 +38,18 @@ export async function processNextJob() {
     const job = jobs[0];
 
     // Lock job
-    await (supabase.from('jobs') as any).update({ status: 'processing', updated_at: new Date().toISOString() }).eq('id', job.id);
+    const { data: lockedJob, error: lockError } = await (supabase
+        .from('jobs') as any)
+        .update({ status: 'processing', updated_at: new Date().toISOString() })
+        .eq('id', job.id)
+        .eq('status', 'pending')
+        .select('*')
+        .single();
+
+    if (lockError || !lockedJob) {
+        logger.warn('Job lock skipped', { id: job.id, error: lockError?.message });
+        return null;
+    }
 
     try {
         logger.info('Processing job', { id: job.id, type: job.type });
@@ -96,6 +106,8 @@ export async function processNextJob() {
                 recipient_count: recipients.length,
                 completed_at: new Date().toISOString()
             }).eq('id', campaignId);
+        } else {
+            throw new Error(`Unsupported job type: ${job.type}`);
         }
 
         // Complete

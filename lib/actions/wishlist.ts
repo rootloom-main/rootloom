@@ -12,15 +12,24 @@ export async function getWishlist() {
 
     const { data, error } = await supabase
         .from('wishlists')
-        .select('id, product_id')
-        .eq('user_id', user.id);
+        .select(`
+            id,
+            product_id,
+            product:products!inner(id, deleted_at)
+        `)
+        .eq('user_id', user.id)
+        .is('products.deleted_at', null);
 
     if (error) {
         console.error('Error fetching wishlist:', error);
         return [];
     }
 
-    return data || [];
+    // Map to keep format identical { id, product_id }
+    return (data || []).map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id
+    }));
 }
 
 export async function toggleWishlist(productId: string) {

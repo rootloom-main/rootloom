@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redis } from '@/lib/redis';
+import { sendRestockAlertWhatsApp } from '@/lib/whatsapp';
+import { recordOpsEvent } from '@/lib/ops-events';
 
 export async function deleteProduct(productId: string) {
     const { isAdmin } = await import('@/lib/utils/auth');
@@ -12,10 +14,10 @@ export async function deleteProduct(productId: string) {
 
     const supabase = await createClient();
 
-    // 2. Soft Delete product
+    // 2. Hard Delete product (cascades to variants, images, carts automatically)
     const { error } = await (supabase
         .from('products') as any)
-        .update({ deleted_at: new Date().toISOString() })
+        .delete()
         .eq('id', productId);
 
     if (error) {
@@ -32,9 +34,33 @@ export async function deleteProduct(productId: string) {
         await redis.flushall();
     }
 
-    return { success: true, message: 'Product archived successfully' };
+    return { success: true, message: 'Product permanently deleted successfully' };
 }
 
+export async function deleteVariant(variantId: string) {
+    const { isAdmin } = await import('@/lib/utils/auth');
+    if (!(await isAdmin())) {
+        return { success: false, message: 'Forbidden' };
+    }
+
+    const supabase = await createClient();
+
+    const { error } = await (supabase
+        .from('product_variants') as any)
+        .delete()
+        .eq('id', variantId);
+
+    if (error) {
+        console.error('Error deleting variant:', error);
+        return { success: false, message: 'Failed to delete variant' };
+    }
+
+    revalidatePath('/admin/inventory');
+    revalidatePath('/admin/products');
+    revalidatePath('/shop');
+
+    return { success: true, message: 'Variant permanently deleted successfully' };
+}
 
 export async function createProduct(data: any) {
     const { isAdmin } = await import('@/lib/utils/auth');
@@ -167,4 +193,81 @@ export async function getFilteredProducts(params: {
         console.error('Action: getFilteredProducts failed:', error);
         return { success: false, products: [], error: 'Failed to fetch products' };
     }
+}
+
+export async function restockVariant(variantId: string, quantity: number) {
+    const { isAdmin } = await import('@/lib/utils/auth');
+    if (!(await isAdmin())) {
+        return { success: false, message: 'Forbidden' };
+    }
+
+    if (quantity <= 0) {
+        return { success: false, message: 'Quantity must be greater than zero' };
+    }
+
+    const supabase = await createClient();
+
+    const { data: variantInfo } = await (supabase
+        .from('product_variants')
+        .select('id, product_id, size, color, product:products(id, name, slug)')
+        .eq('id', variantId)
+        .single() as any);
+
+    // Call RPC to increment stock
+    const { error } = await supabase.rpc('increment_stock', {
+        variant_id: variantId,
+        qty: quantity
+    });
+
+    if (error) {
+        console.error('Error restocking variant:', error);
+        return { success: false, message: 'Failed to restock variant' };
+    }
+
+    revalidatePath('/admin/inventory');
+    revalidatePath('/admin/products');
+    revalidatePath('/shop');
+
+    if (variantInfo?.product_id) {
+        const productData = Array.isArray(variantInfo.product) ? variantInfo.product[0] : variantInfo.product;
+        const { data: waitlistRows } = await (supabase
+            .from('product_waitlist' as any)
+            .select('id, phone, email, user_id')
+            .eq('product_id', variantInfo.product_id)
+            .eq('status', 'pending')
+            .or(`variant_id.eq.${variantId},variant_id.is.null`) as any);
+
+        if (waitlistRows?.length) {
+            await Promise.allSettled(waitlistRows.map(async (row: any) => {
+                if (row.phone) {
+                    await sendRestockAlertWhatsApp(
+                        row.phone,
+                        'Customer',
+                        productData?.name || 'Product',
+                        `${process.env.NEXT_PUBLIC_SITE_URL || 'https://rootloom.in'}/product/${productData?.slug}`
+                    );
+                }
+
+                await (supabase
+                    .from('product_waitlist' as any)
+                    .update({
+                        status: 'notified',
+                        notified_at: new Date().toISOString(),
+                    } as any)
+                    .eq('id', row.id) as any);
+            }));
+
+            await recordOpsEvent({
+                eventType: 'inventory.restock_waitlist',
+                status: 'success',
+                reference: variantId,
+                metadata: {
+                    notified_count: waitlistRows.length,
+                    product_id: variantInfo.product_id,
+                },
+            });
+        }
+    }
+
+    return { success: true, message: `Successfully added ${quantity} units to stock` };
 }

@@ -81,6 +81,28 @@ export async function submitReview(formData: FormData) {
         return { success: false, message: 'You must be logged in to submit a review' };
     }
 
+    // Input Validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!productId || !uuidRegex.test(productId)) {
+        return { success: false, message: 'Invalid product ID format' };
+    }
+
+    if (isNaN(rating) || rating < 1 || rating > 5) {
+        return { success: false, message: 'Rating must be between 1 and 5' };
+    }
+
+    if (!comment || comment.trim().length < 10) {
+        return { success: false, message: 'Comment must be at least 10 characters long' };
+    }
+
+    if (comment.length > 2000) {
+        return { success: false, message: 'Comment cannot exceed 2000 characters' };
+    }
+
+    if (title && title.length > 100) {
+        return { success: false, message: 'Title cannot exceed 100 characters' };
+    }
+
     // Check if user already reviewed this product
     const { data: existingReview } = await supabase
         .from('reviews')

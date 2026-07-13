@@ -29,9 +29,10 @@ const CartSheet = dynamic(() => import('@/components/layout/cart-sheet').then(mo
   ssr: false
 });
 import { useAuth } from '@/components/auth/supabase-auth-provider';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 export function Header() {
-  const { user, profile, isAdmin, refreshSession } = useAuth();
+  const { user, profile, isAdmin, refreshSession, openLoginModal } = useAuth();
   // ... state ...
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -144,23 +145,29 @@ export function Header() {
                     {mounted && (
                       !user ? (
                         <div className="flex flex-col gap-3">
-                          <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`}>
-                            <Button variant="outline" className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white">
-                              Login
-                            </Button>
-                          </Link>
-                          <Link href="/auth/signup">
-                            <Button className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90">
-                              Create Account
-                            </Button>
-                          </Link>
+                          <Button 
+                            variant="outline" 
+                            className="w-full border-deep-forest text-deep-forest hover:bg-deep-forest hover:text-heirloom-white"
+                            onClick={() => openLoginModal(pathname || '/')}
+                          >
+                            Login
+                          </Button>
+                          <Button 
+                            className="w-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90"
+                            onClick={() => openLoginModal(pathname || '/')}
+                          >
+                            Create Account
+                          </Button>
                         </div>
                       ) : (
                         <div className="space-y-4">
                           <div className="flex items-center gap-3 px-2">
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-deep-forest to-raw-clay flex items-center justify-center text-white font-serif font-bold text-lg shrink-0">
-                              {(profile?.full_name?.[0] || user.user_metadata?.full_name?.[0] || user.email?.[0] || '?').toUpperCase()}
-                            </div>
+                            <Avatar className="h-10 w-10 shrink-0">
+                              <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                              <AvatarFallback className="bg-gradient-to-br from-deep-forest to-raw-clay text-white font-serif font-bold text-lg">
+                                {(profile?.full_name?.[0] || user.user_metadata?.full_name?.[0] || user.email?.[0] || '?').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             <div className="flex flex-col min-w-0">
                               <p className="text-sm font-semibold text-deep-forest truncate">
                                 {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || (user.phone ? `+91 ${user.phone.replace(/\D/g,'').slice(-10, -5)} ${user.phone.replace(/\D/g,'').slice(-5)}` : 'Guest')}
@@ -263,16 +270,22 @@ export function Header() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent transition-colors" aria-label="User account menu">
-                          <span className="h-8 w-8 rounded-full bg-deep-forest flex items-center justify-center text-white font-serif font-bold text-sm">
-                            {avatarInitial}
-                          </span>
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                            <AvatarFallback className="bg-deep-forest text-white font-serif font-bold text-sm">
+                              {avatarInitial}
+                            </AvatarFallback>
+                          </Avatar>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-60 p-2 bg-white border border-stone-200 shadow-lg rounded-xl">
                         <div className="flex items-center justify-start gap-3 p-2 mb-2 rounded-lg bg-stone-50 border border-stone-100">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-deep-forest to-raw-clay flex items-center justify-center text-white font-serif font-bold text-base shrink-0">
-                            {avatarInitial}
-                          </div>
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarImage src={profile?.avatar_url || ''} className="object-cover" />
+                            <AvatarFallback className="bg-gradient-to-br from-deep-forest to-raw-clay text-white font-serif font-bold text-base">
+                              {avatarInitial}
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="flex flex-col space-y-0.5 min-w-0">
                             <p className="text-sm font-semibold truncate text-stone-900">{displayName}</p>
                             {subLabel && <p className="text-xs text-stone-500 truncate">{subLabel}</p>}
@@ -308,16 +321,22 @@ export function Header() {
                   );
                 })() : (
                   <div className="flex items-center">
-                    <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="md:hidden" aria-label="Login">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent" aria-label="Login">
-                        <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                      </Button>
-                    </Link>
-                    <Link href={`/auth/login?next=${encodeURIComponent(pathname || '/')}`} className="hidden md:block ml-2">
-                      <Button size="sm" className="rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6">
-                        Login
-                      </Button>
-                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent md:hidden" 
+                      aria-label="Login"
+                      onClick={() => openLoginModal(pathname || '/')}
+                    >
+                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="hidden md:block ml-2 rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6"
+                      onClick={() => openLoginModal(pathname || '/')}
+                    >
+                      Login
+                    </Button>
                   </div>
                 )
               )}

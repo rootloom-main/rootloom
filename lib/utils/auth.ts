@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export { createAdminClient };
 
 export async function createSSRClient() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,22 +36,7 @@ export async function getCurrentUser() {
 
     if (error) {
       console.warn('Auth: Error fetching Supabase user in Server Component', error.message);
-      
-      // Fallback: Check if there's a valid session even if getUser failed.
-      // Error can happen during transient network issues or race conditions with cookie sync.
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (session?.user && !sessionError) {
-        return session.user;
-      }
       return null;
-    }
-
-    if (!user) {
-      // Log headers length to see if cookies might be too large/truncated
-      const cookieHeader = cookies().get('sb-access-token')?.value || '';
-      if (cookieHeader) {
-        console.log('Auth: Cookie present but getUser returned no user. Potential token issue.');
-      }
     }
 
     return user;
@@ -77,10 +62,11 @@ export async function getUserProfile() {
 }
 
 export async function isAdmin() {
-  const user = await getCurrentUser();
-
-  if (user?.user_metadata?.role === 'admin' || user?.user_metadata?.role === 'superadmin') return true;
-
   const profile = await getUserProfile();
   return profile?.role === 'admin' || profile?.role === 'superadmin';
+}
+
+export async function isSuperAdmin() {
+  const profile = await getUserProfile();
+  return profile?.role === 'superadmin';
 }

@@ -20,17 +20,32 @@ import { toast } from 'sonner';
 interface ShipOrderButtonProps {
     orderId: string;
     disabled?: boolean;
+    initialTrackingNumber?: string | null;
+    initialTrackingUrl?: string | null;
 }
 
-export default function ShipOrderButton({ orderId, disabled }: ShipOrderButtonProps) {
+export default function ShipOrderButton({ orderId, disabled, initialTrackingNumber, initialTrackingUrl }: ShipOrderButtonProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [trackingNumber, setTrackingNumber] = useState('');
+    const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber || '');
+    const [trackingUrl, setTrackingUrl] = useState(initialTrackingUrl || '');
     const router = useRouter();
 
     const handleShipOrder = async () => {
         if (!trackingNumber.trim()) {
-            toast.error('Tracking number is required');
+            toast.error('Tracking ID is required');
+            return;
+        }
+
+        if (!trackingUrl.trim()) {
+            toast.error('Tracking link is required');
+            return;
+        }
+
+        try {
+            new URL(trackingUrl.trim());
+        } catch {
+            toast.error('Please enter a valid tracking link');
             return;
         }
 
@@ -41,7 +56,10 @@ export default function ShipOrderButton({ orderId, disabled }: ShipOrderButtonPr
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ trackingNumber: trackingNumber.trim() }),
+                body: JSON.stringify({
+                    trackingNumber: trackingNumber.trim(),
+                    trackingUrl: trackingUrl.trim(),
+                }),
             });
 
             if (!response.ok) {
@@ -70,26 +88,38 @@ export default function ShipOrderButton({ orderId, disabled }: ShipOrderButtonPr
                     className="gap-2"
                 >
                     <Truck className="h-4 w-4" />
-                    Ship Order
+                    {initialTrackingNumber || initialTrackingUrl ? 'Update Tracking' : 'Ship Order'}
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Ship Order</DialogTitle>
                     <DialogDescription>
-                        Enter the tracking number for this order to mark it as shipped.
+                        Enter the tracking ID/AWB and the carrier tracking link to share both with the customer.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="tracking" className="text-right">
-                            Tracking #
+                        <Label htmlFor="tracking" className="text-right whitespace-nowrap">
+                            Tracking ID
                         </Label>
                         <Input
                             id="tracking"
-                            placeholder="e.g. TRK123456789"
+                            placeholder="e.g. AWB123456789"
                             value={trackingNumber}
                             onChange={(e) => setTrackingNumber(e.target.value)}
+                            className="col-span-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="trackingUrl" className="text-right whitespace-nowrap">
+                            Tracking Link
+                        </Label>
+                        <Input
+                            id="trackingUrl"
+                            placeholder="https://track.delhivery.com/..."
+                            value={trackingUrl}
+                            onChange={(e) => setTrackingUrl(e.target.value)}
                             className="col-span-3"
                         />
                     </div>

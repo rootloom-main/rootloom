@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
         rules: {
             userAgent: '*',
             allow: '/',
-            disallow: ['/admin/', '/api/', '/account/', '/checkout/'],
+            disallow: ['/admin/', '/api/', '/account/', '/checkout/', '/sentry-test/'],
         },
         sitemap: 'https://rootloom.in/sitemap.xml',
     };

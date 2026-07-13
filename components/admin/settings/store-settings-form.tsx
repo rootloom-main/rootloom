@@ -42,6 +42,7 @@ export function StoreSettingsForm() {
             setLoading(false);
         };
         fetchSettings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleSave = async (e: React.FormEvent) => {

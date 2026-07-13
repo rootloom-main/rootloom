@@ -1,4 +1,4 @@
-import { createSSRClient } from '@/lib/utils/auth';
+﻿import { createSSRClient } from '@/lib/utils/auth';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { formatDate, formatPrice } from '@/lib/utils/format';
 import { CheckCircle, XCircle, RefreshCcw } from 'lucide-react';
 import { updateReturnStatus } from './actions';
+import Image from 'next/image';
 
 export default async function AdminReturnsPage() {
     const supabase = await createSSRClient();
@@ -54,20 +55,18 @@ export default async function AdminReturnsPage() {
 
     if (error) {
         console.error('Error fetching returns:', error);
-    } else {
-        console.log('Fetched returns:', returns?.length);
     }
 
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'requested': return 'default';
-            case 'approved': return 'default'; // dark/green depending on theme
+            case 'approved': return 'default';
             case 'pickup_scheduled': return 'secondary';
             case 'picked_up': return 'secondary';
-            case 'inspection_pending': return 'destructive'; // Requires action
+            case 'inspection_pending': return 'destructive';
             case 'accepted': return 'default';
             case 'refunded': return 'secondary';
-            case 'refund_processed': return 'default'; // Success green
+            case 'refund_processed': return 'default';
             case 'exchange_processed': return 'default';
             case 'rejected': return 'destructive';
             default: return 'outline';
@@ -77,7 +76,7 @@ export default async function AdminReturnsPage() {
     return (
         <div className="container mx-auto px-6 py-8">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Return Requests</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Return Requests ({returns?.length || 0})</h1>
                 <p className="text-gray-500">Manage customer return requests and refunds.</p>
             </div>
 
@@ -128,9 +127,11 @@ export default async function AdminReturnsPage() {
                                             rel="noopener noreferrer"
                                             className="group relative block h-12 w-12 overflow-hidden rounded-md border border-stone-200 hover:border-deep-forest transition-colors"
                                         >
-                                            <img
+                                            <Image
                                                 src={req.image_url}
                                                 alt="Evidence"
+                                                fill
+                                                sizes="48px"
                                                 className="h-full w-full object-cover transition-transform group-hover:scale-110"
                                             />
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -46,6 +46,7 @@ export default function NewBannerPage() {
             if (data) setCollections(data);
         };
         fetchCollections();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

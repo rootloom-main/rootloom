@@ -16,7 +16,7 @@ export default function BrandStory() {
                         <div className="absolute inset-4 border border-slate-200 z-10 rounded-sm translate-x-4 translate-y-4" />
                         <div className="relative h-full w-full overflow-hidden rounded-sm bg-stone-200 shadow-xl">
                             <Image
-                                src="https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&q=80&w=1260"
+                                src="/images/hero/street_vibes.png"
                                 alt="Modern Streetwear"
                                 fill
                                 className="object-cover hover:scale-110 transition-transform duration-1000 grayscale hover:grayscale-0"
@@ -34,7 +34,7 @@ export default function BrandStory() {
 
                         <div className="space-y-6 text-stone-700 font-medium leading-relaxed text-lg">
                             <p>
-                                Welcome to Root&Loom—where urban energy meets premium drip. We're not just a brand; we're a movement for those who define their own rules and set the trends others follow.
+                                Welcome to Root&Loom—where urban energy meets premium drip. We&apos;re not just a brand; we&apos;re a movement for those who define their own rules and set the trends others follow.
                             </p>
                             <p>
                                 Our collections are crafted for the bold, the expressive, and the unapologetic. From oversized silhouettes to experimental textures, we bring you the ultimate vibe for your everyday hustle. Join the clique and let your fit do the talking.
