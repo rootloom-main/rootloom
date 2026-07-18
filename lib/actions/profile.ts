@@ -103,10 +103,29 @@ export async function updateProfile(prevState: any, formData: FormData) {
         updateData.gender = gender || null;
     }
 
-    const { error: profileError } = await adminSupabase
+    const { data: profileExists } = await adminSupabase
         .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    let profileError;
+    if (profileExists) {
+        const { error } = await adminSupabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', user.id);
+        profileError = error;
+    } else {
+        const { error } = await adminSupabase
+            .from('profiles')
+            .insert({
+                ...updateData,
+                id: user.id,
+                role: 'user'
+            });
+        profileError = error;
+    }
 
     if (profileError) {
         console.error('Profile update error:', profileError);

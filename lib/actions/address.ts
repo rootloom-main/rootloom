@@ -1,9 +1,34 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+
+async function ensureProfileExists(userId: string, user: any) {
+    const adminSupabase = await createAdminClient() as any;
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (!profile) {
+        console.log(`Auto-creating missing profile for user: ${userId}`);
+        const { error } = await adminSupabase
+            .from('profiles')
+            .insert({
+                id: userId,
+                email: user.email || null,
+                phone: user.phone || null,
+                full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                role: 'user'
+            });
+        if (error) {
+            console.error('Failed to auto-create profile:', error);
+        }
+    }
+}
 
 const addressSchema = z.object({
     full_name: z.string().min(1, 'Full name is required'),
@@ -53,6 +78,9 @@ export async function addAddress(data: AddressFormData) {
         return { success: false, message: 'Invalid data', errors: validation.error.flatten() };
     }
 
+    // Ensure profile exists to prevent foreign key violations (fk_addresses_profiles)
+    await ensureProfileExists(user.id, user);
+
     // If setting as default, unset others first
     if (data.is_default) {
         await supabase
@@ -93,6 +121,9 @@ export async function updateAddress(id: string, data: AddressFormData) {
     if (!validation.success) {
         return { success: false, message: 'Invalid data', errors: validation.error.flatten() };
     }
+
+    // Ensure profile exists to prevent foreign key violations (fk_addresses_profiles)
+    await ensureProfileExists(user.id, user);
 
     // If setting as default, unset others first
     if (data.is_default) {
