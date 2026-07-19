@@ -37,6 +37,7 @@ export function LoginModal({
   const [step, setStep] = useState<'identifier' | 'otp' | 'welcome'>('identifier');
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState('');
+  const [formattedContact, setFormattedContact] = useState('');
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(0);
 
@@ -67,20 +68,25 @@ export function LoginModal({
     e.preventDefault();
     if (!identifier) return;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(identifier.trim())) {
-      toast.error('Please enter a valid email address.');
+    const input = identifier.trim();
+    const isEmail = input.includes('@');
+    const cleanPhone = input.replace(/\D/g, '');
+    const isPhone = /^[6-9]\d{9}$/.test(cleanPhone) || (cleanPhone.length === 12 && cleanPhone.startsWith('91'));
+
+    if (!isEmail && !isPhone) {
+      toast.error('Please enter a valid email address or 10-digit mobile number.');
       return;
     }
 
     setLoading(true);
     try {
-      const result = await signInWithIdentifier(identifier.trim());
+      const result = await signInWithIdentifier(input);
       if (result.error) throw new Error(result.error);
 
       setStep('otp');
       setTimer(30); // 30s resend timer
-      toast.success('Secure verification code sent to your inbox.');
+      setFormattedContact(result.formattedContact || input);
+      toast.success(result.type === 'sms' ? 'OTP sent to your mobile number.' : 'Secure verification code sent to your inbox.');
     } catch (error: any) {
       toast.error(error.message || 'Failed to send verification code');
     } finally {
@@ -95,7 +101,8 @@ export function LoginModal({
 
     setLoading(true);
     try {
-      const result = await verifyOtpEx(code, 'email', identifier.trim(), source);
+      const type = identifier.includes('@') ? 'email' : 'sms';
+      const result = await verifyOtpEx(code, type, identifier.trim(), source);
       if (result.error) throw new Error(result.error);
 
       // Force session sync on the client context
@@ -151,10 +158,10 @@ export function LoginModal({
               </DialogTitle>
               <DialogDescription className="text-stone-500 text-sm">
                 {step === 'identifier' 
-                  ? 'Enter your email address to continue.' 
+                  ? 'Enter your email address or mobile number to continue.' 
                   : `We've sent a 6-digit verification code to `}
                 {step === 'otp' && (
-                  <span className="text-stone-950 font-bold break-all">{identifier}</span>
+                  <span className="text-stone-950 font-bold break-all">{formattedContact}</span>
                 )}
               </DialogDescription>
             </DialogHeader>
@@ -163,11 +170,11 @@ export function LoginModal({
               <form onSubmit={handleIdentifierSubmit} className="space-y-6 mt-4">
                 <div className="space-y-4">
                   <Input
-                    type="email"
+                    type="text"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     className="h-12 px-4 text-base rounded-xl bg-stone-50 border-stone-200 focus:ring-deep-forest focus:border-deep-forest transition-all"
-                    placeholder="Enter your email address"
+                    placeholder="Email or mobile number"
                     required
                     autoFocus
                     disabled={loading}
@@ -237,7 +244,7 @@ export function LoginModal({
                       disabled={loading}
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      Change Email
+                      Change Input
                     </button>
 
                     {timer > 0 ? (

@@ -47,7 +47,7 @@ export default async function OnboardingPage({ searchParams }: PageProps) {
                 
                 <div className="flex-1 p-8 sm:p-12">
                     <Suspense fallback={<div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-stone-300" /></div>}>
-                        <OnboardingForm initialEmail={user.email} />
+                        <OnboardingForm initialEmail={user.email || undefined} initialPhone={user.phone || undefined} />
                     </Suspense>
                 </div>
             </div>

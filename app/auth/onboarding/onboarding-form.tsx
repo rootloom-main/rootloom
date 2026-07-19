@@ -11,9 +11,12 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { sanitizeRedirectPath } from '@/lib/utils/redirect';
 
-export function OnboardingForm({ initialEmail }: { initialEmail?: string }) {
+export function OnboardingForm({ initialEmail, initialPhone }: { initialEmail?: string; initialPhone?: string }) {
     const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
+    
+    // Clean formatted phone for input display (e.g. remove country code if present)
+    const cleanInitialPhone = initialPhone ? initialPhone.replace(/^\+91/, '').replace(/\D/g, '') : '';
+    const [phone, setPhone] = useState(cleanInitialPhone);
     const [addressLine1, setAddressLine1] = useState('');
     const [addressLine2, setAddressLine2] = useState('');
     const [city, setCity] = useState('');

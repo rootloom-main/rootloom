@@ -82,10 +82,37 @@ export async function signInWithIdentifier(identifier: string) {
         const normalizedIdentifier = normalizeIdentifier(identifier);
         const isEmail = normalizedIdentifier.includes('@');
 
-        if (!isEmail) {
-            return { error: 'Please enter a valid email address. Mobile login is coming in a future update.' };
+        // Check if phone number
+        const cleanPhone = identifier.replace(/\D/g, '');
+        const isPhone = /^[6-9]\d{9}$/.test(cleanPhone) || (cleanPhone.length === 12 && cleanPhone.startsWith('91'));
+
+        if (!isEmail && !isPhone) {
+            return { error: 'Please enter a valid email address or 10-digit mobile number.' };
         }
 
+        if (isPhone) {
+            const formattedPhone = cleanPhone.length === 12 ? `+${cleanPhone}` : `+91${cleanPhone}`;
+            const supabase = await createClient();
+            
+            const { error: smsError } = await supabase.auth.signInWithOtp({
+                phone: formattedPhone,
+                options: {
+                    shouldCreateUser: true, // Allow signups for phone too
+                }
+            });
+
+            if (smsError) {
+                console.error('Supabase Phone OTP error:', smsError);
+                if (smsError.status === 429 || smsError.message.toLowerCase().includes('rate limit')) {
+                    return { error: 'Too many requests. Please wait a minute before trying again.' };
+                }
+                return { error: smsError.message || 'Failed to send verification code.' };
+            }
+
+            return { success: true, type: 'sms', formattedContact: formattedPhone };
+        }
+
+        // Email path
         if (!getOtpHashSecret()) {
             console.error('OTP_HASH_SECRET is missing. OTP login is disabled.');
             return { error: 'Login is temporarily unavailable. Please contact support.' };
@@ -122,7 +149,7 @@ export async function signInWithIdentifier(identifier: string) {
         }
         await auditOtpEvent(adminSupabase, normalizedIdentifier, 'otp_sent').catch(() => {});
 
-        return { success: true };
+        return { success: true, type: 'email', formattedContact: normalizedIdentifier };
     } catch (error) {
         console.error('OTP sign-in failed:', error);
         return { error: toErrorMessage(error) };

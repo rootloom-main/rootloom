@@ -24,6 +24,7 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [identifier, setIdentifier] = useState('');
+  const [formattedContact, setFormattedContact] = useState('');
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(0);
 
@@ -42,21 +43,25 @@ function LoginPageContent() {
     e.preventDefault();
     if (!identifier) return;
 
-    // Client-side email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(identifier.trim())) {
-      toast.error("Please enter a valid email address.");
+    const input = identifier.trim();
+    const isEmail = input.includes('@');
+    const cleanPhone = input.replace(/\D/g, '');
+    const isPhone = /^[6-9]\d{9}$/.test(cleanPhone) || (cleanPhone.length === 12 && cleanPhone.startsWith('91'));
+
+    if (!isEmail && !isPhone) {
+      toast.error("Please enter a valid email address or 10-digit mobile number.");
       return;
     }
 
     setLoading(true);
     try {
-      const result = await signInWithIdentifier(identifier.trim());
+      const result = await signInWithIdentifier(input);
       if (result.error) throw new Error(result.error);
 
       setStep('otp');
       setTimer(30);
-      toast.success(`Secure verification code sent to your inbox.`);
+      setFormattedContact(result.formattedContact || input);
+      toast.success(result.type === 'sms' ? 'OTP sent to your mobile number.' : 'Secure verification code sent to your inbox.');
     } catch (error: any) {
       const msg = error.message || 'Failed to send verification code';
       toast.error(msg);
@@ -73,7 +78,8 @@ function LoginPageContent() {
     setLoading(true);
     try {
       const source = searchParams?.get('source') || 'profile';
-      const result = await verifyOtpEx(code, 'email', identifier.trim(), source);
+      const type = identifier.includes('@') ? 'email' : 'sms';
+      const result = await verifyOtpEx(code, type, identifier.trim(), source);
       
       if (result.error) throw new Error(result.error);
 
@@ -161,7 +167,7 @@ function LoginPageContent() {
           <div className="z-10 space-y-6">
             <h1 className="text-4xl font-medium tracking-tight leading-tight italic font-serif">Continue to checkout securely.</h1>
             <p className="text-stone-400 text-lg leading-relaxed font-sans">
-              Authenticate with your email using a one-time verification code. Secure, fast, and no password required.
+              Authenticate with your email or mobile number using a one-time verification code. Secure, fast, and no password required.
             </p>
           </div>
 
@@ -177,17 +183,17 @@ function LoginPageContent() {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="space-y-2">
                   <h2 className="text-3xl font-bold tracking-tight text-stone-900 font-serif">Continue Secure Checkout</h2>
-                  <p className="text-stone-500 text-sm">Enter your email address to continue to payment and shipping.</p>
+                  <p className="text-stone-500 text-sm">Enter your email address or mobile number to continue to payment and shipping.</p>
                 </div>
 
                 <form onSubmit={handleIdentifierSubmit} className="space-y-6">
                   <div className="space-y-4">
                     <Input
-                      type="email"
+                      type="text"
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
                       className="h-14 px-5 text-lg rounded-2xl bg-stone-50 border-stone-200 focus:ring-primary focus:border-primary transition-all shadow-sm"
-                      placeholder="Enter your email address"
+                      placeholder="Email or mobile number"
                       required
                       autoFocus
                       disabled={loading}
@@ -219,7 +225,7 @@ function LoginPageContent() {
                 <div className="space-y-2">
                   <h2 className="text-3xl font-bold tracking-tight text-stone-900 font-serif">Verify Account</h2>
                   <p className="text-stone-500 text-sm">
-                    We sent a 6-digit code to <span className="text-stone-950 font-bold break-all">{identifier}</span>
+                    We sent a 6-digit code to <span className="text-stone-950 font-bold break-all">{formattedContact}</span>
                     <button type="button" onClick={() => { setStep('identifier'); setOtp(''); }} className="ml-2 text-deep-forest font-bold hover:underline text-xs" disabled={loading}>(Edit)</button>
                   </p>
                 </div>

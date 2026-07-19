@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Mail, Timer } from 'lucide-react';
+import { Loader2, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,35 +16,31 @@ import {
 } from '@/components/ui/input-otp';
 import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { sanitizeRedirectPath } from '@/lib/utils/redirect';
+import { signInWithIdentifier, verifyOtpEx } from '@/app/auth/actions';
 
 export function LoginForm() {
     const router = useRouter();
     const { refreshSession } = useAuth();
     const searchParams = useSearchParams();
 
-    // Stable Supabase client — created once, never re-created on re-render.
-    const supabaseRef = useRef(createClient());
-    const supabase = supabaseRef.current;
-
     const [isPending, startTransition] = useTransition();
     const [loading, setLoading] = useState(false);
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState('');
+    const [formattedContact, setFormattedContact] = useState('');
 
     // OTP State
     const [otpSent, setOtpSent] = useState(false);
     const [otp, setOtp] = useState('');
     const [timeLeft, setTimeLeft] = useState(0);
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Timer Logic
     useEffect(() => {
+        let timer: NodeJS.Timeout;
         if (timeLeft > 0) {
-            timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-        } else if (timeLeft === 0 && timerRef.current) {
-            clearTimeout(timerRef.current);
+            timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
         }
         return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
+            if (timer) clearTimeout(timer);
         };
     }, [timeLeft]);
 
@@ -57,39 +52,32 @@ export function LoginForm() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [otp]);
 
-    async function handleSendEmailOtp(e: React.FormEvent) {
-        e.preventDefault();
+    async function handleSendOtp(e?: React.FormEvent) {
+        if (e) e.preventDefault();
+        if (!identifier) return;
+
+        const input = identifier.trim();
+        const isEmail = input.includes('@');
+        const cleanPhone = input.replace(/\D/g, '');
+        const isPhone = /^[6-9]\d{9}$/.test(cleanPhone) || (cleanPhone.length === 12 && cleanPhone.startsWith('91'));
+
+        if (!isEmail && !isPhone) {
+            toast.error('Please enter a valid email address or 10-digit mobile number.');
+            return;
+        }
+
         setLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    shouldCreateUser: false,
-                },
-            });
-
-            if (error) throw error;
+            const result = await signInWithIdentifier(input);
+            if (result.error) throw new Error(result.error);
 
             setOtpSent(true);
-            setTimeLeft(60);
-            toast.success('OTP sent to your email.');
+            setTimeLeft(30);
+            setFormattedContact(result.formattedContact || input);
+            toast.success(result.type === 'sms' ? 'OTP sent to your mobile number.' : 'Secure verification code sent to your inbox.');
         } catch (error: any) {
             console.error(error);
-            if (
-                error.message.includes('Signups not allowed') ||
-                error.message.includes('User not found') ||
-                error.status === 400
-            ) {
-                toast.error('Account not found. Redirecting to register...');
-                setTimeout(() => router.push('/auth/signup'), 1500);
-                return;
-            }
-
-            if (error.status === 429 || error.message.toLowerCase().includes('rate limit')) {
-                toast.error('Too many requests. Please wait a minute before trying again.');
-                return;
-            }
-            toast.error(error.message || 'Failed to send email OTP');
+            toast.error(error.message || 'Failed to send verification code');
         } finally {
             setLoading(false);
         }
@@ -101,13 +89,11 @@ export function LoginForm() {
 
         setLoading(true);
         try {
-            const result = await supabase.auth.verifyOtp({
-                email,
-                token: otp,
-                type: 'email',
-            });
+            const source = searchParams?.get('source') || 'profile';
+            const type = identifier.includes('@') ? 'email' : 'sms';
+            const result = await verifyOtpEx(otp, type, identifier.trim(), source);
 
-            if (result.error) throw result.error;
+            if (result.error) throw new Error(result.error);
 
             toast.success('Logged in successfully!');
 
@@ -143,25 +129,25 @@ export function LoginForm() {
                 </CardTitle>
                 <CardDescription>
                     {otpSent
-                        ? `We sent a code to ${email}`
-                        : 'Sign in with your email to access your account'}
+                        ? `We sent a code to ${formattedContact}`
+                        : 'Sign in with your email or mobile number to access your account'}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 {!otpSent ? (
-                    <form onSubmit={handleSendEmailOtp} className="space-y-4">
+                    <form onSubmit={handleSendOtp} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email Address</Label>
+                            <Label htmlFor="identifier">Email or mobile number</Label>
                             <Input
-                                id="email"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="name@example.com"
+                                id="identifier"
+                                type="text"
+                                value={identifier}
+                                onChange={(e) => setIdentifier(e.target.value)}
+                                placeholder="name@example.com or 9999999999"
                                 required
                             />
                         </div>
-                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={isSubmitting || !email}>
+                        <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800" disabled={isSubmitting || !identifier}>
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Get OTP'}
                         </Button>
                     </form>
@@ -196,7 +182,7 @@ export function LoginForm() {
                                 <Button
                                     variant="link"
                                     type="button"
-                                    onClick={handleSendEmailOtp}
+                                    onClick={() => handleSendOtp()}
                                     className="text-slate-900 p-0 h-auto"
                                     disabled={isSubmitting}
                                 >
@@ -212,7 +198,7 @@ export function LoginForm() {
                                 }}
                                 className="text-stone-500 p-0 h-auto text-xs"
                             >
-                                Change Email
+                                Change Input
                             </Button>
                         </div>
                     </form>
