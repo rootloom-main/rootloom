@@ -33,14 +33,18 @@ const envSchema = z.object({
     // Cron Security
     CRON_SECRET: z.string().min(16).optional(),
 
-    // Twilio (WhatsApp & SMS)
+    // Twilio (WhatsApp notifications)
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
     TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
     TWILIO_WHATSAPP_NUMBER: z.string().min(1).optional(),
-    TWILIO_MESSAGING_SERVICE_SID: z.string().min(1).optional(),
-    TWILIO_DLT_ENTITY_ID: z.string().min(1).optional(),
-    TWILIO_DLT_TEMPLATE_ID: z.string().min(1).optional(),
-    TWILIO_DLT_TEMPLATE: z.string().min(1).optional(),
+
+    // MSG91 (SMS OTP Delivery)
+    MSG91_AUTH_KEY: z.string().min(1).optional(),
+    MSG91_FLOW_ID: z.string().min(1).optional(),
+    MSG91_OTP_VAR_NAME: z.string().min(1).optional(),
+    MSG91_TEMPLATE_ID: z.string().min(1).optional(),
+    MSG91_DLT_TEMPLATE_ID: z.string().min(1).optional(),
+    MSG91_SENDER_ID: z.string().min(1).optional(),
     SUPABASE_SMS_HOOK_SECRET: z.string().min(1).optional(),
 });
 

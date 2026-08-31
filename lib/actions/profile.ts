@@ -45,14 +45,25 @@ export async function updateProfile(prevState: any, formData: FormData) {
         };
     }
 
-    const { fullName, phone, email, dob, gender } = validatedFields.data;
+    const { fullName, phone: rawPhone, email, dob, gender } = validatedFields.data;
 
-    // 1. Check for duplicate phone number
-    if (phone && formData.has('phone')) {
+    let normalizedPhone = rawPhone ? rawPhone.trim() : '';
+    if (normalizedPhone) {
+        const cleanDigits = normalizedPhone.replace(/\D/g, '');
+        if (cleanDigits.length === 10) normalizedPhone = `+91${cleanDigits}`;
+        else if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) normalizedPhone = `+${cleanDigits}`;
+        else if (normalizedPhone.startsWith('+')) normalizedPhone = `+${cleanDigits}`;
+        else normalizedPhone = `+91${cleanDigits}`;
+    }
+
+    // 1. Check for duplicate phone number across all variants
+    if (normalizedPhone && formData.has('phone')) {
+        const cleanDigits = normalizedPhone.replace(/\D/g, '');
+        const phoneVariants = [normalizedPhone, cleanDigits, cleanDigits.slice(-10), `91${cleanDigits.slice(-10)}`];
         const { data: existingPhoneProfile } = await adminSupabase
             .from('profiles')
             .select('id')
-            .eq('phone', phone)
+            .in('phone', phoneVariants)
             .neq('id', user.id)
             .maybeSingle();
 
@@ -88,7 +99,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     };
 
     if (formData.has('phone')) {
-        updateData.phone = phone || null;
+        updateData.phone = normalizedPhone || null;
     }
 
     if (formData.has('email')) {
@@ -130,6 +141,16 @@ export async function updateProfile(prevState: any, formData: FormData) {
     if (profileError) {
         console.error('Profile update error:', profileError);
         return { success: false, message: 'Failed to update profile' };
+    }
+
+    // Sync phone to auth.users
+    if (normalizedPhone) {
+        await adminSupabase.auth.admin.updateUserById(user.id, {
+            phone: normalizedPhone,
+            phone_confirm: true,
+        }).catch((err: any) => {
+            console.warn('[Profile Update] Error syncing phone to auth.users:', err);
+        });
     }
 
     revalidatePath('/account');

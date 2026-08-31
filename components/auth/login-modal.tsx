@@ -113,8 +113,11 @@ export function LoginModal({
       }
 
       if (result.isNewUser) {
-        // Transition to First Login Experience view
-        setStep('welcome');
+        onOpenChange(false);
+        router.refresh();
+        setTimeout(() => {
+          window.location.href = `/auth/onboarding?next=${encodeURIComponent(safeNextUrl)}`;
+        }, 100);
       } else {
         toast.success('Welcome back!');
         onOpenChange(false);

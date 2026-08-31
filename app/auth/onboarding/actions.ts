@@ -1,6 +1,15 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+function normalizePhone(phone: string): string {
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (cleanDigits.length === 10) return `+91${cleanDigits}`;
+    if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) return `+${cleanDigits}`;
+    if (phone.startsWith('+')) return `+${cleanDigits}`;
+    return `+91${cleanDigits}`;
+}
 
 export async function completeOnboarding(data: {
     name: string;
@@ -21,16 +30,21 @@ export async function completeOnboarding(data: {
     if (!user) return { error: 'Unauthorized' };
 
     // Clean phone number (extract digits only or check length)
-    const cleanedPhone = data.phone?.trim() || '';
-    if (!cleanedPhone || cleanedPhone.length < 10) {
+    const rawPhone = data.phone?.trim() || '';
+    const cleanDigits = rawPhone.replace(/\D/g, '');
+    if (!cleanDigits || cleanDigits.length < 10) {
         return { error: 'Phone number must be at least 10 digits.' };
     }
 
-    // Check for uniqueness of phone number
-    const { data: existing } = await supabase
+    const normalizedPhone = normalizePhone(rawPhone);
+    const phoneVariants = [normalizedPhone, cleanDigits, cleanDigits.slice(-10), `91${cleanDigits.slice(-10)}`];
+
+    // Check for uniqueness of phone number across all variants
+    const adminSupabase = createAdminClient();
+    const { data: existing } = await adminSupabase
         .from('profiles')
         .select('id')
-        .eq('phone', cleanedPhone)
+        .in('phone', phoneVariants)
         .neq('id', user.id)
         .maybeSingle();
 
@@ -45,7 +59,7 @@ export async function completeOnboarding(data: {
             id: user.id,
             full_name: data.name.trim(),
             email: data.email || user.email || '',
-            phone: cleanedPhone,
+            phone: normalizedPhone,
             role: 'user',
             updated_at: new Date().toISOString(),
         });
@@ -55,12 +69,17 @@ export async function completeOnboarding(data: {
         return { error: profileError.message };
     }
 
-    await supabase.auth.updateUser({
-        data: {
+    // 2. Sync phone to auth.users
+    await adminSupabase.auth.admin.updateUserById(user.id, {
+        phone: normalizedPhone,
+        phone_confirm: true,
+        user_metadata: {
             full_name: data.name.trim(),
             name: data.name.trim(),
-            phone: cleanedPhone,
-        },
+            phone: normalizedPhone,
+        }
+    }).catch((err) => {
+        console.warn('[Onboarding] Error syncing phone to auth.users:', err);
     });
 
     // 2. Insert Shipping Address if provided
@@ -76,7 +95,7 @@ export async function completeOnboarding(data: {
             .insert({
                 user_id: user.id,
                 full_name: data.name.trim(),
-                phone: cleanedPhone,
+                phone: normalizedPhone,
                 address_line1: data.address.address_line1.trim(),
                 address_line2: data.address.address_line2?.trim() || '',
                 city: data.address.city.trim(),

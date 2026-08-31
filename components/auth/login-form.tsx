@@ -101,6 +101,9 @@ export function LoginForm() {
             await refreshSession();
 
             const next = sanitizeRedirectPath(searchParams?.get('next'), '/');
+            const redirectUrl = result.isNewUser
+                ? `/auth/onboarding?next=${encodeURIComponent(next)}`
+                : next;
 
             // 2. Refresh the server-side components
             router.refresh();
@@ -109,7 +112,7 @@ export function LoginForm() {
             // Using window.location.href guarantees the server reads the new cookies
             // and the entire page state is fresh.
             setTimeout(() => {
-                window.location.href = next;
+                window.location.href = redirectUrl;
             }, 100);
         } catch (error: any) {
             toast.error(error.message || 'Invalid code. Please try again.');

@@ -156,6 +156,71 @@ export async function signInWithIdentifier(identifier: string) {
     }
 }
 
+function normalizePhone(phone: string): string | null {
+    if (!phone) return null;
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (cleanDigits.length === 10 && /^[6-9]\d{9}$/.test(cleanDigits)) {
+        return `+91${cleanDigits}`;
+    }
+    if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+        const last10 = cleanDigits.slice(2);
+        if (/^[6-9]\d{9}$/.test(last10)) {
+            return `+${cleanDigits}`;
+        }
+    }
+    if (phone.startsWith('+') && cleanDigits.length >= 10 && cleanDigits.length <= 15) {
+        return `+${cleanDigits}`;
+    }
+    return null;
+}
+
+function getPhoneLookupVariants(phone: string): string[] {
+    const cleanDigits = phone.replace(/\D/g, '');
+    const variants = new Set<string>();
+    if (cleanDigits.length >= 10) {
+        const last10 = cleanDigits.slice(-10);
+        variants.add(last10);
+        variants.add(`91${last10}`);
+        variants.add(`+91${last10}`);
+    }
+    if (phone.trim()) {
+        variants.add(phone.trim());
+    }
+    return Array.from(variants);
+}
+
+async function isSafeTemporaryUser(adminSupabase: any, userId: string): Promise<boolean> {
+    try {
+        const [
+            { count: ordersCount },
+            { count: addressesCount },
+            { count: cartCount },
+            { count: wishlistCount },
+            { count: reviewsCount },
+            { count: returnsCount }
+        ] = await Promise.all([
+            adminSupabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            adminSupabase.from('addresses').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            adminSupabase.from('cart').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            adminSupabase.from('wishlist').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            adminSupabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            adminSupabase.from('returns').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+        ]);
+
+        return (
+            (ordersCount || 0) === 0 &&
+            (addressesCount || 0) === 0 &&
+            (cartCount || 0) === 0 &&
+            (wishlistCount || 0) === 0 &&
+            (reviewsCount || 0) === 0 &&
+            (returnsCount || 0) === 0
+        );
+    } catch (err) {
+        console.error('[Auth Consolidation] Error checking temporary user safety:', err);
+        return false;
+    }
+}
+
 export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact: string, source?: string): Promise<{ 
     success?: boolean; 
     error?: string; 
@@ -172,7 +237,9 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
         }
 
         const supabase = await createClient();
-        const formattedContact = type === 'sms' && !contact.startsWith('+') ? `+91${contact}` : normalizeIdentifier(contact);
+        const formattedContact = type === 'sms'
+            ? (normalizePhone(contact) || (contact.startsWith('+') ? contact : `+91${contact}`))
+            : normalizeIdentifier(contact);
 
         let result;
         if (type === 'sms') {
@@ -187,166 +254,225 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
                 return { error: 'Login is temporarily unavailable. Please contact support.' };
             }
 
-        // Custom Email OTP verification
-        const adminSupabase = createAdminClient();
-        
-        // 1. Check our custom table
-        const { data: otpData, error: otpError } = await (adminSupabase as any)
-            .from('auth_otps')
-            .select('*')
-            .eq('email', formattedContact)
-            .gt('expires_at', new Date().toISOString())
-            .is('consumed_at', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+            // Custom Email OTP verification
+            const adminSupabase = createAdminClient();
 
-        if (otpError || !otpData) {
-            await auditOtpEvent(adminSupabase, formattedContact, 'otp_invalid_missing').catch(() => {});
-            return { error: 'Invalid or expired verification code.' };
-        }
+            // 1. Check our custom table
+            const { data: otpData, error: otpError } = await (adminSupabase as any)
+                .from('auth_otps')
+                .select('*')
+                .eq('email', formattedContact)
+                .gt('expires_at', new Date().toISOString())
+                .is('consumed_at', null)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
 
-        if (otpData.locked_until && new Date(otpData.locked_until).getTime() > Date.now()) {
-            await auditOtpEvent(adminSupabase, formattedContact, 'otp_locked').catch(() => {});
-            return { error: 'Too many incorrect codes. Please wait 15 minutes before trying again.' };
-        }
+            if (otpError || !otpData) {
+                await auditOtpEvent(adminSupabase, formattedContact, 'otp_invalid_missing').catch(() => {});
+                return { error: 'Invalid or expired verification code.' };
+            }
 
-        const expectedHash = otpData.code_hash || hashOtp(formattedContact, otpData.code);
-        const receivedHash = hashOtp(formattedContact, token);
+            if (otpData.locked_until && new Date(otpData.locked_until).getTime() > Date.now()) {
+                await auditOtpEvent(adminSupabase, formattedContact, 'otp_locked').catch(() => {});
+                return { error: 'Too many incorrect codes. Please wait 15 minutes before trying again.' };
+            }
 
-        if (!safeCompare(expectedHash, receivedHash)) {
-            const failedAttempts = Number(otpData.failed_attempts || 0) + 1;
-            const lockUntil = failedAttempts >= MAX_OTP_ATTEMPTS
-                ? new Date(Date.now() + OTP_LOCK_MINUTES * 60 * 1000).toISOString()
-                : null;
+            const expectedHash = otpData.code_hash || hashOtp(formattedContact, otpData.code);
+            const receivedHash = hashOtp(formattedContact, token);
 
+            if (!safeCompare(expectedHash, receivedHash)) {
+                const failedAttempts = Number(otpData.failed_attempts || 0) + 1;
+                const lockUntil = failedAttempts >= MAX_OTP_ATTEMPTS
+                    ? new Date(Date.now() + OTP_LOCK_MINUTES * 60 * 1000).toISOString()
+                    : null;
+
+                await (adminSupabase as any)
+                    .from('auth_otps')
+                    .update({
+                        failed_attempts: failedAttempts,
+                        locked_until: lockUntil,
+                    })
+                    .eq('id', otpData.id);
+
+                await auditOtpEvent(adminSupabase, formattedContact, lockUntil ? 'otp_locked_after_failures' : 'otp_failed', {
+                    failed_attempts: failedAttempts,
+                }).catch(() => {});
+
+                return { error: 'Invalid or expired verification code.' };
+            }
+
+            // 2. Cleanup: Delete the used OTP
             await (adminSupabase as any)
                 .from('auth_otps')
-                .update({
-                    failed_attempts: failedAttempts,
-                    locked_until: lockUntil,
-                })
+                .update({ consumed_at: new Date().toISOString() })
                 .eq('id', otpData.id);
 
-            await auditOtpEvent(adminSupabase, formattedContact, lockUntil ? 'otp_locked_after_failures' : 'otp_failed', {
-                failed_attempts: failedAttempts,
-            }).catch(() => {});
+            await auditOtpEvent(adminSupabase, formattedContact, 'otp_verified').catch(() => {});
 
-            return { error: 'Invalid or expired verification code.' };
+            // 3. Generate a real Supabase session using admin.generateLink
+            const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
+                type: 'magiclink',
+                email: formattedContact,
+            });
+
+            if (linkError || !linkData?.properties?.hashed_token) {
+                console.error('Sign-in link error:', linkError);
+                return { error: 'Verification successful, but sign-in failed. Please try again.' };
+            }
+
+            const verificationType = linkData.properties.verification_type as any;
+            const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+                token_hash: linkData.properties.hashed_token,
+                type: verificationType || 'magiclink',
+            });
+
+            if (verifyError) {
+                console.error('Server-side verify error:', verifyError);
+                return { error: 'Verification successful, but failed to create session.' };
+            }
+
+            result = { data: verifyData, error: null };
         }
 
-        // 2. Cleanup: Delete the used OTP
-        await (adminSupabase as any)
-            .from('auth_otps')
-            .update({ consumed_at: new Date().toISOString() })
-            .eq('id', otpData.id);
-
-        await auditOtpEvent(adminSupabase, formattedContact, 'otp_verified').catch(() => {});
-
-        // 3. Generate a real Supabase session using admin.generateLink
-        const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
-            type: 'magiclink',
-            email: formattedContact,
-        });
-
-        if (linkError || !linkData?.properties?.hashed_token) {
-            console.error('Sign-in link error:', linkError);
-            return { error: 'Verification successful, but sign-in failed. Please try again.' };
+        if (result.error) {
+            return { error: result.error.message };
         }
 
-        // 4. Use the non-admin client (supabase) to verify the token hash.
-        // This will automatically set the session cookies on the response.
-        // Use the verification_type returned by generateLink because for new users,
-        // it generates a 'signup' verification type rather than 'magiclink'.
-        const verificationType = linkData.properties.verification_type as any;
-        const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-            token_hash: linkData.properties.hashed_token,
-            type: verificationType || 'magiclink',
-        });
-
-        if (verifyError) {
-            console.error('Server-side verify error:', verifyError);
-            return { error: 'Verification successful, but failed to create session.' };
+        if (!result.data?.user?.id) {
+            return { error: 'User ID missing after verification' };
         }
 
-        result = { data: verifyData, error: null };
-    }
+        let effectiveUserId = result.data.user.id;
 
-    if (result.error) {
-        return { error: result.error.message };
-    }
+        // Identity Consolidation with Production Safeguards
+        if (type === 'sms') {
+            const canonicalPhone = normalizePhone(contact) || result.data.user.phone || formattedContact;
+            const phoneVariants = getPhoneLookupVariants(canonicalPhone);
+            const tempUserId = result.data.user.id;
+            const adminSupabase = createAdminClient();
 
-    // Check if profile exists
-    if (!result.data?.user?.id) {
-        return { error: 'User ID missing after verification' };
-    }
-
-    // Check for identity consolidation (Phone-first)
-    // If phone is provided, check for uniqueness
-    if (type === 'sms' && result.data.user?.phone) {
-        const phone = result.data.user.phone;
-        const adminSupabase = createAdminClient();
-
-        // Find if this phone already belongs to another profile (e.g. an email account)
-        const { data: existingProfile } = await adminSupabase
-            .from('profiles')
-            .select('id, email')
-            .eq('phone', phone)
-            .single();
-
-        if (existingProfile && existingProfile.id !== result.data.user.id) {
-            console.warn('[Auth] Identity conflict: merging duplicate phone profile');
-
-            // 1. Move the profile data to the new Auth ID
-            // Cascade ensures orders/addresses/etc. move too
-            const { error: mergeError } = await adminSupabase
+            // Find if this verified phone already belongs to an existing canonical account
+            const { data: existingProfiles } = await adminSupabase
                 .from('profiles')
-                .update({ id: result.data.user.id })
-                .eq('id', existingProfile.id);
+                .select('id, email, phone, full_name')
+                .in('phone', phoneVariants)
+                .neq('id', tempUserId);
 
-            if (mergeError) {
-                console.error('Failed to merge profiles:', mergeError);
-            } else {
-                // 2. Cleanup: Delete the old auth user (it no longer has a profile or any data)
-                await adminSupabase.auth.admin.deleteUser(existingProfile.id);
+            const canonicalProfile = existingProfiles?.[0];
 
-                // 3. Update new user with old email if missing
-                if (existingProfile.email && !result.data.user.email) {
-                    await adminSupabase.auth.admin.updateUserById(result.data.user.id, {
-                        email: existingProfile.email,
-                        email_confirm: true
+            if (canonicalProfile && canonicalProfile.id !== tempUserId) {
+                console.log(`[Auth Consolidation] Matching canonical account ${canonicalProfile.id} for phone ${canonicalPhone}`);
+
+                // Safeguard 1: Verify temporary user is safe to delete
+                const isSafe = await isSafeTemporaryUser(adminSupabase, tempUserId);
+
+                if (!isSafe) {
+                    console.warn(`[Auth Consolidation] Temporary user ${tempUserId} contains existing user data. Aborting automatic delete.`);
+                    await recordOpsEvent({
+                        eventType: 'auth.identity_consolidation',
+                        status: 'conflict_aborted',
+                        channel: 'sms',
+                        reference: canonicalPhone,
+                        metadata: {
+                            canonical_user_id: canonicalProfile.id,
+                            temporary_user_id: tempUserId,
+                            normalized_phone: canonicalPhone,
+                            reason: 'temporary_user_has_data',
+                        },
                     });
+                } else {
+                    // Safeguard 2: Verify canonical user exists in Supabase auth
+                    const { data: canonicalAuthUser, error: getAuthError } = await adminSupabase.auth.admin.getUserById(canonicalProfile.id);
+
+                    if (!getAuthError && canonicalAuthUser?.user) {
+                        // 1. Link and confirm the phone on canonical user in Supabase Auth
+                        await adminSupabase.auth.admin.updateUserById(canonicalProfile.id, {
+                            phone: canonicalPhone,
+                            phone_confirm: true,
+                        });
+
+                        // 2. Ensure canonical profile has the standardized phone
+                        await adminSupabase
+                            .from('profiles')
+                            .update({
+                                phone: canonicalPhone,
+                                last_login: new Date().toISOString(),
+                            })
+                            .eq('id', canonicalProfile.id);
+
+                        // 3. Delete temporary auth user
+                        await adminSupabase.auth.admin.deleteUser(tempUserId);
+
+                        // 4. Establish authenticated session for the canonical account AAAAA
+                        if (canonicalProfile.email) {
+                            const { data: linkData, error: linkError } = await adminSupabase.auth.admin.generateLink({
+                                type: 'magiclink',
+                                email: canonicalProfile.email,
+                            });
+
+                            if (!linkError && linkData?.properties?.hashed_token) {
+                                const { data: canonicalSession, error: sessionError } = await supabase.auth.verifyOtp({
+                                    token_hash: linkData.properties.hashed_token,
+                                    type: (linkData.properties.verification_type as any) || 'magiclink',
+                                });
+
+                                if (!sessionError && canonicalSession?.user) {
+                                    effectiveUserId = canonicalSession.user.id;
+                                    result.data.user = canonicalSession.user;
+                                }
+                            }
+                        }
+
+                        await recordOpsEvent({
+                            eventType: 'auth.identity_consolidation',
+                            status: 'success',
+                            channel: 'sms',
+                            reference: canonicalPhone,
+                            metadata: {
+                                canonical_user_id: canonicalProfile.id,
+                                temporary_user_id: tempUserId,
+                                normalized_phone: canonicalPhone,
+                                timestamp: new Date().toISOString(),
+                            },
+                        });
+                    }
                 }
+            } else {
+                // Ensure auth.users.phone is confirmed on current user
+                await adminSupabase.auth.admin.updateUserById(tempUserId, {
+                    phone: canonicalPhone,
+                    phone_confirm: true,
+                }).catch(() => {});
             }
         }
-    }
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, signup_source, created_at')
-        .eq('id', result.data.user.id)
-        .single();
+        const adminSupabase = createAdminClient();
+        const { data: profile } = await adminSupabase
+            .from('profiles')
+            .select('id, signup_source, full_name, phone, created_at')
+            .eq('id', effectiveUserId)
+            .single();
 
-    const isNewUser = !profile || !profile.signup_source;
+        const needsOnboarding = !profile?.full_name?.trim() || !profile?.phone?.trim();
 
-    // Save telemetry metadata
-    const now = new Date().toISOString();
-    const updateData: any = { last_login: now };
-    if (isNewUser && source) {
-        updateData.signup_source = source;
-    }
-    
-    const adminSupabase = createAdminClient();
-    await adminSupabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', result.data.user.id);
+        // Save telemetry metadata
+        const now = new Date().toISOString();
+        const updateData: any = { last_login: now };
+        if (!profile?.signup_source && source) {
+            updateData.signup_source = source;
+        }
 
-    return {
-        success: true,
-        isNewUser: isNewUser,
-        user: result.data.user
-    };
+        await adminSupabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', effectiveUserId);
+
+        return {
+            success: true,
+            isNewUser: needsOnboarding,
+            user: result.data.user
+        };
     } catch (error) {
         console.error('OTP verification failed:', error);
         return { error: toErrorMessage(error) };

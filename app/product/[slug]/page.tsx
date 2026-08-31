@@ -3,10 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ProductService } from '@/lib/services/productService';
 import { ProductDetails } from './product-details';
 import { Metadata } from 'next';
-import { ProductSchema, BreadcrumbSchema } from '@/components/seo/structured-data';
+import { ProductSchema, BreadcrumbSchema } from '@/components/seo/ProductSchema';
+import { generateProductMetadata } from '@/lib/seo/metadata-generator';
 import { getRelatedProducts } from '@/lib/data/recommendations';
 import NextDynamic from 'next/dynamic';
 import RecentlyViewed from '@/components/product/recently-viewed';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { Slash } from 'lucide-react';
 
 const Reviews = NextDynamic(() => import('@/components/product/reviews'), {
   loading: () => <div className="h-40 animate-pulse bg-stone-100 rounded-xl" />
@@ -26,37 +29,26 @@ export async function generateMetadata({
   params,
 }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = createAdminClient();
-  const { data: product } = await supabase
-    .from('products')
-    .select('name, description, product_images(image_url)')
-    .eq('slug', slug)
-    .single() as { data: any | null };
+  const product = await ProductService.getProductBySlug(slug);
 
   if (!product) {
     return {
-      title: 'Product Not Found | Root&Loom',
+      title: 'Product Not Found | Root & Loom',
     };
   }
 
-  const imageUrl =
-    product.product_images?.[0]?.image_url ||
-    '/images/og-default.jpg'; // Fallback image
-
-  return {
-    title: `${product.name} | Root&Loom`,
-    description: product.description || `Buy ${product.name} at Root&Loom`,
-    openGraph: {
-      title: product.name,
-      description: product.description || `Buy ${product.name} at Root&Loom`,
-      images: [{ url: imageUrl }],
-    },
-  };
+  return generateProductMetadata({
+    name: product.name,
+    slug: product.slug,
+    description: product.description,
+    basePrice: product.base_price,
+    categoryName: product.category?.name,
+    gender: product.metadata?.gender,
+    material: product.metadata?.material,
+    color: product.metadata?.color,
+    images: (product.product_images || []).map((img: any) => img.image_url),
+  });
 }
-
-
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { Slash } from 'lucide-react';
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
@@ -72,60 +64,78 @@ export default async function ProductPage({ params }: ProductPageProps) {
     supabase
       .from('reviews')
       .select(`
-      *,
-      profiles(full_name)
-    `)
+        *,
+        profiles(full_name)
+      `)
       .eq('product_id', product.id)
       .order('created_at', { ascending: false }),
     getRelatedProducts(product.id, product.category_id || product.category?.id),
   ]);
-  const hasStock = product.product_variants.some((v: any) => v.stock > 0);
+
+  const hasStock = product.product_variants?.some((v: any) => (v.stock || 0) > 0);
 
   // Calculate Ratings
   const totalReviews = reviews?.length || 0;
   const averageRating =
     totalReviews > 0
       ? (reviews || []).reduce((acc: number, r: any) => acc + r.rating, 0) /
-      totalReviews
+        totalReviews
       : 0;
 
-  const siteUrl = 'https://rootloom.in';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rootloom.in';
 
   return (
     <div className="pb-16 bg-white">
-      {/* SEO Schemas */}
+      {/* SEO Structured Data Schemas */}
       <BreadcrumbSchema
         items={[
           { name: 'Home', item: siteUrl },
           { name: 'Shop', item: `${siteUrl}/shop` },
-          { name: product.category?.name || 'Category', item: `${siteUrl}/shop?category=${product.category?.slug}` },
+          ...(product.category
+            ? [
+                {
+                  name: product.category.name,
+                  item: `${siteUrl}/shop?category=${product.category.slug}`,
+                },
+              ]
+            : []),
           { name: product.name, item: `${siteUrl}/product/${product.slug}` },
         ]}
       />
       <ProductSchema
         product={{
+          id: product.id,
           name: product.name,
+          slug: product.slug,
           description: product.description,
-          images: product.product_images.map((img: any) => img.image_url),
+          images: (product.product_images || []).map((img: any) => img.image_url),
           brand: 'Root & Loom',
+          basePrice: product.base_price,
+          inStock: hasStock,
           sku: product.product_variants?.[0]?.sku || product.slug,
-          offers: {
-            price: product.base_price,
-            priceCurrency: 'INR',
-            availability: hasStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-            url: `${siteUrl}/product/${product.slug}`,
-          },
-          aggregateRating: {
-            ratingValue: parseFloat(averageRating.toFixed(1)),
-            reviewCount: totalReviews,
-          },
-          reviews: reviews?.map((r: any) => ({
-            author: r.profiles?.full_name || 'Anonymous',
-            datePublished: r.created_at,
-            reviewBody: r.comment || '',
-            reviewRating: r.rating,
-          })),
+          color: product.metadata?.color || product.product_variants?.[0]?.color,
+          size: product.product_variants?.[0]?.size,
+          material: product.metadata?.material,
+          pattern: product.metadata?.pattern,
+          gender: product.metadata?.gender || 'Unisex',
+          category: product.category?.name,
         }}
+        reviews={(reviews || []).map((r: any) => ({
+          id: r.id,
+          author: r.profiles?.full_name || 'Verified Buyer',
+          comment: r.comment || '',
+          rating: r.rating,
+          createdAt: r.created_at,
+        }))}
+        aggregateRating={
+          totalReviews > 0
+            ? {
+                ratingValue: parseFloat(averageRating.toFixed(1)),
+                reviewCount: totalReviews,
+              }
+            : undefined
+        }
+        siteUrl={siteUrl}
       />
 
       {/* Visual Breadcrumbs */}
@@ -143,7 +153,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
             {product.category && (
               <>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/shop?category=${product.category.slug}`}>{product.category.name}</BreadcrumbLink>
+                  <BreadcrumbLink href={`/shop?category=${product.category.slug}`}>
+                    {product.category.name}
+                  </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator><Slash className="w-3 h-3" /></BreadcrumbSeparator>
               </>

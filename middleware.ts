@@ -56,9 +56,9 @@ export async function middleware(request: NextRequest) {
 
   const isMutationRequest = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
 
-  // Protect sensitive mutations. Public auth page renders must stay reachable.
+  // Protect sensitive mutations. Public auth page renders and signature-verified webhooks handle their own security.
   const requiresRateLimit =
-    (path.startsWith('/api/auth') && isMutationRequest) ||
+    (path.startsWith('/api/auth') && !path.startsWith('/api/auth/sms-provider') && isMutationRequest) ||
     path.startsWith('/api/checkout') ||
     path.startsWith('/api/orders');
 

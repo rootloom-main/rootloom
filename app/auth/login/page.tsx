@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChevronLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ChevronLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { signInWithIdentifier, verifyOtpEx } from '../actions';
 import {
@@ -22,7 +22,6 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<'identifier' | 'otp' | 'email_sent'>('identifier');
   const [loading, setLoading] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [formattedContact, setFormattedContact] = useState('');
   const [otp, setOtp] = useState('');
@@ -89,14 +88,19 @@ function LoginPageContent() {
       // 2. Refresh server-side components
       router.refresh();
 
+      const next = sanitizeRedirectPath(searchParams?.get('next'), '/');
+      const redirectUrl = result.isNewUser
+        ? `/auth/onboarding?next=${encodeURIComponent(next)}`
+        : next;
+
       if (result.isNewUser) {
-        setShowWelcome(true);
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 100);
       } else {
         toast.success('Welcome back!');
-        // Standard redirection
-        const next = sanitizeRedirectPath(searchParams?.get('next'), '/');
         setTimeout(() => {
-          window.location.href = next;
+          window.location.href = redirectUrl;
         }, 100);
       }
     } catch (error: any) {
@@ -106,46 +110,6 @@ function LoginPageContent() {
       setLoading(false);
     }
   };
-
-  if (showWelcome) {
-    const next = sanitizeRedirectPath(searchParams?.get('next'), '/');
-    const isCheckoutPath = next.includes('checkout');
-    return (
-      <div className="min-h-[85vh] flex flex-col items-center justify-center p-4 py-8 max-w-6xl mx-auto w-full bg-stone-50/20">
-        <div className="w-full flex rounded-3xl overflow-hidden border border-stone-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] bg-white max-w-md mx-auto p-8 flex-col items-center text-center space-y-6">
-          <div className="mx-auto w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center border border-amber-200/50 shadow-inner animate-bounce">
-            <Sparkles className="h-8 w-8 text-amber-500 fill-amber-100" />
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-2xl font-bold font-serif text-stone-900">🎉 Welcome!</h3>
-            <p className="text-stone-500 text-sm leading-relaxed">
-              Your account has been successfully created.
-            </p>
-          </div>
-
-          <Button
-            onClick={() => {
-              window.location.href = next;
-            }}
-            className="w-full h-12 bg-deep-forest hover:bg-slate-900 text-white rounded-xl text-sm font-bold shadow-lg shadow-deep-forest/10 hover:shadow-xl transition-all duration-300 uppercase tracking-wider"
-          >
-            {isCheckoutPath ? (
-              <span className="flex items-center justify-center">
-                Continue Checkout
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </span>
-            ) : (
-              <span className="flex items-center justify-center">
-                Continue Shopping
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </span>
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-[85vh] flex flex-col items-center justify-center p-4 py-8 max-w-6xl mx-auto w-full bg-stone-50/20">
