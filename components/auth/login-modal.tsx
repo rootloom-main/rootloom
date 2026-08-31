@@ -24,6 +24,21 @@ interface LoginModalProps {
   refreshSession: () => Promise<void>;
 }
 
+function formatDisplayContact(contact: string): string {
+  if (!contact) return '';
+  const trimmed = contact.trim();
+  if (trimmed.includes('@')) return trimmed;
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length === 10) {
+    return `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`;
+  }
+  if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+    const last10 = cleanDigits.slice(2);
+    return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+  }
+  return trimmed;
+}
+
 export function LoginModal({ 
   isOpen, 
   onOpenChange, 
@@ -159,12 +174,16 @@ export function LoginModal({
               <DialogTitle className="text-2xl font-bold tracking-tight text-stone-900 font-serif">
                 {step === 'identifier' ? 'Welcome 👋' : 'Verify Account'}
               </DialogTitle>
-              <DialogDescription className="text-stone-500 text-sm">
-                {step === 'identifier' 
-                  ? 'Enter your email address or mobile number to continue.' 
-                  : `We've sent a 6-digit verification code to `}
-                {step === 'otp' && (
-                  <span className="text-stone-950 font-bold break-all">{formattedContact}</span>
+              <DialogDescription className="text-stone-500 text-sm leading-relaxed">
+                {step === 'identifier' ? (
+                  'Enter your email address or mobile number to continue.'
+                ) : (
+                  <span>
+                    We've sent a 6-digit verification code to{' '}
+                    <span className="font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md inline-block whitespace-nowrap tracking-wide">
+                      {formatDisplayContact(formattedContact)}
+                    </span>
+                  </span>
                 )}
               </DialogDescription>
             </DialogHeader>

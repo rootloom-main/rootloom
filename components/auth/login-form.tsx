@@ -18,6 +18,21 @@ import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { sanitizeRedirectPath } from '@/lib/utils/redirect';
 import { signInWithIdentifier, verifyOtpEx } from '@/app/auth/actions';
 
+function formatDisplayContact(contact: string): string {
+  if (!contact) return '';
+  const trimmed = contact.trim();
+  if (trimmed.includes('@')) return trimmed;
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length === 10) {
+    return `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`;
+  }
+  if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+    const last10 = cleanDigits.slice(2);
+    return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+  }
+  return trimmed;
+}
+
 export function LoginForm() {
     const router = useRouter();
     const { refreshSession } = useAuth();
@@ -130,10 +145,17 @@ export function LoginForm() {
                 <CardTitle className="text-2xl font-serif text-deep-forest">
                     {otpSent ? 'Enter Code' : 'Welcome Back'}
                 </CardTitle>
-                <CardDescription>
-                    {otpSent
-                        ? `We sent a code to ${formattedContact}`
-                        : 'Sign in with your email or mobile number to access your account'}
+                <CardDescription className="text-stone-500 text-sm leading-relaxed">
+                    {otpSent ? (
+                        <span>
+                            We sent a code to{' '}
+                            <span className="font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md inline-block whitespace-nowrap tracking-wide">
+                                {formatDisplayContact(formattedContact)}
+                            </span>
+                        </span>
+                    ) : (
+                        'Sign in with your email or mobile number to access your account'
+                    )}
                 </CardDescription>
             </CardHeader>
             <CardContent>

@@ -16,6 +16,21 @@ import { useAuth } from '@/components/auth/supabase-auth-provider';
 import { CheckoutProgressIndicator } from '@/components/checkout/checkout-progress-indicator';
 import { sanitizeRedirectPath } from '@/lib/utils/redirect';
 
+function formatDisplayContact(contact: string): string {
+  if (!contact) return '';
+  const trimmed = contact.trim();
+  if (trimmed.includes('@')) return trimmed;
+  const cleanDigits = trimmed.replace(/\D/g, '');
+  if (cleanDigits.length === 10) {
+    return `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`;
+  }
+  if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+    const last10 = cleanDigits.slice(2);
+    return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+  }
+  return trimmed;
+}
+
 function LoginPageContent() {
   const router = useRouter();
   const { refreshSession } = useAuth();
@@ -188,8 +203,11 @@ function LoginPageContent() {
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="space-y-2">
                   <h2 className="text-3xl font-bold tracking-tight text-stone-900 font-serif">Verify Account</h2>
-                  <p className="text-stone-500 text-sm">
-                    We sent a 6-digit code to <span className="text-stone-950 font-bold break-all">{formattedContact}</span>
+                  <p className="text-stone-500 text-sm leading-relaxed">
+                    We sent a 6-digit code to{' '}
+                    <span className="font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md inline-block whitespace-nowrap tracking-wide">
+                      {formatDisplayContact(formattedContact)}
+                    </span>
                     <button type="button" onClick={() => { setStep('identifier'); setOtp(''); }} className="ml-2 text-deep-forest font-bold hover:underline text-xs" disabled={loading}>(Edit)</button>
                   </p>
                 </div>
