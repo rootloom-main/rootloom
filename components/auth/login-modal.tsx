@@ -99,7 +99,7 @@ export function LoginModal({
       if (result.error) throw new Error(result.error);
 
       setStep('otp');
-      setTimer(30); // 30s resend timer
+      setTimer(60); // 60s resend timer
       setFormattedContact(result.formattedContact || input);
       toast.success(result.type === 'sms' ? 'OTP sent to your mobile number.' : 'Secure verification code sent to your inbox.');
     } catch (error: any) {

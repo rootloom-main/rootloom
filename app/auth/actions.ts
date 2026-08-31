@@ -3,7 +3,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { 
+    checkRateLimit, 
+    checkIpOtpRateLimit, 
+    checkOtpCooldown, 
+    checkPhoneOtpRateLimit 
+} from '@/lib/rate-limit';
 import { headers } from 'next/headers';
 import { sendOtpEmail } from '@/lib/email';
 import crypto from 'crypto';
@@ -74,9 +79,10 @@ export async function signInWithIdentifier(identifier: string) {
         const headerList = await headers();
         const ip = headerList.get('x-forwarded-for') || '127.0.0.1';
 
-        const { success } = await checkRateLimit(ip);
-        if (!success) {
-            return { error: 'Too many requests. Please wait a minute.' };
+        // 1. Enforce Per-IP Limit (Max 5 requests / 15 mins / IP)
+        const ipLimit = await checkIpOtpRateLimit(ip);
+        if (!ipLimit.success) {
+            return { error: ipLimit.error || 'Too many OTP requests from your network. Please wait 15 minutes.' };
         }
 
         const normalizedIdentifier = normalizeIdentifier(identifier);
@@ -88,6 +94,18 @@ export async function signInWithIdentifier(identifier: string) {
 
         if (!isEmail && !isPhone) {
             return { error: 'Please enter a valid email address or 10-digit mobile number.' };
+        }
+
+        // 2. Enforce 60-Second Resend Cooldown per contact
+        const cooldownCheck = await checkOtpCooldown(normalizedIdentifier);
+        if (!cooldownCheck.success) {
+            return { error: cooldownCheck.error || 'Please wait 60 seconds before requesting another OTP.' };
+        }
+
+        // 3. Enforce Per-Phone / Contact Limit (Max 3 / 15m and Max 5 / 1h)
+        const phoneLimit = await checkPhoneOtpRateLimit(normalizedIdentifier);
+        if (!phoneLimit.success) {
+            return { error: phoneLimit.error || 'Too many OTP requests for this number. Please try again later.' };
         }
 
         if (isPhone) {

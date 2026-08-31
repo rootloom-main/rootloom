@@ -87,7 +87,7 @@ export function LoginForm() {
             if (result.error) throw new Error(result.error);
 
             setOtpSent(true);
-            setTimeLeft(30);
+            setTimeLeft(60); // 60s cooldown
             setFormattedContact(result.formattedContact || input);
             toast.success(result.type === 'sms' ? 'OTP sent to your mobile number.' : 'Secure verification code sent to your inbox.');
         } catch (error: any) {
