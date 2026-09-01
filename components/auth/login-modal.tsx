@@ -179,7 +179,7 @@ export function LoginModal({
                   'Enter your email address or mobile number to continue.'
                 ) : (
                   <span>
-                    We've sent a 6-digit verification code to{' '}
+                    We&apos;ve sent a 6-digit verification code to{' '}
                     <span className="font-semibold text-stone-900 bg-stone-100 px-2 py-0.5 rounded-md inline-block whitespace-nowrap tracking-wide">
                       {formatDisplayContact(formattedContact)}
                     </span>

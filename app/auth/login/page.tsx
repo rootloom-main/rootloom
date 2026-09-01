@@ -126,9 +126,16 @@ function LoginPageContent() {
     }
   };
 
+  const rawNext = searchParams?.get('next') || '';
+  const isCheckout = rawNext.includes('checkout') || searchParams?.get('source') === 'checkout';
+
   return (
     <div className="min-h-[85vh] flex flex-col items-center justify-center p-4 py-8 max-w-6xl mx-auto w-full bg-stone-50/20">
-      <CheckoutProgressIndicator currentStep="account" />
+      {isCheckout && (
+        <div className="w-full mb-2">
+          <CheckoutProgressIndicator currentStep="account" />
+        </div>
+      )}
       
       <div className="w-full flex rounded-3xl overflow-hidden border border-stone-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] bg-white max-w-5xl mx-auto flex-col md:flex-row">
         {/* Visual Section */}
@@ -144,9 +151,13 @@ function LoginPageContent() {
           </div>
 
           <div className="z-10 space-y-6">
-            <h1 className="text-4xl font-medium tracking-tight leading-tight italic font-serif">Continue to checkout securely.</h1>
+            <h1 className="text-4xl font-medium tracking-tight leading-tight italic font-serif">
+              {isCheckout ? 'Continue to checkout securely.' : 'Welcome to Root & Loom.'}
+            </h1>
             <p className="text-stone-400 text-lg leading-relaxed font-sans">
-              Authenticate with your email or mobile number using a one-time verification code. Secure, fast, and no password required.
+              {isCheckout
+                ? 'Authenticate with your email or mobile number using a one-time verification code. Secure, fast, and no password required.'
+                : 'Sign in or create your account using your email or mobile number. Secure, passwordless authentication in seconds.'}
             </p>
           </div>
 
@@ -161,8 +172,14 @@ function LoginPageContent() {
             {step === 'identifier' ? (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="space-y-2">
-                  <h2 className="text-3xl font-bold tracking-tight text-stone-900 font-serif">Continue Secure Checkout</h2>
-                  <p className="text-stone-500 text-sm">Enter your email address or mobile number to continue to payment and shipping.</p>
+                  <h2 className="text-3xl font-bold tracking-tight text-stone-900 font-serif">
+                    {isCheckout ? 'Continue Secure Checkout' : 'Sign In or Register'}
+                  </h2>
+                  <p className="text-stone-500 text-sm">
+                    {isCheckout 
+                      ? 'Enter your email address or mobile number to continue to payment and shipping.' 
+                      : 'Enter your email address or mobile number to sign in or create an account.'}
+                  </p>
                 </div>
 
                 <form onSubmit={handleIdentifierSubmit} className="space-y-6">

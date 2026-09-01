@@ -29,8 +29,13 @@ export async function completeOnboarding(data: {
 
     if (!user) return { error: 'Unauthorized' };
 
+    const fullName = data.name?.trim();
+    if (!fullName) {
+        return { error: 'Please enter your full name.' };
+    }
+
     // Clean phone number (extract digits only or check length)
-    const rawPhone = data.phone?.trim() || '';
+    const rawPhone = data.phone?.trim() || user.phone || '';
     const cleanDigits = rawPhone.replace(/\D/g, '');
     if (!cleanDigits || cleanDigits.length < 10) {
         return { error: 'Phone number must be at least 10 digits.' };
@@ -39,75 +44,111 @@ export async function completeOnboarding(data: {
     const normalizedPhone = normalizePhone(rawPhone);
     const phoneVariants = [normalizedPhone, cleanDigits, cleanDigits.slice(-10), `91${cleanDigits.slice(-10)}`];
 
-    // Check for uniqueness of phone number across all variants
+    // Normalize email (null instead of empty string to prevent unique constraint collisions)
+    const rawEmail = (data.email?.trim() || user.email || '').trim().toLowerCase();
+    const normalizedEmail = rawEmail.length > 0 ? rawEmail : null;
+
+    if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return { error: 'Please enter a valid email address.' };
+    }
+
     const adminSupabase = createAdminClient();
-    const { data: existing } = await adminSupabase
+
+    // Check for uniqueness of phone number across other accounts
+    const { data: existingPhone } = await adminSupabase
         .from('profiles')
         .select('id')
         .in('phone', phoneVariants)
         .neq('id', user.id)
         .maybeSingle();
 
-    if (existing) {
+    if (existingPhone) {
         return { error: 'This phone number is already associated with another account.' };
     }
 
-    // 1. Update/Upsert profile
-    const { error: profileError } = await supabase
+    // Check if profile exists and get existing role
+    const { data: currentProfile } = await adminSupabase
         .from('profiles')
-        .upsert({
-            id: user.id,
-            full_name: data.name.trim(),
-            email: data.email || user.email || '',
-            phone: normalizedPhone,
-            role: 'user',
-            updated_at: new Date().toISOString(),
-        });
+        .select('id, role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    const role = currentProfile?.role || 'user';
+
+    // 1. Update/Upsert profile using admin client to prevent RLS permission errors
+    const profilePayload: Record<string, any> = {
+        id: user.id,
+        full_name: fullName,
+        phone: normalizedPhone,
+        role: role,
+        updated_at: new Date().toISOString(),
+    };
+
+    if (normalizedEmail) {
+        profilePayload.email = normalizedEmail;
+    }
+
+    const { error: profileError } = await (adminSupabase as any)
+        .from('profiles')
+        .upsert(profilePayload, { onConflict: 'id' });
 
     if (profileError) {
         console.error('Onboarding profile update error:', profileError);
-        return { error: profileError.message };
+        return { error: profileError.message || 'Failed to update profile. Please try again.' };
     }
 
-    // 2. Sync phone to auth.users
-    await adminSupabase.auth.admin.updateUserById(user.id, {
+    // 2. Sync phone & name metadata to auth.users
+    const authMetadataUpdate: Record<string, any> = {
+        full_name: fullName,
+        name: fullName,
+        phone: normalizedPhone,
+    };
+
+    const authUpdatePayload: Record<string, any> = {
         phone: normalizedPhone,
         phone_confirm: true,
-        user_metadata: {
-            full_name: data.name.trim(),
-            name: data.name.trim(),
-            phone: normalizedPhone,
-        }
-    }).catch((err) => {
-        console.warn('[Onboarding] Error syncing phone to auth.users:', err);
+        user_metadata: authMetadataUpdate,
+    };
+
+    await adminSupabase.auth.admin.updateUserById(user.id, authUpdatePayload).catch((err) => {
+        console.warn('[Onboarding] Error syncing metadata to auth.users:', err);
     });
 
-    // 2. Insert Shipping Address if provided
-    if (data.address) {
-        // Unset any previous defaults just in case
-        await supabase
-            .from('addresses')
-            .update({ is_default: false })
-            .eq('user_id', user.id);
+    // 3. Insert Shipping Address if complete address data is provided
+    if (
+        data.address &&
+        data.address.address_line1?.trim() &&
+        data.address.city?.trim() &&
+        data.address.state?.trim() &&
+        data.address.postal_code?.trim()
+    ) {
+        try {
+            // Unset previous defaults
+            await adminSupabase
+                .from('addresses')
+                .update({ is_default: false })
+                .eq('user_id', user.id);
 
-        const { error: addressError } = await supabase
-            .from('addresses')
-            .insert({
-                user_id: user.id,
-                full_name: data.name.trim(),
-                phone: normalizedPhone,
-                address_line1: data.address.address_line1.trim(),
-                address_line2: data.address.address_line2?.trim() || '',
-                city: data.address.city.trim(),
-                state: data.address.state.trim(),
-                postal_code: data.address.postal_code.trim(),
-                country: data.address.country || 'India',
-                is_default: true,
-            });
+            const { error: addressError } = await adminSupabase
+                .from('addresses')
+                .insert({
+                    user_id: user.id,
+                    full_name: fullName,
+                    phone: normalizedPhone,
+                    address_line1: data.address.address_line1.trim(),
+                    address_line2: data.address.address_line2?.trim() || null,
+                    city: data.address.city.trim(),
+                    state: data.address.state.trim(),
+                    postal_code: data.address.postal_code.trim(),
+                    country: data.address.country?.trim() || 'India',
+                    is_default: true,
+                });
 
-        if (addressError) {
-            console.error('Onboarding address insertion error:', addressError);
-            return { error: 'Profile saved, but failed to save shipping address. You can add it at checkout.' };
+            if (addressError) {
+                console.warn('Onboarding address insertion error:', addressError);
+            }
+        } catch (addrErr) {
+            console.warn('Onboarding address processing error:', addrErr);
         }
     }
 
