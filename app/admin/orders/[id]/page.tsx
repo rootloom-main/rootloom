@@ -1,19 +1,18 @@
 import { createSSRClient } from '@/lib/utils/auth';
 import Image from 'next/image';
-import { redirect } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatDate, formatPrice } from '@/lib/utils/format';
-import { Package, Truck, CreditCard, User, ExternalLink } from 'lucide-react';
+import { Package, Truck, CreditCard, User, ExternalLink, Banknote } from 'lucide-react';
 import GenerateLabelButton from './generate-label-button';
 import ShipOrderButton from './ship-order-button';
-import Link from 'next/link';
 import { DownloadInvoiceButton } from '@/components/admin/orders/download-invoice-button';
 import { OrderNotes } from '@/components/admin/orders/order-notes';
 import { RefundOrderButton } from '@/components/admin/orders/refund-order-button';
 import { CancelOrderButton } from '@/app/account/orders/[id]/cancel-order-button';
 import { OrderStatusDropdown } from '@/components/admin/orders/order-status-dropdown';
+import { PaymentStatusDropdown } from '@/components/admin/orders/payment-status-dropdown';
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createSSRClient();
@@ -36,34 +35,33 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         .single() as { data: any | null };
 
     if (!order) {
-        return <div>Order not found</div>;
+        return <div className="p-8 text-center text-gray-500">Order not found</div>;
     }
 
-    // Helper for status color
-    const getStatusVariant = (status: string) => {
-        switch (status) {
-            case 'delivered': return 'default';
-            case 'shipped': return 'secondary';
-            case 'processing': return 'secondary';
-            case 'cancelled': return 'destructive';
-            default: return 'outline';
-        }
-    };
+    const isCOD = Boolean(order.payment_id?.startsWith('COD'));
 
     return (
         <div className="container mx-auto px-6 py-8">
             <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-                        Order #{order.order_number}
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                            Order #{order.order_number}
+                        </h1>
+                        {isCOD && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                <Banknote className="h-3.5 w-3.5 text-amber-700" />
+                                Cash on Delivery (COD)
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
                         <span>Placed on {formatDate(order.created_at)}</span>
                         <span>•</span>
                         <OrderStatusDropdown orderId={order.id} currentStatus={order.status} />
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <CancelOrderButton orderId={order.id} orderStatus={order.status} />
                     <RefundOrderButton
                         orderId={order.id}
@@ -82,7 +80,6 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
                 {/* Left Column: Order Items */}
                 <div className="lg:col-span-2 space-y-6">
                     <Card>
@@ -91,7 +88,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {order.order_items.map((item: any) => (
+                                {order.order_items?.map((item: any) => (
                                     <div key={item.id} className="flex justify-between items-start">
                                         <div className="flex gap-4">
                                             {item.product?.product_images?.[0]?.image_url ? (
@@ -130,7 +127,13 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                                     <span className="text-gray-500">Shipping</span>
                                     <span>{formatPrice(order.shipping_cost)}</span>
                                 </div>
-                                <div className="flex justify-between font-bold text-lg pt-2">
+                                {Number(order.discount_amount || 0) > 0 && (
+                                    <div className="flex justify-between text-sm text-emerald-600">
+                                        <span>Discount {order.coupon_code ? `(${order.coupon_code})` : ''}</span>
+                                        <span>-{formatPrice(order.discount_amount)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between font-bold text-lg pt-2 border-t">
                                     <span>Total</span>
                                     <span>{formatPrice(order.total)}</span>
                                 </div>
@@ -211,11 +214,52 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {/* Payment Method Banner */}
                             <div>
-                                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Status</p>
-                                <Badge variant={order.payment_status === 'completed' ? 'default' : 'destructive'} className="capitalize">
-                                    {order.payment_status}
-                                </Badge>
+                                <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Payment Method</p>
+                                {isCOD ? (
+                                    <div className="flex items-center gap-3 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                                        <div className="h-8 w-8 rounded-lg bg-stone-200/70 flex items-center justify-center text-stone-700 shrink-0">
+                                            <Banknote className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-stone-900">Cash on Delivery (COD)</p>
+                                            <p className="text-[11px] text-stone-500">Collect cash or UPI upon delivery</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-3 p-3 bg-stone-50 border border-stone-200 rounded-xl">
+                                        <div className="h-8 w-8 rounded-lg bg-stone-200/70 flex items-center justify-center text-stone-700 shrink-0">
+                                            <CreditCard className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-stone-900">Online Payment</p>
+                                            <p className="text-[11px] text-stone-500">Prepaid via Razorpay</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Payment Status with Dropdown */}
+                            <div>
+                                <p className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Payment Status</p>
+                                <div className="flex items-center justify-between gap-3">
+                                    <PaymentStatusDropdown
+                                        orderId={order.id}
+                                        currentPaymentStatus={order.payment_status}
+                                        isCOD={isCOD}
+                                        align="start"
+                                    />
+                                    {order.paid_at ? (
+                                        <span className="text-xs text-stone-500">
+                                            Paid on {formatDate(order.paid_at)}
+                                        </span>
+                                    ) : order.payment_status === 'pending' && isCOD ? (
+                                        <span className="text-[11px] text-amber-600 font-medium">
+                                            Awaiting payment collection
+                                        </span>
+                                    ) : null}
+                                </div>
                             </div>
                             
                             {order.refund_status && order.refund_status !== 'none' && (
@@ -234,8 +278,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
                             {order.payment_id && (
                                 <div className="pt-2 border-t">
-                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Transaction ID</p>
-                                    <p className="text-xs text-gray-400 break-all font-mono">{order.payment_id}</p>
+                                    <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                                        {isCOD ? 'COD Reference ID' : 'Transaction ID'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 break-all font-mono bg-stone-50 p-2 rounded border border-stone-100">
+                                        {order.payment_id}
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
@@ -243,7 +291,6 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
                     <OrderNotes orderId={order.id} initialNotes={order.notes} />
                 </div>
-
             </div>
         </div>
     );

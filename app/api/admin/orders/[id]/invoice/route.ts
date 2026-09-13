@@ -347,9 +347,13 @@ async function renderInvoicePdf(order: any): Promise<Buffer> {
 
     const paymentX = margin + contentWidth * 0.65;
     const paymentTop = pageHeight - margin - 86;
-    drawText('Payment Details', paymentX, paymentTop, 11, { bold: true, color: dark });
-    drawText(`Method: ${order.payment_id ? 'Razorpay' : 'N/A'}`, paymentX, paymentTop - 17, 9);
-    drawText(`Status: ${order.payment_status || 'Pending'}`, paymentX, paymentTop - 31, 9);
+    const paymentMethodText = order.payment_id?.startsWith('COD')
+        ? 'Cash on Delivery (COD)'
+        : order.payment_id
+        ? 'Razorpay (Online)'
+        : 'Pending / Unpaid';
+    drawText(`Method: ${paymentMethodText}`, paymentX, paymentTop - 17, 9);
+    drawText(`Status: ${order.payment_status ? (order.payment_status === 'completed' ? 'Paid' : order.payment_status.toUpperCase()) : 'Pending'}`, paymentX, paymentTop - 31, 9);
     drawText(`Order: ${order.order_number || order.id}`, paymentX, paymentTop - 45, 9, { maxWidth: contentWidth * 0.35 });
 
     y -= 14;
