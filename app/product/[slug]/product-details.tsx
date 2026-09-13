@@ -20,8 +20,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
-import { SizeGuide } from '@/components/product/size-guide';
-import { WishlistButton } from '@/components/product/wishlist-button';
+import { SizeGuide, SizeGuideContent } from '@/components/product/size-guide';
 import { ImageGallery } from '@/components/product/image-gallery';
 import { DeliveryChecker } from '@/components/product/delivery-checker';
 import { StickyAddToCart } from '@/components/product/sticky-add-to-cart';
@@ -131,8 +130,8 @@ export function ProductDetails({
     if (!pendingAction) return;
 
     const variant = product.product_variants.find(
-      (v) => v.size.toLowerCase() === size.toLowerCase() && 
-             v.color.toLowerCase() === color.toLowerCase()
+      (v) => v.size.toLowerCase() === size.toLowerCase() &&
+        v.color.toLowerCase() === color.toLowerCase()
     );
 
     if (!variant) {
@@ -159,17 +158,17 @@ export function ProductDetails({
 
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    
+
     // Check if the current selectedSize is available and in stock for the new color
     const lowerColor = color.toLowerCase();
     const colorVariants = product.product_variants.filter(
       v => v.color.toLowerCase() === lowerColor
     );
-    
+
     const currentSizeAvailable = colorVariants.find(
       v => v.size.toLowerCase() === selectedSize.toLowerCase() && v.stock > 0
     );
-    
+
     // If not available in the new color, reset size to unselected
     if (!currentSizeAvailable) {
       setSelectedSize('');
@@ -178,17 +177,17 @@ export function ProductDetails({
 
   const handleSizeChange = (size: string) => {
     setSelectedSize(size);
-    
+
     // Check if selectedColor is available for this new size
     const lowerSize = size.toLowerCase();
     const sizeVariants = product.product_variants.filter(
       v => v.size.toLowerCase() === lowerSize
     );
-    
+
     const currentColorAvailable = sizeVariants.find(
       v => v.color.toLowerCase() === selectedColor.toLowerCase() && v.stock > 0
     );
-    
+
     let targetColor = selectedColor;
     if (!currentColorAvailable && sizeVariants.length > 0) {
       // Find first in-stock color for this size
@@ -201,7 +200,7 @@ export function ProductDetails({
         targetColor = sizeVariants[0].color;
       }
     }
-    
+
     triggerPendingAction(size, targetColor);
   };
 
@@ -281,7 +280,7 @@ export function ProductDetails({
         result.push(v.size.trim());
       }
     }
-    
+
     return result.sort((a, b) => {
       const sizeOrder: Record<string, number> = {
         'xxs': 1, 'xs': 2, 's': 3, 'm': 4, 'l': 5, 'xl': 6,
@@ -335,8 +334,8 @@ export function ProductDetails({
 
   const selectedVariant = useMemo(() => {
     return product.product_variants.find(
-      (v) => v.size.toLowerCase() === selectedSize.toLowerCase() && 
-             v.color.toLowerCase() === selectedColor.toLowerCase()
+      (v) => v.size.toLowerCase() === selectedSize.toLowerCase() &&
+        v.color.toLowerCase() === selectedColor.toLowerCase()
     );
   }, [selectedSize, selectedColor, product.product_variants]);
 
@@ -497,18 +496,18 @@ export function ProductDetails({
   };
 
   return (
-    <div className="bg-stone-50/50 min-h-screen">
-      <div className="container mx-auto px-4 py-6 max-w-screen-xl">
+    <div className="bg-stone-50/50 min-h-screen w-full max-w-full">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-screen-xl w-full max-w-full min-w-0">
         {/* Back link */}
-        <Link href="/shop" className="inline-flex items-center text-sm text-stone-500 hover:text-deep-forest mb-6 transition-colors group">
+        <Link href="/shop" className="inline-flex items-center text-sm text-stone-500 hover:text-deep-forest mb-4 sm:mb-6 transition-colors group">
           <ChevronLeft className="h-4 w-4 mr-1 group-hover:-translate-x-0.5 transition-transform" />
           Back to Shop
         </Link>
 
         {/* Hero: Gallery + Info */}
-        <div className="grid lg:grid-cols-2 gap-10 xl:gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 xl:gap-16 w-full max-w-full min-w-0">
           {/* Left: Image Gallery */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="lg:sticky lg:top-24 lg:self-start w-full max-w-full min-w-0">
             <ImageGallery
               images={filteredImages}
               productName={product.name}
@@ -518,9 +517,9 @@ export function ProductDetails({
           </div>
 
           {/* Right: Product Info */}
-          <div className="space-y-6">
+          <div className="space-y-5 sm:space-y-6 w-full max-w-full min-w-0">
             {/* Category + Name + Rating */}
-            <div className="space-y-3">
+            <div className="space-y-3 w-full max-w-full min-w-0">
               {product.category && (
                 <Link href={`/shop?category=${product.category.slug}`}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-moss-olive hover:text-deep-forest tracking-widest uppercase transition-colors bg-moss-olive/10 px-3 py-1.5 rounded-full">
@@ -528,7 +527,7 @@ export function ProductDetails({
                 </Link>
               )}
 
-              <h1 className="text-3xl lg:text-4xl font-bold text-deep-forest font-serif leading-tight tracking-tight">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-deep-forest font-serif leading-tight tracking-tight break-words">
                 {product.name}
               </h1>
 
@@ -542,10 +541,10 @@ export function ProductDetails({
               )}
 
               {/* Rating row */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {totalReviews && totalReviews > 0 ? (
                   <>
-                    <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                    <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2.5 sm:px-3 py-1">
                       <div className="flex text-amber-500">
                         {[1, 2, 3, 4, 5].map(i => (
                           <Star key={i} className={cn('w-3.5 h-3.5', i <= Math.round(averageRating || 0) ? 'fill-current' : 'text-amber-200 fill-current')} />
@@ -553,7 +552,7 @@ export function ProductDetails({
                       </div>
                       <span className="text-xs font-bold text-amber-700">{(averageRating || 0).toFixed(1)}</span>
                     </div>
-                    <a href="#reviews" className="text-sm text-stone-500 hover:text-deep-forest underline-offset-2 hover:underline transition-colors">
+                    <a href="#reviews" className="text-xs sm:text-sm text-stone-500 hover:text-deep-forest underline-offset-2 hover:underline transition-colors">
                       {totalReviews} Ratings
                     </a>
                   </>
@@ -562,19 +561,19 @@ export function ProductDetails({
                     No ratings yet
                   </div>
                 )}
-                <span className="text-stone-300">|</span>
-                <span className="text-sm text-green-600 font-semibold flex items-center gap-1">
-                  <BadgeCheck className="w-3.5 h-3.5" /> Verified Brand
+                <span className="text-stone-300 hidden min-[360px]:inline">|</span>
+                <span className="text-xs sm:text-sm text-green-600 font-semibold flex items-center gap-1">
+                  <BadgeCheck className="w-3.5 h-3.5 shrink-0" /> Verified Brand
                 </span>
               </div>
             </div>
 
             {/* Price Block */}
-            <div className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm space-y-2">
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-4xl font-extrabold text-deep-forest">{formatPrice(finalPrice)}</span>
-                <span className="text-lg text-stone-400 line-through font-medium">{formatPrice(mrp)}</span>
-                <span className="text-[13px] font-bold text-deep-forest bg-deep-forest/5 border border-deep-forest/10 px-2.5 py-1 rounded-md tracking-wide uppercase">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-100 shadow-sm space-y-2 w-full max-w-full min-w-0">
+              <div className="flex items-baseline gap-2.5 sm:gap-3 flex-wrap">
+                <span className="text-3xl sm:text-4xl font-extrabold text-deep-forest">{formatPrice(finalPrice)}</span>
+                <span className="text-base sm:text-lg text-stone-400 line-through font-medium">{formatPrice(mrp)}</span>
+                <span className="text-xs sm:text-[13px] font-bold text-deep-forest bg-deep-forest/5 border border-deep-forest/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md tracking-wide uppercase">
                   ({discount}% OFF)
                 </span>
               </div>
@@ -601,7 +600,7 @@ export function ProductDetails({
             </div>
 
             {/* Color & Size Selectors */}
-            <div className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm space-y-5">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-100 shadow-sm space-y-5 w-full max-w-full min-w-0">
               {/* Color */}
               {uniqueColors.length > 1 ? (
                 <div>
@@ -666,12 +665,12 @@ export function ProductDetails({
               ) : null}
 
               {/* Size */}
-              <div 
+              <div
                 id="size-selector"
                 ref={sizeContainerRef}
                 className={cn(
-                  "transition-all duration-300 p-3 rounded-2xl border-2",
-                  highlightSize 
+                  "transition-all duration-300 p-2.5 sm:p-3 rounded-2xl border-2 w-full max-w-full min-w-0",
+                  highlightSize
                     ? "border-red-500 bg-red-50/50 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse scale-102"
                     : "border-transparent"
                 )}
@@ -683,10 +682,14 @@ export function ProductDetails({
                       <span className="font-semibold text-deep-forest bg-stone-100 px-2.5 py-0.5 rounded-full text-xs">{selectedSize}</span>
                     )}
                   </Label>
-                  <SizeGuide />
+                  <SizeGuide
+                    sizeGuideData={product.metadata?.size_guide_html}
+                    selectedSize={selectedSize}
+                    productName={product.name}
+                  />
                 </div>
                 <RadioGroup value={selectedSize} onValueChange={handleSizeChange}>
-                  <div className="flex gap-2.5 flex-wrap">
+                  <div className="flex gap-2 sm:gap-2.5 flex-wrap">
                     {uniqueSizes.map((size) => {
                       const isAvailable = availableSizes.includes(size);
                       return (
@@ -695,7 +698,7 @@ export function ProductDetails({
                           <Label
                             htmlFor={`size-${size}`}
                             className={cn(
-                              'flex items-center justify-center min-w-12 h-12 px-3 border-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 select-none relative group active:scale-95 peer-focus-visible:ring-2 peer-focus-visible:ring-deep-forest peer-focus-visible:ring-offset-2',
+                              'flex items-center justify-center min-w-11 sm:min-w-12 h-11 sm:h-12 px-2.5 sm:px-3 border-2 rounded-xl cursor-pointer text-sm font-bold transition-all duration-200 select-none relative group active:scale-95 peer-focus-visible:ring-2 peer-focus-visible:ring-deep-forest peer-focus-visible:ring-offset-2',
                               selectedSize === size
                                 ? 'border-deep-forest bg-deep-forest text-white shadow-md scale-105'
                                 : isAvailable
@@ -730,25 +733,25 @@ export function ProductDetails({
             </div>
 
             {/* Quantity + Actions */}
-            <div id="primary-add-to-cart" className="bg-white rounded-2xl p-5 border border-stone-100 shadow-sm space-y-4">
+            <div id="primary-add-to-cart" className="bg-white rounded-2xl p-4 sm:p-5 border border-stone-100 shadow-sm space-y-4 w-full max-w-full min-w-0">
               {/* Quantity */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                 <Label className="text-sm font-bold text-stone-700">Qty:</Label>
                 <div className="flex items-center border-2 border-stone-200 rounded-xl overflow-hidden">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                     disabled={quantity <= 1}
-                    className="px-3.5 py-2.5 hover:bg-stone-50 text-stone-600 disabled:opacity-40 transition-colors"
+                    className="px-3 sm:px-3.5 py-2 sm:py-2.5 hover:bg-stone-50 text-stone-600 disabled:opacity-40 transition-colors"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="px-5 py-2 font-bold text-stone-800 min-w-[3rem] text-center text-sm border-x-2 border-stone-200">
+                  <span className="px-3.5 sm:px-5 py-2 font-bold text-stone-800 min-w-[2.5rem] sm:min-w-[3rem] text-center text-sm border-x-2 border-stone-200">
                     {quantity}
                   </span>
                   <button
                     onClick={() => setQuantity(Math.min(selectedVariant?.stock || 10, quantity + 1))}
                     disabled={!!selectedVariant && quantity >= selectedVariant.stock}
-                    className="px-3.5 py-2.5 hover:bg-stone-50 text-stone-600 disabled:opacity-40 transition-colors"
+                    className="px-3 sm:px-3.5 py-2 sm:py-2.5 hover:bg-stone-50 text-stone-600 disabled:opacity-40 transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -761,20 +764,20 @@ export function ProductDetails({
               </div>
 
               {/* Trust Signal Strip */}
-              <div className="flex items-center gap-4 px-2 py-1 mb-2">
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                  <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
-                  Secure Payment
+              <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-2 px-1 py-1 mb-2 text-[10px] font-bold text-stone-500 uppercase tracking-wider w-full">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <ShieldCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                  <span>Secure Payment</span>
                 </div>
-                <div className="h-3 w-px bg-stone-200" />
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                  <RotateCcw className="h-3.5 w-3.5 text-purple-600" />
-                  Easy Returns
+                <div className="hidden min-[380px]:block h-3 w-px bg-stone-200" />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <RotateCcw className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                  <span>Easy Returns</span>
                 </div>
-                <div className="h-3 w-px bg-stone-200" />
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-500 uppercase tracking-wider">
-                  <Truck className="h-3.5 w-3.5 text-blue-600" />
-                  Free Shipping
+                <div className="hidden min-[380px]:block h-3 w-px bg-stone-200" />
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Truck className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                  <span>Free Shipping</span>
                 </div>
               </div>
 
@@ -782,7 +785,7 @@ export function ProductDetails({
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   size="lg"
-                  className="flex-1 bg-deep-forest hover:bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-deep-forest/20 hover:shadow-deep-forest/30 transition-all duration-300 text-xl h-16 uppercase tracking-widest border-2 border-transparent"
+                  className="flex-1 bg-deep-forest hover:bg-slate-900 text-white font-black rounded-xl shadow-lg shadow-deep-forest/20 hover:shadow-deep-forest/30 transition-all duration-300 text-base sm:text-xl h-14 sm:h-16 uppercase tracking-wider sm:tracking-widest border-2 border-transparent"
                   onClick={handleBuyNow}
                   disabled={isButtonDisabled}
                 >
@@ -790,7 +793,7 @@ export function ProductDetails({
                 </Button>
                 <Button
                   size="lg"
-                  className="flex-1 bg-raw-clay hover:bg-[#7a4e3c] text-white font-black rounded-xl shadow-lg shadow-raw-clay/20 hover:shadow-raw-clay/30 transition-all duration-300 text-xl h-16 uppercase tracking-widest"
+                  className="flex-1 bg-raw-clay hover:bg-[#7a4e3c] text-white font-black rounded-xl shadow-lg shadow-raw-clay/20 hover:shadow-raw-clay/30 transition-all duration-300 text-base sm:text-xl h-14 sm:h-16 uppercase tracking-wider sm:tracking-widest"
                   onClick={handleAddToCart}
                   disabled={isButtonDisabled}
                 >
@@ -807,14 +810,14 @@ export function ProductDetails({
             </div>
 
             {/* Trust Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-full min-w-0">
               {[
                 { icon: Truck, title: 'Free Delivery', sub: 'On orders ₹999+', color: 'text-blue-500' },
                 { icon: RotateCcw, title: '7-Day Returns', sub: 'Easy & hassle-free', color: 'text-purple-500' },
                 { icon: ShieldCheck, title: '100% Secure', sub: 'Payments protected', color: 'text-green-500' },
                 { icon: Banknote, title: 'Cash on Delivery', sub: 'Available nationwide', color: 'text-orange-500' },
               ].map(({ icon: Icon, title, sub, color }) => (
-                <div key={title} className="bg-white rounded-xl p-3.5 border border-stone-100 text-center flex flex-col items-center gap-1.5 shadow-sm hover:shadow-md transition-shadow">
+                <div key={title} className="bg-white rounded-xl p-3 sm:p-3.5 border border-stone-100 text-center flex flex-col items-center gap-1.5 shadow-sm hover:shadow-md transition-shadow">
                   <Icon className={cn('h-5 w-5', color)} />
                   <p className="text-xs font-bold text-stone-700 leading-tight">{title}</p>
                   <p className="text-[10px] text-stone-400 leading-tight">{sub}</p>
@@ -826,7 +829,7 @@ export function ProductDetails({
             <DeliveryChecker />
 
             {/* Brand authenticity strip */}
-            <div className="flex flex-wrap items-center gap-y-4 gap-x-8 py-2">
+            <div className="flex flex-wrap items-center gap-y-2.5 gap-x-4 sm:gap-x-8 py-2 w-full max-w-full min-w-0">
               <div className="flex items-center gap-2 text-[11px] font-bold text-stone-500 uppercase tracking-widest">
                 <Award className="h-4 w-4 text-moss-olive flex-shrink-0" />
                 Authentic Quality
@@ -843,16 +846,16 @@ export function ProductDetails({
         </div>
 
         {/* Bottom: Tabbed Product Details */}
-        <div className="mt-14">
-          <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+        <div className="mt-10 sm:mt-14 w-full max-w-full min-w-0">
+          <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden w-full max-w-full min-w-0">
             {/* Tab bar */}
-            <div className="flex overflow-x-auto scrollbar-hide border-b border-stone-100">
+            <div className="flex overflow-x-auto scrollbar-hide border-b border-stone-100 w-full max-w-full">
               {TABS.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={cn(
-                    'px-6 py-4 text-sm font-bold whitespace-nowrap transition-all duration-200 border-b-2 -mb-px tracking-wide',
+                    'px-4 sm:px-6 py-3.5 sm:py-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 border-b-2 -mb-px tracking-wide shrink-0',
                     activeTab === tab
                       ? 'border-deep-forest text-deep-forest'
                       : 'border-transparent text-stone-400 hover:text-stone-600'
@@ -864,7 +867,7 @@ export function ProductDetails({
             </div>
 
             {/* Tab content */}
-            <div className="p-6 lg:p-8">
+            <div className="p-4 sm:p-6 lg:p-8 w-full max-w-full min-w-0">
               {activeTab === 'Description' && (
                 <div className="max-w-3xl space-y-4">
                   <h3 className="font-serif font-bold text-xl text-deep-forest">About This Product</h3>
@@ -917,42 +920,18 @@ export function ProductDetails({
               )}
 
               {activeTab === 'Size Guide' && (
-                <div className="max-w-2xl space-y-4">
-                  <h3 className="font-serif font-bold text-xl text-deep-forest">Size Guide</h3>
-                  {product.metadata?.size_guide_html ? (
-                    <div className="text-stone-600 leading-relaxed whitespace-pre-line bg-stone-50 p-6 rounded-2xl border border-stone-100">
-                      {product.metadata.size_guide_html}
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm text-stone-500">All measurements in centimeters (cm). For the best fit, measure yourself and compare with the chart.</p>
-                      <div className="overflow-hidden rounded-xl border border-stone-100">
-                        <div className="grid grid-cols-5 bg-stone-50 border-b border-stone-100 text-deep-forest text-[11px] font-bold uppercase tracking-wider">
-                          {['Size', 'Chest', 'Waist', 'Hip', 'Length'].map(h => (
-                            <div key={h} className="px-4 py-3.5 text-center">{h}</div>
-                          ))}
-                        </div>
-                        {[
-                          ['XS', '84', '68', '90', '64'],
-                          ['S', '88', '72', '94', '65'],
-                          ['M', '92', '76', '98', '66'],
-                          ['L', '96', '80', '102', '67'],
-                          ['XL', '100', '84', '106', '68'],
-                          ['XXL', '104', '88', '110', '69'],
-                        ].map(([size, ...rest], i) => (
-                          <div key={size} className={cn('grid grid-cols-5 text-sm', i % 2 === 0 ? 'bg-stone-50' : 'bg-white')}>
-                            <div className="px-4 py-3 text-center font-bold text-deep-forest">{size}</div>
-                            {rest.map((v, j) => (
-                              <div key={j} className="px-4 py-3 text-center text-stone-600">{v}</div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-stone-400 flex items-center gap-1">
-                        <Info className="w-3.5 h-3.5" /> Sizes may vary slightly. When in doubt, size up.
-                      </p>
-                    </>
-                  )}
+                <div className="max-w-3xl space-y-4">
+                  <div className="pb-2 border-b border-stone-100">
+                    <h3 className="font-serif font-bold text-xl text-deep-forest">Size & Fit Guide</h3>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      Compare your body measurements to find your perfect fit with our accurate size chart.
+                    </p>
+                  </div>
+                  <SizeGuideContent
+                    sizeGuideData={product.metadata?.size_guide_html}
+                    selectedSize={selectedSize}
+                    productName={product.name}
+                  />
                 </div>
               )}
 

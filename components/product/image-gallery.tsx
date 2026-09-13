@@ -125,12 +125,12 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
     };
 
     return (
-        <div className="select-none space-y-0">
+        <div className="select-none space-y-0 w-full max-w-full min-w-0">
             {/* ─── Main image frame ─── */}
-            <div className="relative">
+            <div className="relative w-full max-w-full">
                 <div
                     ref={mainImageRef}
-                    className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 cursor-zoom-in group"
+                    className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-stone-50 border border-stone-100 cursor-zoom-in group w-full"
                     onMouseMove={handleMouseMove}
                     onMouseEnter={() => setIsZoomed(true)}
                     onMouseLeave={() => setIsZoomed(false)}
@@ -238,7 +238,7 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
 
             {/* ─── Thumbnail strip ─── */}
             {sortedImages.length > 1 && (
-                <div className="mt-3 relative">
+                <div className="mt-3 relative w-full max-w-full overflow-hidden">
                     {/* Left scroll fade */}
                     <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-stone-50 to-transparent z-10 pointer-events-none rounded-l-xl" />
                     {/* Right scroll fade */}
@@ -246,7 +246,7 @@ export function ImageGallery({ images, productName, productId, isWishlisted }: I
 
                     <div
                         ref={thumbnailsRef}
-                        className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1 py-1"
+                        className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-1 py-1 max-w-full min-w-0"
                         style={{ WebkitOverflowScrolling: 'touch' }}
                     >
                         {sortedImages.map((image, index) => (

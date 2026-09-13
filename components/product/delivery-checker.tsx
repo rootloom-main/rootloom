@@ -64,11 +64,11 @@ export function DeliveryChecker() {
                 </div>
             )}
 
-            <div className="flex gap-2 relative">
+            <div className="flex gap-2 relative w-full max-w-full min-w-0">
                 <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none z-10">
                     <MapPin className="h-4 w-4 text-stone-400" />
                 </div>
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-0">
                     <Input
                         placeholder="Enter Pincode"
                         maxLength={6}
@@ -79,13 +79,13 @@ export function DeliveryChecker() {
                             if (val.length === 0) setDeliveryStatus(null);
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && checkDelivery()}
-                        className="pl-10 h-11 rounded-xl font-sans tracking-widest ring-offset-white focus-visible:ring-moss-olive border-stone-200 bg-white"
+                        className="pl-10 h-11 rounded-xl font-sans tracking-widest ring-offset-white focus-visible:ring-moss-olive border-stone-200 bg-white text-sm"
                     />
                 </div>
                 <Button
                     onClick={checkDelivery}
                     disabled={isChecking || pincode.length !== 6}
-                    className="h-11 rounded-xl bg-deep-forest text-white hover:bg-slate-900 border-none transition-all px-8 font-bold"
+                    className="h-11 rounded-xl bg-deep-forest text-white hover:bg-slate-900 border-none transition-all px-4 sm:px-8 font-bold shrink-0"
                 >
                     {isChecking ? '...' : 'Check'}
                 </Button>

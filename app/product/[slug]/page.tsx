@@ -85,7 +85,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://rootloom.in';
 
   return (
-    <div className="pb-16 bg-white">
+    <div className="pb-16 bg-white w-full max-w-full">
       {/* SEO Structured Data Schemas */}
       <BreadcrumbSchema
         items={[
@@ -139,7 +139,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       />
 
       {/* Visual Breadcrumbs */}
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 w-full max-w-full">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -174,7 +174,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         totalReviews={totalReviews}
       />
 
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-3 sm:px-4 w-full max-w-full min-w-0">
         <RelatedProducts products={relatedProducts} />
         <RecentlyViewed currentProductId={product.id} />
         <Reviews productId={product.id} reviews={reviews || []} user={null} />

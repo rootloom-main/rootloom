@@ -119,14 +119,14 @@ export function Header() {
             : "bg-transparent border-b border-transparent"
         )}
       >
-        <div className="container mx-auto px-1 sm:px-4">
-          <div className="flex h-16 md:h-20 items-center justify-between sm:gap-4">
+        <div className="container mx-auto px-2 sm:px-4">
+          <div className="flex h-16 md:h-20 items-center justify-between gap-2 lg:gap-4 xl:gap-8">
 
             {/* Left: Mobile Menu & Logo */}
-            <div className="flex items-center gap-0.5 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-3 shrink-0">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 md:hidden text-deep-forest hover:bg-stone-paper rounded-full" aria-label="Open mobile menu">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 lg:hidden text-deep-forest hover:bg-stone-paper rounded-full" aria-label="Open mobile menu">
                     <Menu className="h-4 w-4 sm:h-6 sm:w-6" />
                   </Button>
                 </SheetTrigger>
@@ -187,25 +187,25 @@ export function Header() {
                 </SheetContent>
               </Sheet>
 
-              <Link href="/" className="flex items-center gap-1 group relative z-50 min-w-0">
-                <span className="font-serif text-xl sm:text-2xl md:text-4xl font-black tracking-tighter text-deep-forest transition-colors duration-300 group-hover:text-raw-clay whitespace-nowrap">
+              <Link href="/" className="flex items-center gap-1 group relative z-50 shrink-0">
+                <span className="font-serif text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter text-deep-forest transition-colors duration-300 group-hover:text-raw-clay whitespace-nowrap">
                   ROOT&LOOM
                 </span>
               </Link>
             </div>
 
             {/* Center: Desktop Navigation */}
-            <Suspense fallback={<div className="hidden md:flex items-center gap-8 w-64 h-6 animate-pulse bg-stone-50 rounded" />}>
+            <Suspense fallback={<div className="hidden lg:flex items-center gap-6 xl:gap-8 w-64 h-6 animate-pulse bg-stone-50 rounded" />}>
               <DesktopNav navigation={navigation} pathname={pathname} isLinkActive={isLinkActive} />
             </Suspense>
 
             {/* Right: Icons */}
-            <div className="flex items-center gap-0 flex-shrink-0">
-              <div className="hidden lg:block w-52 xl:w-64 mr-2">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+              <div className="hidden xl:block w-44 2xl:w-60 mr-2">
                 <SmartSearch />
               </div>
 
-              <div className="lg:hidden">
+              <div className="xl:hidden">
                 <SearchOverlay />
               </div>
 
@@ -324,7 +324,7 @@ export function Header() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent md:hidden" 
+                      className="h-8 w-8 rounded-full text-deep-forest hover:text-raw-clay hover:bg-transparent lg:hidden" 
                       aria-label="Login"
                       onClick={() => openLoginModal(pathname || '/')}
                     >
@@ -332,7 +332,7 @@ export function Header() {
                     </Button>
                     <Button 
                       size="sm" 
-                      className="hidden md:block ml-2 rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-6"
+                      className="hidden lg:block ml-2 rounded-full bg-deep-forest text-heirloom-white hover:bg-deep-forest/90 shadow-sm px-4 xl:px-6"
                       onClick={() => openLoginModal(pathname || '/')}
                     >
                       Login
@@ -401,7 +401,7 @@ function DesktopNav({
   const currentCategory = searchParams?.get('category') || null;
 
   return (
-    <nav className="hidden md:flex items-center gap-8">
+    <nav className="hidden lg:flex items-center gap-3 xl:gap-6 2xl:gap-8 shrink-0">
       {navigation.map((item) => {
         const active = isLinkActive(item.href, pathname, currentCategory);
         return (
@@ -409,7 +409,7 @@ function DesktopNav({
             key={item.name}
             href={item.href}
             className={cn(
-              "text-sm font-medium relative py-1 transition-colors duration-300 group",
+              "text-xs xl:text-sm font-medium relative py-1 transition-colors duration-300 group whitespace-nowrap",
               active
                 ? "text-deep-forest font-semibold"
                 : "text-slate-bark hover:text-deep-forest"

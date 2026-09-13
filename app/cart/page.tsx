@@ -73,7 +73,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="bg-stone-50 min-h-screen pb-bottom-nav lg:pb-12">
+    <div className="bg-stone-50 min-h-screen pb-28 lg:pb-12">
       <div className="container mx-auto px-4 py-6 sm:py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <h1 className="text-3xl font-serif font-bold text-deep-forest">Your Collection ({cartCount})</h1>
@@ -112,15 +112,17 @@ export default function CartPage() {
 
       {/* Mobile Sticky Footer */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-200 p-4 lg:hidden shadow-[0_-4px_10px_rgba(0,0,0,0.1)] flex justify-between items-center z-[45]"
-        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200 p-3 sm:p-4 lg:hidden shadow-[0_-4px_16px_rgba(0,0,0,0.1)] flex justify-between items-center z-50"
+        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        <div>
-          <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1">Total ({selectedCartCount})</p>
-          <p className="text-xl font-bold text-deep-forest leading-none">{formatPrice(total)}</p>
+        <div className="flex flex-col">
+          <p className="text-[10px] text-stone-500 font-bold uppercase tracking-widest leading-none mb-1">
+            Total ({selectedCartCount} {selectedCartCount === 1 ? 'item' : 'items'})
+          </p>
+          <p className="text-lg sm:text-xl font-bold text-deep-forest leading-none">{formatPrice(total)}</p>
         </div>
         <Button
-          className="w-1/2 bg-deep-forest hover:bg-deep-forest/90 text-white font-bold uppercase tracking-widest h-12 rounded-sm disabled:bg-stone-300 disabled:opacity-50"
+          className="min-w-[140px] sm:min-w-[180px] bg-deep-forest hover:bg-deep-forest/90 text-white font-bold uppercase tracking-wider text-xs sm:text-sm h-11 sm:h-12 rounded-sm disabled:bg-stone-300 disabled:opacity-50 transition-colors shadow-sm"
           onClick={handleCheckout}
           disabled={selectedCartCount === 0}
         >

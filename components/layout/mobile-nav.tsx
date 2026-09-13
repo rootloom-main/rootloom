@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -22,6 +22,7 @@ export function MobileNav() {
 
     if (
         pathname?.startsWith('/checkout') ||
+        pathname?.startsWith('/cart') ||
         pathname?.startsWith('/admin') ||
         pathname?.startsWith('/auth')
     ) {
