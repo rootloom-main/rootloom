@@ -1,7 +1,17 @@
+'use client';
+
+import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import Autoplay from 'embla-carousel-autoplay';
 import { ArrowRight } from 'lucide-react';
 
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    type CarouselApi,
+} from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -52,36 +62,67 @@ const THEME_CONFIGS: Record<string, {
     },
 };
 
-function getBannerSlide(heroBanners: any[]) {
-    const banner = heroBanners[0];
-    if (!banner) {
-        return null;
+function resolveSlideLink(banner: any): string {
+    const rel = banner.collections;
+    const collectionSlug = Array.isArray(rel) ? rel[0]?.slug : rel?.slug;
+    if (collectionSlug) {
+        return `/collections/${collectionSlug}`;
     }
+    if (banner.link && typeof banner.link === 'string' && banner.link.trim()) {
+        const trimmed = banner.link.trim();
+        return trimmed.startsWith('/') || trimmed.startsWith('http') ? trimmed : `/${trimmed}`;
+    }
+    return '/shop';
+}
 
-    const metadata = banner.metadata || {};
-    const theme = metadata.theme || 'default';
-    const config = THEME_CONFIGS[theme] || THEME_CONFIGS.default;
+function getDisplaySlides(heroBanners: any[]) {
+    return (heroBanners || []).map((banner, index) => {
+        const metadata = banner.metadata || {};
+        const theme = metadata.theme || 'default';
+        const config = THEME_CONFIGS[theme] || THEME_CONFIGS.default;
 
-    return {
-        bgColor: metadata.bgColor || config.bgColor,
-        textColor: metadata.textColor || config.textColor,
-        badge: metadata.badge || 'DROP 01 // LIMITED',
-        title: banner.title,
-        description: banner.description || '',
-        image: banner.image_url,
-        imageAlt: banner.title,
-        cta: metadata.cta || 'GET THE DRIP',
-        ctaColor: metadata.ctaColor || config.ctaColor,
-        link: banner.collections?.slug
-            ? `/collections/${banner.collections.slug}`
-            : (banner.link || '/shop'),
-    };
+        return {
+            id: banner.id || `banner-${index}`,
+            theme,
+            bgColor: metadata.bgColor || config.bgColor,
+            textColor: metadata.textColor || config.textColor,
+            badge: metadata.badge || 'DROP 01 // LIMITED',
+            title: banner.title,
+            description: banner.description || '',
+            image: banner.image_url,
+            imageAlt: banner.title || 'Root & Loom Hero Banner',
+            cta: metadata.cta || 'Discover Now',
+            ctaColor: metadata.ctaColor || config.ctaColor,
+            link: resolveSlideLink(banner),
+        };
+    });
 }
 
 export default function HeroSection({ heroBanners = [] }: { heroBanners?: any[] }) {
-    const slide = getBannerSlide(heroBanners);
+    const displaySlides = React.useMemo(() => getDisplaySlides(heroBanners), [heroBanners]);
 
-    if (!slide) {
+    const plugin = React.useRef(
+        Autoplay({ delay: 5000, stopOnInteraction: false }) as any
+    );
+
+    const [api, setApi] = React.useState<CarouselApi>();
+    const [current, setCurrent] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!api) return;
+
+        setCurrent(api.selectedScrollSnap());
+        const onSelect = () => {
+            setCurrent(api.selectedScrollSnap());
+        };
+        api.on('select', onSelect);
+
+        return () => {
+            api.off('select', onSelect);
+        };
+    }, [api]);
+
+    if (displaySlides.length === 0) {
         return (
             <section className="relative w-full overflow-hidden bg-[#1e2f23] min-h-[85vh] flex items-center">
                 <div className="container mx-auto px-4 relative z-20 py-20">
@@ -115,37 +156,115 @@ export default function HeroSection({ heroBanners = [] }: { heroBanners?: any[] 
         );
     }
 
-    return (
-        <section className={cn("relative w-full min-h-[85vh] flex items-center overflow-hidden", slide.bgColor)}>
-            <div className="container mx-auto px-4 h-full relative z-20">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12 h-full items-center py-20 lg:py-0">
-                    <div className="flex flex-col justify-center items-start pl-4 lg:pl-0 order-2 lg:order-1 z-30">
-                        <div className={cn("inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-[0.2em] border border-current uppercase opacity-80 backdrop-blur-sm rounded-full", slide.textColor)}>
-                            {slide.badge}
+    if (displaySlides.length === 1) {
+        const slide = displaySlides[0];
+        return (
+            <section className={cn("relative w-full min-h-[85vh] flex items-center overflow-hidden", slide.bgColor)}>
+                <div className="container mx-auto px-4 h-full relative z-20">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12 h-full items-center py-20 lg:py-0">
+                        <div className="flex flex-col justify-center items-start pl-4 lg:pl-0 order-2 lg:order-1 z-30">
+                            <div className={cn("inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-[0.2em] border border-current uppercase opacity-80 backdrop-blur-sm rounded-full", slide.textColor)}>
+                                {slide.badge}
+                            </div>
+                            <h2 className={cn("text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl", slide.textColor)}>
+                                {slide.title}
+                            </h2>
+                            {slide.description ? (
+                                <p className={cn("text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90", slide.textColor)}>
+                                    {slide.description}
+                                </p>
+                            ) : null}
+                            <HeroActions href={slide.link} cta={slide.cta} textColor={slide.textColor} ctaColor={slide.ctaColor} />
+                            <TrustIndicators className={slide.textColor} />
                         </div>
-                        <h2 className={cn("text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl", slide.textColor)}>
-                            {slide.title}
-                        </h2>
-                        {slide.description ? (
-                            <p className={cn("text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90", slide.textColor)}>
-                                {slide.description}
-                            </p>
-                        ) : null}
-                        <HeroActions href={slide.link} cta={slide.cta} textColor={slide.textColor} ctaColor={slide.ctaColor} />
-                        <TrustIndicators className={slide.textColor} />
-                    </div>
 
-                    <div className="relative w-full h-[50vh] lg:h-[70vh] order-1 lg:order-2">
-                        <Image
-                            src={slide.image}
-                            alt={slide.imageAlt}
-                            fill
-                            className="object-cover object-top lg:object-center shadow-2xl lg:shadow-none"
-                            priority
-                            sizes="(max-width: 1024px) 100vw, 60vw"
-                        />
+                        <div className="relative w-full h-[50vh] lg:h-[70vh] order-1 lg:order-2">
+                            <Link href={slide.link || '/shop'} className="relative block w-full h-full">
+                                <Image
+                                    src={slide.image}
+                                    alt={slide.imageAlt}
+                                    fill
+                                    className="object-cover object-top lg:object-center shadow-2xl lg:shadow-none"
+                                    priority
+                                    sizes="(max-width: 1024px) 100vw, 60vw"
+                                />
+                            </Link>
+                        </div>
                     </div>
                 </div>
+            </section>
+        );
+    }
+
+    return (
+        <section className="relative w-full overflow-hidden bg-black">
+            <Carousel
+                plugins={[plugin.current]}
+                className="w-full"
+                onMouseEnter={plugin.current?.stop}
+                onMouseLeave={plugin.current?.reset}
+                setApi={setApi}
+                opts={{
+                    loop: true,
+                }}
+            >
+                <CarouselContent className="-ml-0">
+                    {displaySlides.map((slide, index) => (
+                        <CarouselItem key={slide.id} className="pl-0 basis-full">
+                            <div className={cn("relative w-full min-h-[85vh] flex items-center overflow-hidden transition-colors duration-1000", slide.bgColor)}>
+                                <div className="container mx-auto px-4 h-full relative z-20">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-12 h-full items-center py-20 lg:py-0">
+                                        <div className="flex flex-col justify-center items-start pl-4 lg:pl-0 order-2 lg:order-1 z-30">
+                                            <div className={cn("inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-[0.2em] border border-current uppercase opacity-80 backdrop-blur-sm rounded-full", slide.textColor)}>
+                                                {slide.badge}
+                                            </div>
+                                            <h2 className={cn("text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black mb-6 leading-[0.85] tracking-tighter uppercase italic drop-shadow-2xl", slide.textColor)}>
+                                                {slide.title}
+                                            </h2>
+                                            {slide.description ? (
+                                                <p className={cn("text-lg md:text-xl mb-10 max-w-md font-light leading-relaxed opacity-90", slide.textColor)}>
+                                                    {slide.description}
+                                                </p>
+                                            ) : null}
+                                            <HeroActions href={slide.link} cta={slide.cta} textColor={slide.textColor} ctaColor={slide.ctaColor} />
+                                            <TrustIndicators className={slide.textColor} />
+                                        </div>
+
+                                        <div className="relative w-full h-[50vh] lg:h-[70vh] order-1 lg:order-2">
+                                            <Link href={slide.link || '/shop'} className="relative block w-full h-full">
+                                                <Image
+                                                    src={slide.image}
+                                                    alt={slide.imageAlt}
+                                                    fill
+                                                    className="object-cover object-top lg:object-center shadow-2xl lg:shadow-none"
+                                                    priority={index === 0}
+                                                    sizes="(max-width: 1024px) 100vw, 60vw"
+                                                />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+            </Carousel>
+
+            {/* Indicators */}
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 z-20">
+                {displaySlides.map((_, index) => (
+                    <button
+                        key={index}
+                        onClick={() => api?.scrollTo(index)}
+                        className={cn(
+                            "h-1.5 rounded-full transition-all duration-300",
+                            current === index
+                                ? "w-8 bg-white opacity-100"
+                                : "w-2 bg-white/50 hover:bg-white/75"
+                        )}
+                        aria-label={`Go to slide ${index + 1}`}
+                    />
+                ))}
             </div>
         </section>
     );

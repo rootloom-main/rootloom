@@ -53,3 +53,13 @@ export async function setCache(key: string, value: any, ttlSeconds: number = 300
         logger.error('Redis Set Error', { key, error });
     }
 }
+
+export async function delCache(key: string): Promise<void> {
+    if (!redis) return;
+    try {
+        await withTimeout(redis.del(key), 150, 0);
+    } catch (error) {
+        logger.error('Redis Del Error', { key, error });
+    }
+}
+

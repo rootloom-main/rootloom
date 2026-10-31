@@ -32,7 +32,7 @@ export const HomeService = {
         const { data, error } = await profileAsync<any>(
             'home.banners',
             async () => (supabase.from('banners' as any) as any)
-            .select('id, title, description, image_url, link, position, metadata, collections(slug)')
+            .select('id, title, description, image_url, link, position, metadata, collection_id, collections(id, slug, name)')
             .eq('active', true)
             .order('display_order', { ascending: false }),
             { cache_key: cacheKey }

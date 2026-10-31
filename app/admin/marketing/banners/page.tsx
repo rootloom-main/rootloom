@@ -25,6 +25,7 @@ interface Banner {
     active: boolean;
     display_order: number;
     created_at: string;
+    collections?: { id: string; name: string; slug: string } | null;
 }
 
 export const dynamic = 'force-dynamic';
@@ -36,11 +37,11 @@ export default async function BannersPage() {
     try {
         const { data, error } = await supabase
             .from('banners')
-            .select('*')
+            .select('*, collections(id, name, slug)')
             .order('created_at', { ascending: false });
 
         if (!error && data) {
-            banners = data as Banner[];
+            banners = data as unknown as Banner[];
         }
     } catch (e) {
         console.error('Error fetching banners:', e);
@@ -67,6 +68,7 @@ export default async function BannersPage() {
                             <TableRow>
                                 <TableHead className="w-[100px]">Image</TableHead>
                                 <TableHead>Title</TableHead>
+                                <TableHead>Linked Destination</TableHead>
                                 <TableHead>Position</TableHead>
                                 <TableHead>Order</TableHead>
                                 <TableHead>Status</TableHead>
@@ -89,6 +91,18 @@ export default async function BannersPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-medium">{banner.title}</TableCell>
+                                    <TableCell>
+                                        {banner.collections?.name ? (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                {banner.collections.name}
+                                            </span>
+                                        ) : banner.link ? (
+                                            <span className="text-xs text-muted-foreground font-mono">{banner.link}</span>
+                                        ) : (
+                                            <span className="text-xs text-stone-400 italic">Default (/shop)</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell className="capitalize">{banner.position}</TableCell>
                                     <TableCell>{(banner as any).display_order || 0}</TableCell>
                                     <TableCell>
@@ -103,7 +117,7 @@ export default async function BannersPage() {
                             ))}
                             {banners.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                         No banners found. Create one to get started.
                                     </TableCell>
                                 </TableRow>

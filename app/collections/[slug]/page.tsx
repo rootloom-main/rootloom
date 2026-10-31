@@ -1,11 +1,12 @@
 import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase/server';
-import { ProductCard } from '@/components/product/product-card';
-import { ProductGridSkeleton } from '@/components/product/product-skeleton';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { Layers, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, Truck, RotateCcw, ShieldCheck, Lock } from 'lucide-react';
 import type { Metadata } from 'next';
+import { CollectionProductGrid } from '@/components/collection/collection-product-grid';
+import { ProductGridSkeleton } from '@/components/product/product-skeleton';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -18,12 +19,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
         .eq('slug', slug)
         .single();
 
-    if (!collection) return { title: 'Collection' };
+    if (!collection) return { title: 'Collection | Root & Loom' };
 
     const seo = (collection as any).seo_metadata || {};
     return {
-        title: seo.title || collection.name,
-        description: seo.description || collection.description,
+        title: seo.title || `${collection.name} | Root & Loom`,
+        description: seo.description || collection.description || `Discover the ${collection.name} collection at Root & Loom.`,
     };
 }
 
@@ -45,7 +46,6 @@ async function CollectionContent({ slug }: { slug: string }) {
 
     // 2. Fetch Products based on Type
     if (col.type === 'automated' && col.rules && col.rules.length > 0) {
-        // Automated Collection Logic
         const hasCategoryRule = col.rules.some((r: any) => r.field === 'category');
         
         let query = (supabase.from('products' as unknown as any) as any)
@@ -54,12 +54,12 @@ async function CollectionContent({ slug }: { slug: string }) {
                 name,
                 slug,
                 base_price,
+                description,
                 product_images(image_url, alt_text, display_order),
                 product_variants(id, size, color, stock, price_adjustment)
                 ${hasCategoryRule ? ', categories!inner(slug)' : ', categories(slug)'}
             `);
 
-        // Apply rules (AND logic between rules)
         col.rules.forEach((rule: any) => {
             if (rule.field === 'category' && rule.value) {
                 query = query.eq('categories.slug', rule.value);
@@ -74,16 +74,14 @@ async function CollectionContent({ slug }: { slug: string }) {
             }
         });
 
-        // Apply Sorting
         if (col.sort_by === 'price-low') query = query.order('base_price', { ascending: true });
         else if (col.sort_by === 'price-high') query = query.order('base_price', { ascending: false });
         else if (col.sort_by === 'oldest') query = query.order('created_at', { ascending: true });
-        else query = query.order('created_at', { ascending: false }); // Default newest
+        else query = query.order('created_at', { ascending: false });
 
-        const { data } = await query.limit(40);
+        const { data } = await query.limit(60);
         productList = data || [];
     } else {
-        // Manual Collection Logic
         const { data: products } = await (supabase
             .from('collection_products' as unknown as any) as any)
             .select(`
@@ -92,6 +90,7 @@ async function CollectionContent({ slug }: { slug: string }) {
                     name,
                     slug,
                     base_price,
+                    description,
                     product_images(image_url, alt_text, display_order),
                     product_variants(id, size, color, stock, price_adjustment)
                 )
@@ -104,79 +103,118 @@ async function CollectionContent({ slug }: { slug: string }) {
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Hero / Header */}
-            <div className="relative h-[50vh] md:h-[65vh] bg-slate-900 overflow-hidden flex flex-col items-center justify-center px-6">
-                {col.image_url && (
-                    <Image 
-                        src={col.image_url} 
-                        alt={col.name} 
-                        fill 
-                        className="object-cover opacity-60"
-                        priority
-                    />
-                ) }
-                
-                {/* Decorative Elements */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-white" />
-                
-                <div className="relative z-10 text-center max-w-4xl">
-                    {col.badge_label && (
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white rounded-full mb-6 border-b-4 border-slate-200 shadow-xl animate-bounce">
-                            <Sparkles className="h-3 w-3 text-amber-500 fill-amber-500" />
-                            <span className="text-[10px] font-black tracking-widest text-slate-900 uppercase">
-                                {col.badge_label}
-                            </span>
-                        </div>
-                    )}
-                    
-                    {!col.badge_label && (
-                        <span className="text-[10px] font-black tracking-[0.4em] text-white/50 uppercase mb-4 block">Root & Loom // Curated Collection</span>
-                    )}
-                    
-                    <h1 className="text-5xl md:text-9xl font-black italic uppercase text-white mb-6 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] leading-[0.9]">
-                        {col.name}
-                    </h1>
-                    
-                    {col.description && (
-                        <p className="text-base md:text-xl text-white/90 font-medium max-w-2xl mx-auto drop-shadow-lg leading-relaxed">
-                            {col.description}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {/* Product Grid */}
-            <div className="container mx-auto px-6 py-16 md:py-32">
-                <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-16 border-b-2 border-slate-100 pb-10">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Layers className="h-4 w-4 text-indigo-500" />
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Inventory Status</h2>
-                        </div>
-                        <h3 className="text-3xl md:text-5xl font-black italic uppercase text-slate-900">
-                            {productList.length} {productList.length === 1 ? 'Masterpiece' : 'Collectibles'}
-                        </h3>
-                    </div>
-                </div>
-
-                {productList.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-32 rounded-[3rem] bg-slate-50 border-4 border-dashed border-slate-100">
-                        <div className="h-20 w-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-6">
-                            <Layers className="h-10 w-10 text-slate-200" />
-                        </div>
-                        <p className="text-2xl font-black uppercase italic text-slate-300">Section is being refilled</p>
-                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-2">New arrivals incoming shortly</p>
+            {/* Editorial Hero Header */}
+            <section className="relative overflow-hidden bg-black text-white min-h-[280px] sm:min-h-[340px] md:min-h-[380px] flex items-center">
+                {/* Background image with high-end overlay */}
+                {col.image_url ? (
+                    <div className="absolute inset-0 z-0">
+                        <Image 
+                            src={col.image_url} 
+                            alt={col.name} 
+                            fill 
+                            className="object-cover object-center opacity-40 brightness-75 scale-105 transition-transform duration-1000"
+                            priority
+                            sizes="100vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40" />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-16">
-                        {productList.map((product, index) => (
-                            <div key={product.id} className="group">
-                                <ProductCard product={product} priority={index < 4} />
-                            </div>
-                        ))}
-                    </div>
+                    <div className="absolute inset-0 z-0 bg-gradient-to-br from-stone-900 via-black to-stone-950" />
                 )}
-            </div>
+
+                {/* Content Container */}
+                <div className="container mx-auto px-4 sm:px-6 relative z-10 py-12 sm:py-16 md:py-20">
+                    {/* Breadcrumbs */}
+                    <nav aria-label="Breadcrumb" className="flex items-center space-x-2 text-xs font-semibold uppercase tracking-wider text-stone-400 mb-6">
+                        <Link href="/" className="hover:text-white transition-colors">Home</Link>
+                        <span>/</span>
+                        <Link href="/collections" className="hover:text-white transition-colors">Collections</Link>
+                        <span>/</span>
+                        <span className="text-white truncate max-w-[200px] sm:max-w-none">{col.name}</span>
+                    </nav>
+
+                    <div className="max-w-3xl">
+                        {/* Badge */}
+                        {col.badge_label ? (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-widest uppercase bg-white/15 backdrop-blur-md text-white border border-white/20 mb-4 shadow-xs">
+                                <Sparkles className="h-3 w-3 text-amber-400 fill-amber-400" />
+                                <span>{col.badge_label}</span>
+                            </div>
+                        ) : (
+                            <span className="inline-block text-[11px] font-bold tracking-[0.25em] text-stone-300 uppercase mb-3">
+                                Root & Loom // Curated Edition
+                            </span>
+                        )}
+
+                        {/* Title - Elegant, impactful, and properly sized */}
+                        <h1 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight text-white mb-4 leading-tight drop-shadow-sm">
+                            {col.name}
+                        </h1>
+
+                        {/* Description */}
+                        {col.description ? (
+                            <p className="text-xs sm:text-sm md:text-base text-stone-300 font-light leading-relaxed max-w-2xl line-clamp-3 md:line-clamp-none">
+                                {col.description}
+                            </p>
+                        ) : null}
+
+                        {/* Quick Highlights */}
+                        <div className="flex flex-wrap items-center gap-6 mt-6 pt-6 border-t border-white/10 text-xs sm:text-sm text-stone-300 font-medium">
+                            <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                                <span>{productList.length} {productList.length === 1 ? 'Design' : 'Designs'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                <span>Free Shipping Above ₹999</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                <span>Pure Breathable Fabrics</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Interactive Product Grid & Toolbar */}
+            <CollectionProductGrid products={productList} collectionName={col.name} />
+
+            {/* Reassurance Bar */}
+            <section className="border-t border-stone-200 bg-stone-50/80 py-12 mt-12">
+                <div className="container mx-auto px-4 sm:px-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 text-center">
+                        <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center mb-3 text-stone-800">
+                                <Truck className="h-5 w-5" />
+                            </div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-stone-900">Express Delivery</h4>
+                            <p className="text-[11px] text-stone-500 mt-1">Fast shipping across all Indian pincodes</p>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center mb-3 text-stone-800">
+                                <RotateCcw className="h-5 w-5" />
+                            </div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-stone-900">7-Day Easy Returns</h4>
+                            <p className="text-[11px] text-stone-500 mt-1">Hassle-free doorstep pickup & exchange</p>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center mb-3 text-stone-800">
+                                <ShieldCheck className="h-5 w-5" />
+                            </div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-stone-900">Craftsmanship Guaranteed</h4>
+                            <p className="text-[11px] text-stone-500 mt-1">Hand-picked textiles & tailored fits</p>
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center mb-3 text-stone-800">
+                                <Lock className="h-5 w-5" />
+                            </div>
+                            <h4 className="font-bold text-xs uppercase tracking-wider text-stone-900">100% Secure Checkout</h4>
+                            <p className="text-[11px] text-stone-500 mt-1">Razorpay, UPI & Cash on Delivery</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
     );
 }

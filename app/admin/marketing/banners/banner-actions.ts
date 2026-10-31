@@ -3,6 +3,7 @@
 import { createSSRClient } from '@/lib/utils/auth';
 import { getCurrentUser } from '@/lib/utils/auth';
 import { revalidatePath } from 'next/cache';
+import { delCache } from '@/lib/redis';
 
 export async function createBannerAction(formData: FormData) {
     const supabase = await createSSRClient();
@@ -26,6 +27,8 @@ export async function createBannerAction(formData: FormData) {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const link = formData.get('link') as string;
+    const collectionIdRaw = formData.get('collection_id') as string | null;
+    const collection_id = (collectionIdRaw && collectionIdRaw !== 'none') ? collectionIdRaw : null;
     const position = formData.get('position') as string;
     const active = formData.get('active') === 'true';
     const display_order = parseInt(formData.get('display_order') as string) || 0;
@@ -71,6 +74,7 @@ export async function createBannerAction(formData: FormData) {
             title,
             description,
             link: link || null,
+            collection_id,
             position,
             active,
             display_order,
@@ -88,7 +92,10 @@ export async function createBannerAction(formData: FormData) {
 
         if (dbError) throw dbError;
 
+        await delCache('home:banners');
+        await delCache('home:sections');
         revalidatePath('/');
+        revalidatePath('/admin/marketing/banners');
         return { success: true };
 
     } catch (error: any) {
@@ -119,6 +126,8 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const link = formData.get('link') as string;
+    const collectionIdRaw = formData.get('collection_id') as string | null;
+    const collection_id = (collectionIdRaw && collectionIdRaw !== 'none') ? collectionIdRaw : null;
     const position = formData.get('position') as string;
     const active = formData.get('active') === 'true';
     const display_order = parseInt(formData.get('display_order') as string) || 0;
@@ -158,6 +167,7 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
             title,
             description,
             link: link || null,
+            collection_id,
             position,
             active,
             display_order,
@@ -176,7 +186,10 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
 
         if (dbError) throw dbError;
 
+        await delCache('home:banners');
+        await delCache('home:sections');
         revalidatePath('/');
+        revalidatePath('/admin/marketing/banners');
         return { success: true };
     } catch (error: any) {
         console.error('Action error updating banner:', error);
@@ -197,7 +210,10 @@ export async function toggleBannerAction(bannerId: string, currentActive: boolea
 
     if (error) return { success: false, error: error.message };
 
+    await delCache('home:banners');
+    await delCache('home:sections');
     revalidatePath('/');
+    revalidatePath('/admin/marketing/banners');
     return { success: true };
 }
 
@@ -214,6 +230,9 @@ export async function deleteBannerAction(bannerId: string) {
 
     if (error) return { success: false, error: error.message };
 
+    await delCache('home:banners');
+    await delCache('home:sections');
     revalidatePath('/');
+    revalidatePath('/admin/marketing/banners');
     return { success: true };
 }
