@@ -1,13 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Header } from '@/components/layout/header';
-import { Footer } from '@/components/layout/footer';
-import { MobileNav } from '@/components/layout/mobile-nav';
+import { StoreShell } from '@/components/layout/store-shell';
 import { SupabaseAuthProvider } from '@/components/auth/supabase-auth-provider';
 import { CartProvider } from '@/components/providers/cart-provider';
 import { WishlistProvider } from '@/components/providers/wishlist-provider';
 import { Toaster } from '@/components/ui/sonner';
-import { Suspense } from 'react';
 import { ServiceWorkerCleanup } from '@/components/utils/service-worker-cleanup';
 
 export const metadata: Metadata = {
@@ -148,29 +145,15 @@ export default function RootLayout({
 			<body className="min-h-screen bg-background font-sans antialiased">
 				<ServiceWorkerCleanup />
 				<SupabaseAuthProvider>
-							<WishlistProvider>
-								<CartProvider>
-									<div className="relative flex min-h-screen flex-col">
-										<div className="bg-black text-white py-2 px-4 text-center text-[10px] sm:text-xs font-bold tracking-[0.15em] uppercase overflow-hidden whitespace-nowrap text-ellipsis">
-											⚡ Free Shipping over ₹999 | Root &amp; Loom ⚡
-										</div>
-										<Suspense fallback={
-											<header className="sticky top-0 z-50 w-full h-16 md:h-20 bg-transparent border-b border-transparent">
-												<div className="container mx-auto px-1 sm:px-4 h-full flex items-center justify-between" />
-											</header>
-										}>
-											<Header />
-										</Suspense>
-										<main className="flex-1 pb-bottom-nav md:pb-0">
-											{children}
-										</main>
-										<Footer />
-										<MobileNav />
-									</div>
-									<Toaster position="top-center" />
-								</CartProvider>
-							</WishlistProvider>
-						</SupabaseAuthProvider>
+					<WishlistProvider>
+						<CartProvider>
+							<StoreShell>
+								{children}
+							</StoreShell>
+							<Toaster position="top-center" />
+						</CartProvider>
+					</WishlistProvider>
+				</SupabaseAuthProvider>
 			</body>
 		</html>
 	);

@@ -37,7 +37,7 @@ export default function NewBannerPage() {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [badge, setBadge] = useState('');
     const [cta, setCta] = useState('Discover Now');
-    const [theme, setTheme] = useState('new-arrivals');
+    const [theme, setTheme] = useState('streetwear');
     const [displayOrder, setDisplayOrder] = useState('0');
 
     useEffect(() => {
@@ -62,7 +62,7 @@ export default function NewBannerPage() {
         setLoading(true);
 
         try {
-            if (!imageFile) throw new Error('Please select an image');
+            if (!imageFile && !imagePreview) throw new Error('Please select an image');
 
             const formData = new FormData();
             formData.append('title', title);
@@ -280,11 +280,19 @@ export default function NewBannerPage() {
                                             <SelectValue placeholder="Select theme" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="new-arrivals">Forest Edition (Dark Green)</SelectItem>
-                                            <SelectItem value="earth">Earth & Fiber (Sand/Linen)</SelectItem>
-                                            <SelectItem value="artisan">Artisan (Raw Clay)</SelectItem>
-                                            <SelectItem value="indigo">Indigo Tales (Deep Blue)</SelectItem>
-                                            <SelectItem value="sustainable">Sustainable (Stone Paper)</SelectItem>
+                                            <SelectItem value="streetwear">Streetwear Drip (Black / Neon Pink)</SelectItem>
+                                            <SelectItem value="electric">Electric Cyber (Bold Blue / Cyber Yellow)</SelectItem>
+                                            <SelectItem value="cyber">Cyberpunk Matrix (Dark / Neon Cyan)</SelectItem>
+                                            <SelectItem value="neon">Neon Voltage (Deep Purple / Neon Green)</SelectItem>
+                                            <SelectItem value="minimal-urban">Minimal Urban (Clean White / Pure Black)</SelectItem>
+                                            <SelectItem value="sunset">Sunset Drip (Sunset Gradient / Black)</SelectItem>
+                                            <SelectItem value="graffiti">Graffiti Grunge (Charcoal / Acid Green)</SelectItem>
+                                            <SelectItem value="new-arrivals">Forest Edition (Deep Forest Green / Ivory)</SelectItem>
+                                            <SelectItem value="earth">Earth & Fiber (Sand & Linen / Forest)</SelectItem>
+                                            <SelectItem value="artisan">Artisan Legacy (Warm Clay / Ivory)</SelectItem>
+                                            <SelectItem value="indigo">Indigo Tales (Deep Indigo / Indigo Blue)</SelectItem>
+                                            <SelectItem value="sustainable">Sustainable (Eco Pine / Mint)</SelectItem>
+                                            <SelectItem value="default">Classic Dark (Pure Black / Crisp White)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

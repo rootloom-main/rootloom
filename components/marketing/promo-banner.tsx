@@ -14,7 +14,7 @@ interface PromoBannerProps {
 }
 
 export default function PromoBanner({ banner }: PromoBannerProps) {
-    if (!banner) return null;
+    if (!banner || !banner.image_url) return null;
 
     const content = (
         <div className="block relative w-full h-[250px] sm:h-[350px] md:h-[450px] lg:h-[500px] overflow-hidden group">
@@ -39,9 +39,12 @@ export default function PromoBanner({ banner }: PromoBannerProps) {
         </div>
     );
 
-    const bannerLink = banner.collections?.slug 
+    const rawLink = banner.collections?.slug 
         ? `/collections/${banner.collections.slug}` 
         : banner.link;
+    const bannerLink = rawLink && typeof rawLink === 'string' && rawLink.trim()
+        ? (rawLink.trim().startsWith('/') || rawLink.trim().startsWith('http') ? rawLink.trim() : `/${rawLink.trim()}`)
+        : null;
 
     return (
         <section className="w-full my-8 md:my-16">

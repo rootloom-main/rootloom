@@ -38,6 +38,7 @@ export default async function BannersPage() {
         const { data, error } = await supabase
             .from('banners')
             .select('*, collections(id, name, slug)')
+            .order('display_order', { ascending: false })
             .order('created_at', { ascending: false });
 
         if (!error && data) {
@@ -79,14 +80,19 @@ export default async function BannersPage() {
                             {banners.map((banner) => (
                                 <TableRow key={banner.id}>
                                     <TableCell>
-                                        <div className="relative h-12 w-20 rounded overflow-hidden bg-gray-100">
-                                            {banner.image_url && (
+                                        <div className="relative h-12 w-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
+                                            {banner.image_url ? (
                                                 <Image
                                                     src={banner.image_url}
                                                     alt={banner.title}
                                                     fill
                                                     className="object-cover"
+                                                    unoptimized
                                                 />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-[10px]">
+                                                    No image
+                                                </div>
                                             )}
                                         </div>
                                     </TableCell>

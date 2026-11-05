@@ -25,7 +25,7 @@ export async function createBannerAction(formData: FormData) {
     }
 
     const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
+    const description = (formData.get('description') as string) || '';
     const link = formData.get('link') as string;
     const collectionIdRaw = formData.get('collection_id') as string | null;
     const collection_id = (collectionIdRaw && collectionIdRaw !== 'none') ? collectionIdRaw : null;
@@ -52,7 +52,7 @@ export async function createBannerAction(formData: FormData) {
         // 1. Upload Image (Only if file provided)
         if (imageFile && imageFile.size > 0) {
             const fileExt = imageFile.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
+            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -69,11 +69,24 @@ export async function createBannerAction(formData: FormData) {
             imageUrl = publicUrl;
         }
 
+        // Resolve collection link if not provided manually
+        let finalLink = link || null;
+        if (collection_id && !finalLink) {
+            const { data: col } = await supabase
+                .from('collections')
+                .select('slug')
+                .eq('id', collection_id)
+                .single();
+            if (col?.slug) {
+                finalLink = `/collections/${col.slug}`;
+            }
+        }
+
         // 3. Create Record
         const bannerData: any = {
             title,
-            description,
-            link: link || null,
+            description: description || null,
+            link: finalLink,
             collection_id,
             position,
             active,
@@ -124,7 +137,7 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
     }
 
     const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
+    const description = (formData.get('description') as string) || '';
     const link = formData.get('link') as string;
     const collectionIdRaw = formData.get('collection_id') as string | null;
     const collection_id = (collectionIdRaw && collectionIdRaw !== 'none') ? collectionIdRaw : null;
@@ -147,7 +160,7 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
         // 1. Upload New Image (If provided)
         if (imageFile && imageFile.size > 0) {
             const fileExt = imageFile.name.split('.').pop();
-            const fileName = `${Math.random()}.${fileExt}`;
+            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${fileName}`;
 
             const { error: uploadError } = await supabase.storage
@@ -163,10 +176,23 @@ export async function updateBannerAction(bannerId: string, formData: FormData) {
             imageUrl = publicUrl;
         }
 
+        // Resolve collection link if not provided manually
+        let finalLink = link || null;
+        if (collection_id && !finalLink) {
+            const { data: col } = await supabase
+                .from('collections')
+                .select('slug')
+                .eq('id', collection_id)
+                .single();
+            if (col?.slug) {
+                finalLink = `/collections/${col.slug}`;
+            }
+        }
+
         const updateData: any = {
             title,
-            description,
-            link: link || null,
+            description: description || null,
+            link: finalLink,
             collection_id,
             position,
             active,
@@ -203,6 +229,16 @@ export async function toggleBannerAction(bannerId: string, currentActive: boolea
 
     if (!user) return { success: false, error: 'Unauthorized' };
 
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
+        return { success: false, error: 'Unauthorized' };
+    }
+
     const { error } = await supabase
         .from('banners')
         .update({ active: !currentActive })
@@ -222,6 +258,16 @@ export async function deleteBannerAction(bannerId: string) {
     const user = await getCurrentUser();
 
     if (!user) return { success: false, error: 'Unauthorized' };
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') {
+        return { success: false, error: 'Unauthorized' };
+    }
 
     const { error } = await supabase
         .from('banners')

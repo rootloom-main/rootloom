@@ -29,15 +29,17 @@ export default function EditBannerPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
     const [link, setLink] = useState('');
     const [collectionId, setCollectionId] = useState('none');
     const [collections, setCollections] = useState<any[]>([]);
     const [position, setPosition] = useState('hero');
     const [active, setActive] = useState(true);
+    const [imageFile, setImageFile] = useState<File | null>(null);
     const [currentImageUrl, setCurrentImageUrl] = useState('');
     const [badge, setBadge] = useState('');
     const [cta, setCta] = useState('Discover Now');
-    const [theme, setTheme] = useState('new-arrivals');
+    const [theme, setTheme] = useState('streetwear');
     const [displayOrder, setDisplayOrder] = useState('0');
 
     useEffect(() => {
@@ -61,17 +63,18 @@ export default function EditBannerPage() {
             }
 
             setTitle(bannerData.title);
+            setDescription(bannerData.description || '');
             setLink(bannerData.link || '');
             setCollectionId(bannerData.collection_id || 'none');
             setPosition(bannerData.position || 'hero');
             setActive(bannerData.active);
-            setCurrentImageUrl(bannerData.image_url);
+            setCurrentImageUrl(bannerData.image_url || '');
             setDisplayOrder(bannerData.display_order?.toString() || '0');
             
             if (bannerData.metadata) {
                 setBadge(bannerData.metadata.badge || '');
                 setCta(bannerData.metadata.cta || 'Discover Now');
-                setTheme(bannerData.metadata.theme || 'new-arrivals');
+                setTheme(bannerData.metadata.theme || 'streetwear');
             }
             
             setLoading(false);
@@ -81,13 +84,26 @@ export default function EditBannerPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [bannerId]);
 
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            setCurrentImageUrl(URL.createObjectURL(file));
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
 
         try {
+            if (!currentImageUrl && !imageFile) {
+                throw new Error('Please select an image');
+            }
+
             const formData = new FormData();
             formData.append('title', title);
+            formData.append('description', description);
             formData.append('link', link);
             formData.append('collection_id', collectionId);
             formData.append('position', position);
@@ -96,7 +112,10 @@ export default function EditBannerPage() {
             formData.append('badge', badge);
             formData.append('cta', cta);
             formData.append('theme', theme);
-            if (currentImageUrl) {
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+            if (currentImageUrl && !imageFile) {
                 formData.append('existing_image_url', currentImageUrl);
             }
 
@@ -143,7 +162,10 @@ export default function EditBannerPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <MediaLibrary 
                                     bucketName="banners"
-                                    onSelect={(url) => setCurrentImageUrl(url)}
+                                    onSelect={(url) => {
+                                        setImageFile(null);
+                                        setCurrentImageUrl(url);
+                                    }}
                                     currentUrl={currentImageUrl || ''}
                                     trigger={
                                         <Button 
@@ -162,39 +184,30 @@ export default function EditBannerPage() {
                                         type="file"
                                         accept="image/*"
                                         className="absolute inset-0 opacity-0 cursor-pointer"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                setSaving(true);
-                                                try {
-                                                    const fileExt = file.name.split('.').pop();
-                                                    const fileName = `${Math.random()}.${fileExt}`;
-                                                    const { error: uploadError } = await supabase.storage
-                                                        .from('banners')
-                                                        .upload(fileName, file);
-                                                    if (uploadError) throw uploadError;
-                                                    const { data: { publicUrl } } = supabase.storage
-                                                        .from('banners')
-                                                        .getPublicUrl(fileName);
-                                                    setCurrentImageUrl(publicUrl);
-                                                } catch (err: any) {
-                                                    toast.error(err.message);
-                                                } finally {
-                                                    setSaving(false);
-                                                }
-                                            }
-                                        }}
+                                        onChange={handleFileChange}
                                     />
                                     <Upload className="h-6 w-6 text-gray-400 mb-2" />
-                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Upload Over</span>
+                                    <span className="text-xs font-bold uppercase tracking-widest text-gray-500">Upload New</span>
                                 </div>
                             </div>
 
                             {currentImageUrl && (
                                 <div className="relative w-full h-64 rounded-2xl overflow-hidden border-4 border-white shadow-xl">
                                     <Image src={currentImageUrl} alt="Preview" fill className="object-cover" />
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-4 right-4 z-10 rounded-full shadow-lg"
+                                        onClick={() => {
+                                            setImageFile(null);
+                                            setCurrentImageUrl('');
+                                        }}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
                                     <div className="absolute bottom-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] font-black uppercase tracking-widest text-white">
-                                        Active Asset
+                                        {imageFile ? 'Local File (Pending Save)' : 'Current Asset'}
                                     </div>
                                 </div>
                             )}
@@ -209,6 +222,17 @@ export default function EditBannerPage() {
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 required
+                            />
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                            <Label htmlFor="description">Description</Label>
+                            <Input
+                                id="description"
+                                placeholder="Up to 50% off on all organic cotton wear"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
 
@@ -299,11 +323,19 @@ export default function EditBannerPage() {
                                             <SelectValue placeholder="Select theme" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="new-arrivals">Forest Edition (Dark Green)</SelectItem>
-                                            <SelectItem value="earth">Earth & Fiber (Sand/Linen)</SelectItem>
-                                            <SelectItem value="artisan">Artisan (Raw Clay)</SelectItem>
-                                            <SelectItem value="indigo">Indigo Tales (Deep Blue)</SelectItem>
-                                            <SelectItem value="sustainable">Sustainable (Stone Paper)</SelectItem>
+                                            <SelectItem value="streetwear">Streetwear Drip (Black / Neon Pink)</SelectItem>
+                                            <SelectItem value="electric">Electric Cyber (Bold Blue / Cyber Yellow)</SelectItem>
+                                            <SelectItem value="cyber">Cyberpunk Matrix (Dark / Neon Cyan)</SelectItem>
+                                            <SelectItem value="neon">Neon Voltage (Deep Purple / Neon Green)</SelectItem>
+                                            <SelectItem value="minimal-urban">Minimal Urban (Clean White / Pure Black)</SelectItem>
+                                            <SelectItem value="sunset">Sunset Drip (Sunset Gradient / Black)</SelectItem>
+                                            <SelectItem value="graffiti">Graffiti Grunge (Charcoal / Acid Green)</SelectItem>
+                                            <SelectItem value="new-arrivals">Forest Edition (Deep Forest Green / Ivory)</SelectItem>
+                                            <SelectItem value="earth">Earth & Fiber (Sand & Linen / Forest)</SelectItem>
+                                            <SelectItem value="artisan">Artisan Legacy (Warm Clay / Ivory)</SelectItem>
+                                            <SelectItem value="indigo">Indigo Tales (Deep Indigo / Indigo Blue)</SelectItem>
+                                            <SelectItem value="sustainable">Sustainable (Eco Pine / Mint)</SelectItem>
+                                            <SelectItem value="default">Classic Dark (Pure Black / Crisp White)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -55,6 +55,31 @@ const THEME_CONFIGS: Record<string, {
         textColor: 'text-[#39ff14]',
         ctaColor: 'bg-[#ff00ff] text-white hover:bg-[#d400d4] shadow-[0_0_20px_rgba(255,0,255,0.5)]',
     },
+    'new-arrivals': {
+        bgColor: 'bg-[#1e2f23]',
+        textColor: 'text-[#f9f5ed]',
+        ctaColor: 'bg-[#f9f5ed] text-[#1e2f23] hover:bg-[#dcd6cb]',
+    },
+    earth: {
+        bgColor: 'bg-[#2d2926]',
+        textColor: 'text-[#e7dfd5]',
+        ctaColor: 'bg-[#e7dfd5] text-[#2d2926] hover:bg-[#cfc4b6]',
+    },
+    artisan: {
+        bgColor: 'bg-[#3b2317]',
+        textColor: 'text-[#faf3eb]',
+        ctaColor: 'bg-[#d97706] text-white hover:bg-[#b45309]',
+    },
+    indigo: {
+        bgColor: 'bg-[#0f172a]',
+        textColor: 'text-white',
+        ctaColor: 'bg-[#6366f1] text-white hover:bg-[#4f46e5]',
+    },
+    sustainable: {
+        bgColor: 'bg-[#18231c]',
+        textColor: 'text-[#ecfdf5]',
+        ctaColor: 'bg-[#10b981] text-white hover:bg-[#059669]',
+    },
     default: {
         bgColor: 'bg-black',
         textColor: 'text-white',
@@ -76,7 +101,9 @@ function resolveSlideLink(banner: any): string {
 }
 
 function getDisplaySlides(heroBanners: any[]) {
-    return (heroBanners || []).map((banner, index) => {
+    return (heroBanners || [])
+        .filter((banner) => Boolean(banner?.image_url && typeof banner.image_url === 'string' && banner.image_url.trim()))
+        .map((banner, index) => {
         const metadata = banner.metadata || {};
         const theme = metadata.theme || 'default';
         const config = THEME_CONFIGS[theme] || THEME_CONFIGS.default;
