@@ -380,7 +380,8 @@ export async function verifyOtpEx(token: string, type: 'sms' | 'email', contact:
             const canonicalProfile = existingProfiles?.[0];
 
             if (canonicalProfile && canonicalProfile.id !== tempUserId) {
-                console.log(`[Auth Consolidation] Matching canonical account ${canonicalProfile.id} for phone ${canonicalPhone}`);
+                const maskedPhone = `${canonicalPhone.slice(0, -4).replace(/\d/g, '*')}${canonicalPhone.slice(-4)}`;
+                console.log(`[Auth Consolidation] Matching canonical account ${canonicalProfile.id} for phone ${maskedPhone}`);
 
                 // Safeguard 1: Verify temporary user is safe to delete
                 const isSafe = await isSafeTemporaryUser(adminSupabase, tempUserId);

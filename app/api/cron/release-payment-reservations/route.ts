@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { releasePaymentInventory } from '@/lib/payments/reservations';
 import { verifyCronRequest } from '@/lib/cron-auth';
+import { PAYMENT_RESERVATION_BATCH_SIZE } from '@/lib/utils/cpu-batch-limits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,9 +18,11 @@ export async function GET(request: Request) {
 
     const { data: stalePayments, error } = await (supabase
         .from('payments' as any)
-        .select('*')
+        .select('id, status, cart_snapshot, metadata')
         .eq('status', 'pending')
-        .lt('metadata->>reservation_expires_at', nowIso) as any);
+        .lt('metadata->>reservation_expires_at', nowIso)
+        .order('metadata->>reservation_expires_at', { ascending: true })
+        .limit(PAYMENT_RESERVATION_BATCH_SIZE) as any);
 
     if (error) {
         console.error('[Reservations][Cron] Failed to load stale payments', error);

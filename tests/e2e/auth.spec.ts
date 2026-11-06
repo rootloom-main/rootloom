@@ -4,7 +4,7 @@ test.describe('Authentication Flows', () => {
   test('shows the OTP login UI', async ({ page }) => {
     await page.goto('/auth/login');
 
-    await expect(page.getByRole('heading', { name: /Continue Secure Checkout/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Sign In or Register/i })).toBeVisible();
     await expect(page.getByPlaceholder(/Email or mobile number/i)).toBeVisible();
     await expect(page.getByRole('button', { name: /Continue/i })).toBeVisible();
   });

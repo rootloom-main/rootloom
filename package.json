@@ -9,6 +9,7 @@
     "start": "node node_modules/next/dist/bin/next start",
     "lint": "node node_modules/eslint/bin/eslint.js . --ext .ts,.tsx,.js --no-cache",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit -p tsconfig.typecheck.json",
+    "test:unit": "node --test tests/unit/*.test.cjs",
     "test:e2e:smoke": "node node_modules/@playwright/test/cli.js test tests/e2e/auth.spec.ts tests/e2e/payment.spec.ts tests/e2e/cache-headers.spec.ts tests/e2e/admin-security.spec.ts tests/e2e/cron-security.spec.ts tests/e2e/callback-security.spec.ts --project=chromium",
     "test:checkout-concurrency": "node scripts/simulate-checkout-concurrency.js",
     "test:launch-traffic": "node scripts/simulate-launch-traffic.js",

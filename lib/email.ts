@@ -141,6 +141,7 @@ interface AbandonedCartEmailProps {
     image?: string;
   }>;
   tier?: '1hr' | '6hr' | '24hr';
+  idempotencyKey?: string;
 }
 
 export const sendAbandonedCartEmail = async ({
@@ -148,7 +149,8 @@ export const sendAbandonedCartEmail = async ({
   customerEmail,
   cartUrl,
   items,
-  tier = '1hr'
+  tier = '1hr',
+  idempotencyKey,
 }: AbandonedCartEmailProps) => {
   if (!resend) return { success: false, error: 'Email service not configured' };
 
@@ -230,7 +232,7 @@ export const sendAbandonedCartEmail = async ({
 </body>
 </html>
       `
-    });
+    }, idempotencyKey ? { idempotencyKey } : undefined);
     return { success: true };
   } catch (error) {
     return { success: false, error };

@@ -62,19 +62,25 @@ export default async function AdminAnalyticsPage() {
         redirect('/');
     }
 
-    // 1. Fetch all orders for metrics and breakdown
-    const { data: allOrders } = await adminSupabase
-        .from('orders')
-        .select('total, created_at, status') as { data: any[] | null };
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const orders = allOrders?.filter(o => o.status !== 'cancelled') || [];
+    const { data: coreData, error: coreError } = await (adminSupabase as any).rpc('get_admin_analytics_core', {
+        p_week_start: sevenDaysAgo.toISOString(),
+        p_previous_week_start: fourteenDaysAgo.toISOString(),
+        p_thirty_days_start: thirtyDaysAgo.toISOString(),
+    });
+    if (coreError) throw coreError;
+    const analyticsCore = coreData || {};
+    const orderMetrics = analyticsCore.orders || {};
+    const totalCustomers = Number(analyticsCore.total_customers || 0);
+    const abandonedCartCount = Number(analyticsCore.abandoned_cart_count || 0);
 
-    // 2. Fetch order items for top products
-    const { data: orderItems } = await adminSupabase
-        .from('order_items')
-        .select('quantity, price, product:products(name)') as { data: any[] | null };
-
-    // 3. Fetch Recent Orders with Customer Info
+    // Recent order and inventory lists remain bounded, display-specific queries.
     const { data: recentOrders } = await adminSupabase
         .from('orders')
         .select(`
@@ -100,34 +106,6 @@ export default async function AdminAnalyticsPage() {
         .lt('stock', 10)
         .order('stock', { ascending: true })
         .limit(10) as { data: any[] | null };
-
-    // 5. Fetch Previous Period Metrics for Growth (Last 7 days vs 7 days before)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-    const { data: currentWeekOrders } = await adminSupabase
-        .from('orders')
-        .select('total')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .neq('status', 'cancelled');
-
-    const { data: previousWeekOrders } = await adminSupabase
-        .from('orders')
-        .select('total')
-        .gte('created_at', fourteenDaysAgo.toISOString())
-        .lt('created_at', sevenDaysAgo.toISOString())
-        .neq('status', 'cancelled');
-
-    const { count: totalCustomers } = await adminSupabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-    // 6. Fetch Abandoned Cart Count
-    // For simplicity, we count unique user IDs in cart_items table
-    const { data: abandonedData } = await (adminSupabase.from('cart_items') as any).select('user_id');
-    const abandonedCartCount = new Set(abandonedData?.map((item: any) => item.user_id)).size;
 
     // 7. Fetch active campaigns
     const { count: activeCampaigns } = await ((adminSupabase.from('marketing_campaigns' as any) as any)
@@ -178,70 +156,49 @@ export default async function AdminAnalyticsPage() {
         .select('variant_id, reserved_quantity_delta')
         .limit(10)) as any;
 
-    // Calculate Metrics
-    const totalRevenue = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
-    const totalOrders = orders?.length || 0;
+    // Aggregate all-history metrics and charts in one database-side RPC.
+    const totalRevenue = Number(orderMetrics.revenue || 0);
+    const totalOrders = Number(orderMetrics.order_count || 0);
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-    // Growth Calculations
-    const currentRev = currentWeekOrders?.reduce((s, o) => s + (o.total || 0), 0) || 0;
-    const prevRev = previousWeekOrders?.reduce((s, o) => s + (o.total || 0), 0) || 0;
+    const currentRev = Number(orderMetrics.current_revenue || 0);
+    const prevRev = Number(orderMetrics.previous_revenue || 0);
     const revGrowth = prevRev === 0 ? 100 : ((currentRev - prevRev) / prevRev) * 100;
 
-    const currentVol = currentWeekOrders?.length || 0;
-    const prevVol = previousWeekOrders?.length || 0;
+    const currentVol = Number(orderMetrics.current_volume || 0);
+    const prevVol = Number(orderMetrics.previous_volume || 0);
     const volGrowth = prevVol === 0 ? 100 : ((currentVol - prevVol) / prevVol) * 100;
 
-    // Status Breakdown (Map 'processing' to 'pending' because DB uses 'processing')
     const statusCounts = {
-        pending: allOrders?.filter(o => o.status === 'pending' || o.status === 'processing').length || 0,
-        shipped: allOrders?.filter(o => o.status === 'shipped').length || 0,
-        delivered: allOrders?.filter(o => o.status === 'delivered').length || 0,
-        cancelled: allOrders?.filter(o => o.status === 'cancelled').length || 0,
-        refunded: allOrders?.filter(o => o.status === 'refunded').length || 0,
+        pending: Number(orderMetrics.pending_count || 0),
+        shipped: Number(orderMetrics.shipped_count || 0),
+        delivered: Number(orderMetrics.delivered_count || 0),
+        cancelled: Number(orderMetrics.cancelled_count || 0),
+        refunded: Number(orderMetrics.refunded_count || 0),
     };
 
-    // Group Top Products
-    const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
-    orderItems?.forEach((item: any) => {
-        const name = (item.product as any)?.name || 'Unknown Product';
-        if (!productSales[name]) {
-            productSales[name] = { name, quantity: 0, revenue: 0 };
-        }
-        productSales[name].quantity += item.quantity;
-        productSales[name].revenue += item.quantity * item.price;
-    });
+    const topProducts = ((analyticsCore.top_products || []) as any[]).map((product: any) => ({
+        ...product,
+        quantity: Number(product.quantity || 0),
+        revenue: Number(product.revenue || 0),
+    }));
 
-    const topProducts = Object.values(productSales)
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
-
-    // Historical Revenue (Last 30 Days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // SQL returns only daily totals; keep the same 30-day display labels.
+    const dailySales = analyticsCore.daily_sales || {};
     const chartData: { name: string; total: number }[] = [];
 
     for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        chartData.push({ name: dateStr, total: 0 });
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        chartData.push({ name: dateStr, total: Number(dailySales[dateKey] || 0) });
     }
 
-    orders?.filter(o => new Date(o.created_at) >= thirtyDaysAgo).forEach(order => {
-        const dateStr = new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const dayEntry = chartData.find(d => d.name === dateStr);
-        if (dayEntry) dayEntry.total += order.total;
-    });
-
-    // Category Distribution
-    const { data: categoryItems } = await adminSupabase.from('order_items').select('quantity, price, product:products(categories(name))') as { data: any[] | null };
-    const categorySales: Record<string, number> = {};
-    categoryItems?.forEach((item: any) => {
-        const catName = item.product?.categories?.name || 'Uncategorized';
-        categorySales[catName] = (categorySales[catName] || 0) + (item.quantity * item.price);
-    });
-    const pieChartData = Object.entries(categorySales).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    const pieChartData = (analyticsCore.category_sales || []).map((item: any) => ({
+        name: item.name,
+        value: Number(item.value || 0),
+    })).sort((a: any, b: any) => b.value - a.value);
 
     const totalPayments = payments7d?.length || 0;
     const successfulPayments = payments7d?.filter((payment: any) => payment.status === 'success').length || 0;

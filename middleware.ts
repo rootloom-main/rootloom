@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { hasSupabaseAuthCookie } from '@/lib/utils/supabase-auth-cookie';
 
 function getContentSecurityPolicy(request: NextRequest) {
   const isDev = process.env.NODE_ENV === 'development';
@@ -109,6 +110,17 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    return withRouteCacheHeaders(withSecurityHeaders(response, contentSecurityPolicy), path);
+  }
+
+  // Without a Supabase session cookie there is no user session to validate.
+  if (!hasSupabaseAuthCookie(request.cookies.getAll())) {
+    const isProtectedRoute = path.startsWith('/admin') || path.startsWith('/account') || path === '/checkout';
+    if (isProtectedRoute) {
+      const redirectUrl = new URL('/auth/login', request.url);
+      redirectUrl.searchParams.set('next', path + request.nextUrl.search);
+      return withRouteCacheHeaders(withSecurityHeaders(NextResponse.redirect(redirectUrl), contentSecurityPolicy), path);
+    }
     return withRouteCacheHeaders(withSecurityHeaders(response, contentSecurityPolicy), path);
   }
 

@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { startVisiblePolling } from '@/lib/utils/visible-polling';
 
 interface Notification {
     id: string;
@@ -42,10 +43,7 @@ export function NotificationPanel() {
     };
 
     useEffect(() => {
-        fetchNotifications();
-        // Poll every 2 minutes
-        const interval = setInterval(fetchNotifications, 2 * 60 * 1000);
-        return () => clearInterval(interval);
+        return startVisiblePolling(document, () => void fetchNotifications(), 2 * 60 * 1000);
     }, []);
 
     const getIcon = (type: string) => {
