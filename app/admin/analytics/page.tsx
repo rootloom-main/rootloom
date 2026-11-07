@@ -69,16 +69,125 @@ export default async function AdminAnalyticsPage() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: coreData, error: coreError } = await (adminSupabase as any).rpc('get_admin_analytics_core', {
-        p_week_start: sevenDaysAgo.toISOString(),
-        p_previous_week_start: fourteenDaysAgo.toISOString(),
-        p_thirty_days_start: thirtyDaysAgo.toISOString(),
-    });
-    if (coreError) throw coreError;
-    const analyticsCore = coreData || {};
-    const orderMetrics = analyticsCore.orders || {};
-    const totalCustomers = Number(analyticsCore.total_customers || 0);
-    const abandonedCartCount = Number(analyticsCore.abandoned_cart_count || 0);
+    // 1. Fetch core analytics with resilient fallback (never throws unhandled PostgREST errors)
+    let analyticsCore: any = null;
+    try {
+        const { data: coreData, error: coreError } = await (adminSupabase as any).rpc('get_admin_analytics_core', {
+            p_week_start: sevenDaysAgo.toISOString(),
+            p_previous_week_start: fourteenDaysAgo.toISOString(),
+            p_thirty_days_start: thirtyDaysAgo.toISOString(),
+        });
+        if (!coreError && coreData) {
+            analyticsCore = coreData;
+        }
+    } catch {
+        // Fall back to direct resilient queries
+    }
+
+    if (!analyticsCore) {
+        try {
+            const [
+                { data: allOrders },
+                { data: orderItems },
+                { count: totalCustCount },
+                { data: cartItems },
+                { data: categoryOrderItems }
+            ] = await Promise.all([
+                adminSupabase.from('orders').select('id, total, status, created_at'),
+                adminSupabase.from('order_items').select('quantity, price, product:products(name)'),
+                adminSupabase.from('profiles').select('*', { count: 'exact', head: true }),
+                adminSupabase.from('cart_items').select('user_id'),
+                adminSupabase.from('order_items').select('quantity, price, product:products(categories(name))')
+            ]);
+
+            const validOrders = (allOrders || []).filter((o: any) => o.status !== 'cancelled');
+            const totalRevenue = validOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+            const totalOrders = validOrders.length;
+
+            const currentWeekOrders = validOrders.filter((o: any) => new Date(o.created_at) >= sevenDaysAgo);
+            const previousWeekOrders = validOrders.filter((o: any) => {
+                const d = new Date(o.created_at);
+                return d >= fourteenDaysAgo && d < sevenDaysAgo;
+            });
+
+            const currentRevenue = currentWeekOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+            const previousRevenue = previousWeekOrders.reduce((sum: number, o: any) => sum + (Number(o.total) || 0), 0);
+            const currentVolume = currentWeekOrders.length;
+            const previousVolume = previousWeekOrders.length;
+
+            const statusCountsMap = {
+                pending_count: (allOrders || []).filter((o: any) => o.status === 'pending' || o.status === 'processing').length,
+                shipped_count: (allOrders || []).filter((o: any) => o.status === 'shipped').length,
+                delivered_count: (allOrders || []).filter((o: any) => o.status === 'delivered').length,
+                cancelled_count: (allOrders || []).filter((o: any) => o.status === 'cancelled').length,
+                refunded_count: (allOrders || []).filter((o: any) => o.status === 'refunded').length,
+            };
+
+            const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+            (orderItems || []).forEach((item: any) => {
+                const name = item.product?.name || 'Unknown Product';
+                if (!productSales[name]) {
+                    productSales[name] = { name, quantity: 0, revenue: 0 };
+                }
+                productSales[name].quantity += Number(item.quantity) || 0;
+                productSales[name].revenue += (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            });
+            const topProductsList = Object.values(productSales)
+                .sort((a, b) => b.revenue - a.revenue)
+                .slice(0, 5);
+
+            const categorySalesMap: Record<string, number> = {};
+            (categoryOrderItems || []).forEach((item: any) => {
+                const catName = item.product?.categories?.name || 'Uncategorized';
+                categorySalesMap[catName] = (categorySalesMap[catName] || 0) + ((Number(item.quantity) || 0) * (Number(item.price) || 0));
+            });
+            const categorySalesList = Object.entries(categorySalesMap)
+                .map(([name, value]) => ({ name, value }))
+                .sort((a, b) => b.value - a.value);
+
+            const dailySalesMap: Record<string, number> = {};
+            (allOrders || [])
+                .filter((o: any) => o.status !== 'cancelled' && new Date(o.created_at) >= thirtyDaysAgo)
+                .forEach((order: any) => {
+                    const d = new Date(order.created_at);
+                    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    dailySalesMap[dateKey] = (dailySalesMap[dateKey] || 0) + (Number(order.total) || 0);
+                });
+
+            const uniqueAbandonedUsers = new Set((cartItems || []).map((item: any) => item.user_id)).size;
+
+            analyticsCore = {
+                orders: {
+                    revenue: totalRevenue,
+                    order_count: totalOrders,
+                    current_revenue: currentRevenue,
+                    previous_revenue: previousRevenue,
+                    current_volume: currentVolume,
+                    previous_volume: previousVolume,
+                    ...statusCountsMap
+                },
+                total_customers: totalCustCount || 0,
+                abandoned_cart_count: uniqueAbandonedUsers,
+                top_products: topProductsList,
+                daily_sales: dailySalesMap,
+                category_sales: categorySalesList
+            };
+        } catch (err) {
+            console.error('Error fetching fallback analytics:', err);
+            analyticsCore = {
+                orders: {},
+                total_customers: 0,
+                abandoned_cart_count: 0,
+                top_products: [],
+                daily_sales: {},
+                category_sales: []
+            };
+        }
+    }
+
+    const orderMetrics = analyticsCore?.orders || {};
+    const totalCustomers = Number(analyticsCore?.total_customers || 0);
+    const abandonedCartCount = Number(analyticsCore?.abandoned_cart_count || 0);
 
     // Recent order and inventory lists remain bounded, display-specific queries.
     const { data: recentOrders } = await adminSupabase
@@ -163,11 +272,11 @@ export default async function AdminAnalyticsPage() {
 
     const currentRev = Number(orderMetrics.current_revenue || 0);
     const prevRev = Number(orderMetrics.previous_revenue || 0);
-    const revGrowth = prevRev === 0 ? 100 : ((currentRev - prevRev) / prevRev) * 100;
+    const revGrowth = prevRev === 0 ? (currentRev > 0 ? 100 : 0) : ((currentRev - prevRev) / prevRev) * 100;
 
     const currentVol = Number(orderMetrics.current_volume || 0);
     const prevVol = Number(orderMetrics.previous_volume || 0);
-    const volGrowth = prevVol === 0 ? 100 : ((currentVol - prevVol) / prevVol) * 100;
+    const volGrowth = prevVol === 0 ? (currentVol > 0 ? 100 : 0) : ((currentVol - prevVol) / prevVol) * 100;
 
     const statusCounts = {
         pending: Number(orderMetrics.pending_count || 0),
@@ -471,7 +580,7 @@ export default async function AdminAnalyticsPage() {
                                                 <span className="text-[10px] text-stone-400 font-medium">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <div className="flex justify-between items-end">
-                                                <p className="text-[10px] text-stone-500 uppercase tracking-widest">Order #{order.id.slice(0, 8)}</p>
+                                                <p className="text-[10px] text-stone-500 uppercase tracking-widest">Order #{order.id?.slice(0, 8) || 'N/A'}</p>
                                                 <span className="text-xs font-bold text-emerald-600">{formatPrice(order.total)}</span>
                                             </div>
                                         </div>
@@ -513,7 +622,7 @@ export default async function AdminAnalyticsPage() {
                                 {recentOrders?.map((order) => (
                                     <TableRow key={order.id} className="border-stone-50 hover:bg-stone-50/30 transition-colors group">
                                         <TableCell className="py-5 px-6 font-mono text-xs text-stone-500 font-medium group-hover:text-deep-forest transition-colors">
-                                            #{order.id.slice(0, 8).toUpperCase()}
+                                            #{order.id?.slice(0, 8).toUpperCase() || 'N/A'}
                                         </TableCell>
                                         <TableCell className="py-5 font-bold text-deep-forest text-sm">
                                             {order.profiles?.full_name || 'Anonymous Heirloom'}
